@@ -507,9 +507,20 @@ function setError(msg) {
 }
 
 async function apiFetch(path) {
-  // Netlify Functions proxy - ingen CORS-problem
   const r = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`);
   if (!r.ok) throw new Error(`API-fel: HTTP ${r.status}`);
+  return r.json();
+}
+
+async function statsFetch(team) {
+  const r = await fetch(`/api/proxy?action=stats&team=${team}`);
+  if (!r.ok) throw new Error(`Stats API-fel: HTTP ${r.status}`);
+  return r.json();
+}
+
+async function gamesFetch(team) {
+  const r = await fetch(`/api/proxy?action=games&team=${team}`);
+  if (!r.ok) throw new Error(`Games API-fel: HTTP ${r.status}`);
   return r.json();
 }
 
@@ -521,68 +532,45 @@ async function loadData() {
   document.getElementById('app').style.display = 'none';
 
   try {
-    const from = document.getElementById('dateFrom').value;
-    const to   = document.getElementById('dateTo').value;
-
     setStatus('Hämtar klubbinformation...', true);
     const details = await apiFetch('/details');
     state.club = details.club;
 
-    const allTeams       = details.club?.teams || [];
-    const allEngagements = details.club?.teamEngagements || [];
-
     for (const key of ['p16','p17']) {
-      state[key].teams       = allTeams.filter(t => (t.name||'').toLowerCase().includes(key));
-      state[key].engagements = allEngagements.filter(e => (e.teamName||'').toLowerCase().includes(key));
-    }
+      setStatus(`Hämtar ${key.toUpperCase()} spelarstatistik från MinFotboll...`);
+      const statsData = await statsFetch(key);
+      state[key].players = (statsData.players || []).map(p => ({
+        id: p.name,
+        name: p.name,
+        thumbnail: p.thumbnail,
+        position: '',
+        games: p.games || 0,
+        startingGames: p.games || 0,
+        goals: p.goals || 0,
+        assists: p.assists || 0,
+        bookings: p.yellowCards || 0,
+        redCards: p.redCards || 0,
+        substitutionsIn: 0,
+        minutesPlayed: (p.games || 0) * 70,
+        inSquad: true,
+        competition: '',
+      }));
+      state[key].gamesPlayed = statsData.gamesPlayed || 0;
 
-    setStatus('Hämtar matcher...');
-    const gamesData = await apiFetch(`/upcoming-games?from=${from}&to=${to}&w=3&take=1000`);
-    const games = gamesData.games || [];
-
-    for (const key of ['p16','p17']) {
-      state[key].matches = games.filter(g =>
-        (g.homeTeamName||'').toLowerCase().includes(key) ||
-        (g.awayTeamName||'').toLowerCase().includes(key)
-      );
-    }
-
-    for (const key of ['p16','p17']) {
-      state[key].players = [];
-      const teamIds = [
-        ...state[key].teams.map(t=>t.teamId),
-        ...state[key].engagements.map(e=>e.teamId),
-      ].filter(Boolean);
-
-      const seen = new Set();
-      for (const teamId of teamIds) {
-        if (seen.has(teamId)) continue;
-        seen.add(teamId);
-        try {
-          setStatus(`Hämtar ${key.toUpperCase()} statistik (lag ${teamId})...`);
-          const data = await apiFetch(`/team-standings/${teamId}`);
-          const engs = data.team?.teamEngagementsWithStandings || [];
-          for (const eng of engs) {
-            for (const p of (eng.standingsExtended?.playerStats || [])) {
-              state[key].players.push({
-                id: p.playerId || p.playerGuid,
-                name: `${p.givenname||''} ${p.surname||''}`.trim() || '—',
-                position: '',
-                games: p.games || 0,
-                startingGames: p.startingGames || 0,
-                goals: p.goals || 0,
-                assists: p.assists || 0,
-                bookings: p.bookings || 0,
-                redCards: (p.redCards||0) + (p.redCardsFromBookings||0),
-                substitutionsIn: p.substitutionsIn || 0,
-                minutesPlayed: (p.startingGames||0)*90 + (p.substitutionsIn||0)*45,
-                inSquad: true,
-                competition: p.competitionName || '',
-              });
-            }
-          }
-        } catch(e) {}
-      }
+      setStatus(`Hämtar ${key.toUpperCase()} matcher...`);
+      const gamesData = await gamesFetch(key);
+      state[key].matches = (gamesData || []).map(g => ({
+        gameId: g.GameID,
+        homeTeamName: g.HomeTeamDisplayName,
+        awayTeamName: g.AwayTeamDisplayName,
+        homeTeamGoals: parseInt(g.HomeTeamScore) || 0,
+        awayTeamGoals: parseInt(g.AwayTeamScore) || 0,
+        gameTime: g.GameTime,
+        arena: g.ArenaName,
+        status: g.GameStatusID,
+        homeLogoUrl: g.HomeTeamClubLogoURL,
+        awayLogoUrl: g.AwayTeamClubLogoURL,
+      }));
     }
 
     document.getElementById('app').style.display = 'block';
