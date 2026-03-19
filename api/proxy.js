@@ -110,7 +110,7 @@ async function getPlayerStats(teamId, leagueId, token) {
           if (b.TypeID === 1 && b.IsGoal) {
             playerStats[playerName].goals++;
             if (b.Description && b.Description.includes('Assist av:')) {
-              const assistName = b.Description.replace('Assist av:', '').replace(/^\d+\.\s*/, '').trim();
+              const assistName = b.Description.replace('Assist av:', '').trim().replace(/^\d+\.\s*/, '').trim();
               if (!playerStats[assistName]) {
                 playerStats[assistName] = { name: assistName, thumbnail: null, games: 0, goals: 0, assists: 0, yellowCards: 0, redCards: 0 };
               }
