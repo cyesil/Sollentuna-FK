@@ -507,7 +507,7 @@ function setError(msg) {
 }
 
 async function apiFetch(path) {
-  // Vercel API proxy - ingen CORS-problem
+  // Netlify Functions proxy - ingen CORS-problem
   const r = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`);
   if (!r.ok) throw new Error(`API-fel: HTTP ${r.status}`);
   return r.json();
