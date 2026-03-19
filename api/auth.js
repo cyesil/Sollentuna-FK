@@ -82,13 +82,17 @@ module.exports = async (req, res) => {
     if (!username || !password) return res.status(400).json({ error: 'Eksik bilgi' });
 
     const hash = hashPassword(password);
-    const users = await supabaseRequest('GET', `/users?username=eq.${encodeURIComponent(username)}&password_hash=eq.${hash}&select=*`);
-
+    const users = await supabaseRequest('GET', `/users?username=eq.${encodeURIComponent(username)}&select=*`);
+    
     if (!Array.isArray(users) || users.length === 0) {
       return res.status(401).json({ error: 'Kullanıcı adı veya şifre hatalı' });
     }
-
+    
     const user = users[0];
+    if (user.password_hash !== hash) {
+      return res.status(401).json({ error: 'Kullanıcı adı veya şifre hatalı' });
+    }
+
     const token = createToken(user);
     return res.status(200).json({ token, user: { id: user.id, username: user.username, role: user.role, full_name: user.full_name, player_id: user.player_id } });
   }
