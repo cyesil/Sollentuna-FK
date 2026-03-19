@@ -1,14 +1,14 @@
 const https = require('https');
- 
+
 const FOGIS_API_KEY = '22a66c836d2f49a3bb4820131eb5d1a4';
 const MINFOTBOLL_API = 'minfotboll-api.azurewebsites.net';
 const FOGIS_API = 'forening-api.svenskfotboll.se';
- 
+
 const P16_TEAM_ID = 457347;
 const P17_TEAM_ID = 74782;
 const P16_LEAGUE_ID = 59554;
 const P17_LEAGUE_ID = 70384;
- 
+
 function httpGet(host, path, headers = {}) {
   return new Promise((resolve, reject) => {
     const req = https.request({ host, path, method: 'GET', headers }, (res) => {
@@ -23,7 +23,7 @@ function httpGet(host, path, headers = {}) {
     req.end();
   });
 }
- 
+
 function httpPost(host, path, body, headers = {}) {
   return new Promise((resolve, reject) => {
     const bodyStr = JSON.stringify(body);
@@ -43,7 +43,7 @@ function httpPost(host, path, body, headers = {}) {
     req.end();
   });
 }
- 
+
 async function getAccessToken() {
   const refreshToken = process.env.MINFOTBOLL_REFRESH_TOKEN;
   const accessToken = process.env.MINFOTBOLL_ACCESS_TOKEN;
@@ -54,32 +54,32 @@ async function getAccessToken() {
   if (!result.AccessToken) throw new Error('Token yenileme basarisiz: ' + JSON.stringify(result));
   return result.AccessToken;
 }
- 
+
 async function minfotbollGet(path, token) {
   return httpGet(MINFOTBOLL_API, path, {
     'Authorization': `Bearer ${token}`,
     'Accept': 'application/json'
   });
 }
- 
+
 async function fogisGet(path) {
   return httpGet(FOGIS_API, `/club${path}`, {
     'ApiKey': FOGIS_API_KEY,
     'Accept': 'application/json'
   });
 }
- 
+
 async function getPlayerStats(teamId, leagueId, token) {
   const games = await minfotbollGet(`/api/leagueapi/getleaguegames?leagueId=${leagueId}`, token);
   if (!Array.isArray(games)) return { players: [], gamesPlayed: 0 };
- 
+
   const teamGames = games.filter(g =>
     (g.HomeTeamID === teamId || g.AwayTeamID === teamId) &&
     g.GameStatusID === 3
   );
- 
+
   const playerStats = {};
- 
+
   await Promise.all(teamGames.map(async (game) => {
     try {
       const isHome = game.HomeTeamID === teamId;
@@ -87,7 +87,7 @@ async function getPlayerStats(teamId, leagueId, token) {
         minfotbollGet(`/api/magazinegameviewapi/initgameoverview?GameID=${game.GameID}`, token),
         minfotbollGet(`/api/magazinegameviewapi/initgamelineups?GameID=${game.GameID}`, token)
       ]);
- 
+
       const lineupTeam = isHome ? lineups.HomeTeamLineUp : lineups.AwayTeamLineUp;
       if (lineupTeam && lineupTeam.GameLineUpPlayers) {
         lineupTeam.GameLineUpPlayers.forEach(p => {
@@ -97,7 +97,7 @@ async function getPlayerStats(teamId, leagueId, token) {
           playerStats[p.FullName].games++;
         });
       }
- 
+
       if (overview && overview.Blurbs) {
         overview.Blurbs.forEach(b => {
           const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
@@ -110,7 +110,7 @@ async function getPlayerStats(teamId, leagueId, token) {
           if (b.TypeID === 1 && b.IsGoal) {
             playerStats[playerName].goals++;
             if (b.Description && b.Description.includes('Assist av:')) {
-              const assistName = b.Description.replace('Assist av:', '').trim().replace(/^\d+\.\s*/, '').trim();
+              const assistName = b.Description.replace('Assist av:', '').replace(/^\d+\.\s*/, '').trim();
               if (!playerStats[assistName]) {
                 playerStats[assistName] = { name: assistName, thumbnail: null, games: 0, goals: 0, assists: 0, yellowCards: 0, redCards: 0 };
               }
@@ -125,26 +125,35 @@ async function getPlayerStats(teamId, leagueId, token) {
       }
     } catch (e) {}
   }));
- 
+
+  const skipWords = ['half start', 'half end', 'whistle', 'period', 'start', 'slut', 'halvlek', 'first half', 'second half'];
+  const cleanPlayers = Object.values(playerStats).filter(p => {
+    if (p.games === 0) return false;
+    const nameLower = p.name.toLowerCase();
+    if (skipWords.some(w => nameLower.includes(w))) return false;
+    if (p.name.trim() === '—' || p.name.trim() === '' || p.name.trim() === '-') return false;
+    return true;
+  });
+
   return {
-    players: Object.values(playerStats).sort((a, b) => b.goals - a.goals),
+    players: cleanPlayers.sort((a, b) => b.goals - a.goals),
     gamesPlayed: teamGames.length
   };
 }
- 
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
- 
+
   const action = req.query.action || 'fogis';
   const path = req.query.path || '/details';
- 
+
   try {
     if (action === 'fogis') {
       const data = await fogisGet(path);
       return res.status(200).json(data);
     }
- 
+
     if (action === 'stats') {
       const team = req.query.team || 'p16';
       const token = await getAccessToken();
@@ -153,7 +162,7 @@ module.exports = async (req, res) => {
       const stats = await getPlayerStats(teamId, leagueId, token);
       return res.status(200).json(stats);
     }
- 
+
     if (action === 'games') {
       const team = req.query.team || 'p16';
       const token = await getAccessToken();
@@ -165,10 +174,9 @@ module.exports = async (req, res) => {
         : [];
       return res.status(200).json(teamGames);
     }
- 
+
     res.status(400).json({ error: 'Gecersiz action' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
- 
