@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sfk2026gizliAnahtar!';
 
 function supabaseRequest(method, path, body) {
   return new Promise((resolve, reject) => {
-    const bodyStr = body ? JSON.stringify(body) : '';
+    const bodyStr = (body && method !== 'GET') ? JSON.stringify(body) : '';
     const url = new URL(SUPABASE_URL);
     const headers = {
       'apikey': SUPABASE_KEY,
@@ -129,6 +129,17 @@ module.exports = async (req, res) => {
 
     const users = await supabaseRequest('GET', '/users?select=id,username,role,full_name,player_id,created_at');
     return res.status(200).json(users);
+  }
+
+  // Debug - Supabase bağlantı testi
+  if (action === 'debug') {
+    try {
+      const url = new URL(SUPABASE_URL);
+      const result = await supabaseRequest('GET', '/users?select=username,role&limit=5');
+      return res.status(200).json({ ok: true, url: url.host, result });
+    } catch(e) {
+      return res.status(200).json({ ok: false, error: e.message });
+    }
   }
 
   res.status(400).json({ error: 'Geçersiz istek' });
