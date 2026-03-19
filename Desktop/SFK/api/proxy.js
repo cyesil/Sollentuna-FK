@@ -5,14 +5,12 @@ module.exports = (req, res) => {
   const url = `https://forening-api.svenskfotboll.se/club${path}`;
   const API_KEY = '22a66c836d2f49a3bb4820131eb5d1a4';
 
-  const options = {
+  https.get(url, {
     headers: {
       'ApiKey': API_KEY,
       'Accept': 'application/json',
     }
-  };
-
-  https.get(url, options, (apiRes) => {
+  }, (apiRes) => {
     let data = '';
     apiRes.on('data', chunk => data += chunk);
     apiRes.on('end', () => {
