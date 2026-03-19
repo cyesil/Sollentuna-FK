@@ -1,7 +1,8 @@
 {
   "functions": {
-    "api/proxy.js": {
-      "maxDuration": 30
-    }
+    "api/proxy.js": { "maxDuration": 30 },
+    "api/auth.js": { "maxDuration": 10 },
+    "api/admin.js": { "maxDuration": 60 },
+    "api/stats.js": { "maxDuration": 10 }
   }
 }
