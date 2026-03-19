@@ -74,6 +74,18 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // Body parse
+  if (req.method === 'POST' && !req.body) {
+    await new Promise((resolve) => {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try { req.body = JSON.parse(body); } catch(e) { req.body = {}; }
+        resolve();
+      });
+    });
+  }
+
   const action = req.query.action;
 
   // Login
