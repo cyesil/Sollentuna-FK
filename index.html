@@ -381,6 +381,15 @@
       <input type="date" id="dateTo">
     </div>
     <div class="field-group">
+      <label>Matchtyp</label>
+      <select id="gameType" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.8rem;border-radius:6px;font-family:'Barlow',sans-serif;font-size:0.85rem;outline:none;">
+        <option value="hepsi">Alla matcher</option>
+        <option value="lig">Seriematcher</option>
+        <option value="kupa">Cupmatcher</option>
+        <option value="hazirlik">Träningsmatcher</option>
+      </select>
+    </div>
+    <div class="field-group">
       <label>&nbsp;</label>
       <button class="btn btn-primary" id="fetchBtn" onclick="loadData()">⚡ Hämta data</button>
     </div>
@@ -512,18 +521,6 @@ async function apiFetch(path) {
   return r.json();
 }
 
-async function statsFetch(team) {
-  const r = await fetch(`/api/proxy?action=stats&team=${team}`);
-  if (!r.ok) throw new Error(`Stats API-fel: HTTP ${r.status}`);
-  return r.json();
-}
-
-async function gamesFetch(team) {
-  const r = await fetch(`/api/proxy?action=games&team=${team}`);
-  if (!r.ok) throw new Error(`Games API-fel: HTTP ${r.status}`);
-  return r.json();
-}
-
 async function loadData() {
   const btn = document.getElementById('fetchBtn');
   btn.disabled = true;
@@ -532,16 +529,23 @@ async function loadData() {
   document.getElementById('app').style.display = 'none';
 
   try {
-    setStatus('Hämtar klubbinformation...', true);
-    const details = await apiFetch('/details');
-    state.club = details.club;
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    const gameType = document.getElementById('gameType').value;
 
+    setStatus('Hämtar spelarstatistik från MinFotboll...', true);
+    const params = new URLSearchParams({ action: 'stats', type: gameType });
+    if (dateFrom) params.append('from', dateFrom);
+    if (dateTo) params.append('to', dateTo);
+
+    const statsData = await fetch('/api/proxy?' + params.toString()).then(r => r.json());
+
+    // P16 ve P17 aynı 22 oyuncu — tek liste
     for (const key of ['p16','p17']) {
-      setStatus(`Hämtar ${key.toUpperCase()} spelarstatistik från MinFotboll...`);
-      const statsData = await statsFetch(key);
       state[key].players = (statsData.players || []).map(p => ({
-        id: p.name,
+        id: p.playerId,
         name: p.name,
+        shirt: p.shirt,
         thumbnail: p.thumbnail,
         position: '',
         games: p.games || 0,
@@ -550,27 +554,14 @@ async function loadData() {
         assists: p.assists || 0,
         bookings: p.yellowCards || 0,
         redCards: p.redCards || 0,
-        substitutionsIn: 0,
+        ligGames: p.ligGames || 0,
+        kupaGames: p.kupaGames || 0,
+        hazirlikGames: p.hazirlikGames || 0,
         minutesPlayed: (p.games || 0) * 70,
-        inSquad: true,
-        competition: '',
+        inSquad: p.games > 0,
       }));
-      state[key].gamesPlayed = statsData.gamesPlayed || 0;
-
-      setStatus(`Hämtar ${key.toUpperCase()} matcher...`);
-      const gamesData = await gamesFetch(key);
-      state[key].matches = (gamesData || []).map(g => ({
-        gameId: g.GameID,
-        homeTeamName: g.HomeTeamDisplayName,
-        awayTeamName: g.AwayTeamDisplayName,
-        homeTeamGoals: parseInt(g.HomeTeamScore) || 0,
-        awayTeamGoals: parseInt(g.AwayTeamScore) || 0,
-        gameTime: g.GameTime,
-        arena: g.ArenaName,
-        status: g.GameStatusID,
-        homeLogoUrl: g.HomeTeamClubLogoURL,
-        awayLogoUrl: g.AwayTeamClubLogoURL,
-      }));
+      state[key].gamesPlayed = statsData.totalGames || 0;
+      state[key].matches = [];
     }
 
     document.getElementById('app').style.display = 'block';
