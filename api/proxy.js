@@ -8,7 +8,7 @@ const FOGIS_API = 'forening-api.svenskfotboll.se';
 const SFK_PLAYER_IDS = new Set([
   583483, 562656, 659792, 571649, 572299, 597435, 700142, 595639,
   571652, 558820, 571659, 589844, 572290, 572006, 595633, 606521,
-  700147, 576573, 571068, 65947, 595628, 573259
+  700147, 576573, 571068, 595628, 573259
 ]);
 
 const SFK_PLAYERS = {
@@ -31,7 +31,6 @@ const SFK_PLAYERS = {
   700147: { name: 'Charlie Nordenson', shirt: 20 },
   576573: { name: 'Albin Nordin', shirt: 21 },
   571068: { name: 'Viggo Sejnäs', shirt: 31 },
-  65947:  { name: 'Leonel Mikhail', shirt: 35 },
   595628: { name: 'Valter Ekehov', shirt: 66 },
   573259: { name: 'Love Nytén', shirt: 77 },
 };
