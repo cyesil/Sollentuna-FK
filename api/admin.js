@@ -391,10 +391,22 @@ module.exports = async (req, res) => {
       allowedEventIds = reporterEvents[effectiveReporterId];
     }
 
-    // Olaylar için duplicate temizle - SFK rapportörü önce işle
-    const seenEvents = new Set();
+    // Olaylar: SFK rapportörü varsa onun olaylarını al
+    // SFK rapportörünün olmadığı tip+oyuncu kombinasyonları için diğer rapportörden tamamla
+    const seenEvents = new Set(); // işlenen olaylar (tip+oyuncu key)
     const sfkRepEventIds = sfkReporters.length > 0 && reporterEvents[sfkReporters[0]?.memberId]
       ? reporterEvents[sfkReporters[0].memberId] : null;
+
+    // SFK rapportörünün hangi tip+oyuncu kombinasyonlarını kapsadığını bul
+    const sfkCoveredKeys = new Set();
+    if (sfkRepEventIds && overview?.Blurbs) {
+      overview.Blurbs.forEach(b => {
+        if (sfkRepEventIds.has(b.ItemID)) {
+          const key = `${b.TypeID}|${b.Title}`;
+          sfkCoveredKeys.add(key);
+        }
+      });
+    }
 
     if (overview && overview.Blurbs) {
       // SFK rapportörünün olayları önce, diğerleri sonra
@@ -404,8 +416,10 @@ module.exports = async (req, res) => {
         return aIsSfk - bIsSfk;
       });
       sortedBlurbs.forEach(b => {
-        // Rapportör seçiliyse sadece onun girdiği olayları al
         if (allowedEventIds && b.ItemID && !allowedEventIds.has(b.ItemID)) return;
+        // SFK rapportörü bu tip+oyuncuyu kapsamışsa, başkasından geleni reddet
+        const coverKey = `${b.TypeID}|${b.Title}`;
+        if (sfkRepEventIds && sfkCoveredKeys.has(coverKey) && !sfkRepEventIds.has(b.ItemID)) return;
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
         if (!isOurTeam) return;
         // Duplicate kontrolü - her zaman uygula
