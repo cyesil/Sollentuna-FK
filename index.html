@@ -1037,15 +1037,145 @@ async function loadUsers() {
     if (!Array.isArray(users)) { document.getElementById('usersList').innerHTML = '<div class="empty-state">Fel</div>'; return; }
     const roleLabel = {admin:'Admin', antrenor:'Tränare', oyuncu:'Spelare'};
     document.getElementById('usersList').innerHTML = `<div class="table-wrap"><table>
-      <thead><tr><th>Användarnamn</th><th>Namn</th><th>Roll</th><th>Spelare ID</th></tr></thead>
-      <tbody>${users.map(u => `<tr>
-        <td>${u.username}</td>
+      <thead><tr>
+        <th>Användarnamn</th><th>Namn</th><th>Roll</th><th>Spelare</th><th>Åtgärder</th>
+      </tr></thead>
+      <tbody>${users.map(u => `<tr id="urow_${u.id}">
+        <td><strong>${u.username}</strong></td>
         <td>${u.full_name || '—'}</td>
         <td><span class="role-badge role-${u.role}">${roleLabel[u.role]||u.role}</span></td>
         <td>${u.player_id ? SFK_PLAYERS[u.player_id]?.name || u.player_id : '—'}</td>
+        <td>
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+            <button onclick="showEditUser(${u.id},'${u.username}','${u.full_name||''}','${u.role}',${u.player_id||'null'})" 
+              style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.25rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">
+              ✏️ Redigera
+            </button>
+            <button onclick="showChangePassword(${u.id},'${u.username}')"
+              style="background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:0.25rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">
+              🔑 Lösenord
+            </button>
+            ${u.username !== '${state.user?.username}' ? `<button onclick="deleteUser(${u.id},'${u.username}')"
+              style="background:rgba(255,23,68,0.1);border:1px solid var(--red);color:var(--red);padding:0.25rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">
+              🗑️
+            </button>` : ''}
+          </div>
+        </td>
       </tr>`).join('')}</tbody>
-    </table></div>`;
-  } catch(e) {}
+    </table></div>
+    <div id="editUserPanel" style="display:none;margin-top:1rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1.2rem;">
+      <div style="font-weight:700;margin-bottom:0.75rem;font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;">Redigera användare</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.75rem;align-items:end;">
+        <div><label style="font-size:0.75rem;color:var(--muted);">Användarnamn</label>
+          <input type="text" id="editUsername" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.9rem;"></div>
+        <div><label style="font-size:0.75rem;color:var(--muted);">Namn</label>
+          <input type="text" id="editFullname" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.9rem;"></div>
+        <div><label style="font-size:0.75rem;color:var(--muted);">Roll</label>
+          <select id="editRole" onchange="toggleEditPlayerSelect()" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.9rem;">
+            <option value="antrenor">Tränare</option>
+            <option value="oyuncu">Spelare</option>
+            <option value="admin">Admin</option>
+          </select></div>
+        <div id="editPlayerWrap" style="display:none;"><label style="font-size:0.75rem;color:var(--muted);">Spelare</label>
+          <select id="editPlayerId" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.9rem;">
+            <option value="">Välj spelare</option>
+            ${Object.entries(SFK_PLAYERS).map(([id,p]) => `<option value="${id}">#${p.shirt} ${p.name}</option>`).join('')}
+          </select></div>
+        <div style="display:flex;gap:0.5rem;">
+          <button onclick="saveEditUser()" class="btn btn-success">💾 Spara</button>
+          <button onclick="document.getElementById('editUserPanel').style.display='none'" class="btn btn-secondary">✕</button>
+        </div>
+      </div>
+    </div>
+    <div id="changePassPanel" style="display:none;margin-top:1rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1.2rem;">
+      <div style="font-weight:700;margin-bottom:0.75rem;font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;">Byt lösenord — <span id="changePassName"></span></div>
+      <div style="display:flex;gap:0.75rem;align-items:end;">
+        <div><label style="font-size:0.75rem;color:var(--muted);">Nytt lösenord</label>
+          <input type="password" id="newPassInput" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.9rem;width:200px;"></div>
+        <button onclick="saveNewPassword()" class="btn btn-primary">💾 Spara</button>
+        <button onclick="document.getElementById('changePassPanel').style.display='none'" class="btn btn-secondary">✕</button>
+      </div>
+    </div>`;
+  } catch(e) { console.error(e); }
+}
+
+let _editUserId = null;
+let _changePassUserId = null;
+
+function showEditUser(id, username, fullname, role, playerId) {
+  _editUserId = id;
+  document.getElementById('editUsername').value = username;
+  document.getElementById('editFullname').value = fullname;
+  document.getElementById('editRole').value = role;
+  document.getElementById('editPlayerId').value = playerId || '';
+  toggleEditPlayerSelect();
+  document.getElementById('editUserPanel').style.display = 'block';
+  document.getElementById('changePassPanel').style.display = 'none';
+  document.getElementById('editUserPanel').scrollIntoView({behavior:'smooth'});
+}
+
+function toggleEditPlayerSelect() {
+  const role = document.getElementById('editRole').value;
+  document.getElementById('editPlayerWrap').style.display = role === 'oyuncu' ? 'block' : 'none';
+}
+
+async function saveEditUser() {
+  if (!_editUserId) return;
+  const username = document.getElementById('editUsername').value.trim();
+  const full_name = document.getElementById('editFullname').value.trim();
+  const role = document.getElementById('editRole').value;
+  const player_id = role === 'oyuncu' ? parseInt(document.getElementById('editPlayerId').value) || null : null;
+  if (!username) { alert('Användarnamn krävs'); return; }
+  try {
+    const r = await fetch('/api/auth?action=edituser', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({id: _editUserId, username, full_name, role, player_id})
+    });
+    const d = await r.json();
+    if (!r.ok) { alert(d.error); return; }
+    document.getElementById('editUserPanel').style.display = 'none';
+    _editUserId = null;
+    loadUsers();
+  } catch(e) { alert('Fel: ' + e.message); }
+}
+
+function showChangePassword(id, username) {
+  _changePassUserId = id;
+  document.getElementById('changePassName').textContent = username;
+  document.getElementById('newPassInput').value = '';
+  document.getElementById('changePassPanel').style.display = 'block';
+  document.getElementById('editUserPanel').style.display = 'none';
+  document.getElementById('changePassPanel').scrollIntoView({behavior:'smooth'});
+}
+
+async function saveNewPassword() {
+  if (!_changePassUserId) return;
+  const password = document.getElementById('newPassInput').value;
+  if (!password) { alert('Ange nytt lösenord'); return; }
+  try {
+    const r = await fetch('/api/auth?action=changepassword', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({id: _changePassUserId, password})
+    });
+    const d = await r.json();
+    if (!r.ok) { alert(d.error); return; }
+    document.getElementById('changePassPanel').style.display = 'none';
+    _changePassUserId = null;
+    alert('Lösenordet har ändrats!');
+  } catch(e) { alert('Fel: ' + e.message); }
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Ta bort användaren "${username}"?`)) return;
+  try {
+    const r = await fetch('/api/auth?action=deleteuser', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({id})
+    });
+    const d = await r.json();
+    if (!r.ok) { alert(d.error); return; }
+    loadUsers();
+  } catch(e) { alert('Fel: ' + e.message); }
 }
 
 // ===================== INIT =====================
