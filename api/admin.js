@@ -257,6 +257,22 @@ module.exports = async (req, res) => {
         }
       });
     }
+    // findPlayer - forma numarası veya isimle oyuncu bul
+    const findPlayer = (nameOrShirt) => {
+      const s = String(nameOrShirt).trim();
+      const shirtNum = parseInt(s.split(' ')[0]);
+      if (!isNaN(shirtNum) && SHIRT_TO_PLAYER_ID[shirtNum]) {
+        return SHIRT_TO_PLAYER_ID[shirtNum];
+      }
+      const nl = s.toLowerCase();
+      return parseInt(Object.keys(SFK_PLAYERS).find(id => {
+        const full = SFK_PLAYERS[id].name.toLowerCase();
+        const parts = full.split(' ');
+        const lastName = parts[parts.length - 1];
+        return full === nl || full.includes(nl) || nl.includes(full) || lastName === nl;
+      }));
+    };
+
     // Değişiklikleri işle - dakika hesabı için
     const substitutions = {}; // playerId -> [{inAt, outAt}]
     const gameDurationSec = 90 * 60; // default 90 dk
@@ -329,22 +345,6 @@ module.exports = async (req, res) => {
         const playerName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
         if (!playerName) return;
 
-        const findPlayer = (nameOrShirt) => {
-          const s = String(nameOrShirt).trim();
-          // Önce forma numarasıyla dene
-          const shirtNum = parseInt(s.split(' ')[0]);
-          if (!isNaN(shirtNum) && SHIRT_TO_PLAYER_ID[shirtNum]) {
-            return SHIRT_TO_PLAYER_ID[shirtNum];
-          }
-          // İsimle dene
-          const nl = s.toLowerCase();
-          return parseInt(Object.keys(SFK_PLAYERS).find(id => {
-            const full = SFK_PLAYERS[id].name.toLowerCase();
-            const parts = full.split(' ');
-            const lastName = parts[parts.length - 1];
-            return full === nl || full.includes(nl) || nl.includes(full) || lastName === nl;
-          }));
-        };
         const pid = findPlayer(playerName);
         
         if (b.TypeID === 1 && b.IsGoal) {
