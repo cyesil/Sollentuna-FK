@@ -183,7 +183,6 @@ module.exports = async (req, res) => {
           });
         });
       } catch(e) {}
-    }));
 
     allGames.sort((a,b) => new Date(b.gameDate) - new Date(a.gameDate));
     return res.status(200).json(allGames);
@@ -230,10 +229,16 @@ module.exports = async (req, res) => {
         const playerName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
         if (!playerName) return;
 
-        const pid = parseInt(Object.keys(SFK_PLAYERS).find(id => {
-          const n = SFK_PLAYERS[id].name.toLowerCase();
-          return n === playerName.toLowerCase() || n.includes(playerName.toLowerCase());
-        }));
+        const findPlayer = (name) => {
+          const nl = name.toLowerCase();
+          return parseInt(Object.keys(SFK_PLAYERS).find(id => {
+            const full = SFK_PLAYERS[id].name.toLowerCase();
+            const parts = full.split(' ');
+            const lastName = parts[parts.length - 1];
+            return full === nl || full.includes(nl) || nl.includes(full) || lastName === nl;
+          }));
+        };
+        const pid = findPlayer(playerName);
         if (!pid) return;
 
         if (b.TypeID === 1 && b.IsGoal) {
@@ -241,10 +246,7 @@ module.exports = async (req, res) => {
           const assistPrefix = b.Description && (b.Description.includes('Assist av:') ? 'Assist av:' : b.Description.includes('Assist by:') ? 'Assist by:' : null);
           if (assistPrefix) {
             const assistName = b.Description.replace(assistPrefix, '').trim().replace(/^\d+\.\s*/, '').trim();
-            const apid = parseInt(Object.keys(SFK_PLAYERS).find(id => {
-              const n = SFK_PLAYERS[id].name.toLowerCase();
-              return n === assistName.toLowerCase() || n.includes(assistName.toLowerCase());
-            }));
+            const apid = findPlayer(assistName);
             if (apid) events.assists[apid] = (events.assists[apid] || 0) + 1;
           }
         } else if (b.TypeID === 6) {
