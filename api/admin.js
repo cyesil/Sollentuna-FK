@@ -564,6 +564,7 @@ module.exports = async (req, res) => {
         assists: p.assists || 0,
         yellow_cards: p.yellowCards || 0,
         red_cards: p.redCards || 0,
+        thumbnail: p.thumbnail || null,
       };
 
       if (Array.isArray(existingStat) && existingStat.length > 0) {
