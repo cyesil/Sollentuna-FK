@@ -205,14 +205,17 @@ module.exports = async (req, res) => {
     const isHome = header.HomeTeamID === tid;
     const lineupTeam = isHome ? lineups.HomeTeamLineUp : lineups.AwayTeamLineUp;
 
-    // Kadroya giren SFK oyuncuları
+    // Sadece o maçta oynayan SFK oyuncuları
     const playedPlayerIds = new Set();
+    const playerThumbnails = {};
     if (lineupTeam && lineupTeam.GameLineUpPlayers) {
       lineupTeam.GameLineUpPlayers.forEach(p => {
-        if (SFK_PLAYER_IDS.has(p.PlayerID)) playedPlayerIds.add(p.PlayerID);
+        if (SFK_PLAYER_IDS.has(p.PlayerID)) {
+          playedPlayerIds.add(p.PlayerID);
+          playerThumbnails[p.PlayerID] = p.ThumbnailURL;
+        }
       });
     }
-
     // Olayları işle
     const events = { goals:{}, assists:{}, yellowCards:{}, redCards:{} };
     if (overview && overview.Blurbs) {
@@ -246,21 +249,19 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Tüm 22 oyuncuyu listele
-    const players = Object.keys(SFK_PLAYERS).map(pid => {
-      const pidNum = parseInt(pid);
-      return {
-        playerId: pidNum,
-        name: SFK_PLAYERS[pid].name,
-        shirt: SFK_PLAYERS[pid].shirt,
-        played: playedPlayerIds.has(pidNum),
-        goals: events.goals[pidNum] || 0,
-        assists: events.assists[pidNum] || 0,
-        yellowCards: events.yellowCards[pidNum] || 0,
-        redCards: events.redCards[pidNum] || 0,
-      };
-    });
-
+    // SADECE o maçta oynayan SFK oyuncuları
+    const players = [...playedPlayerIds].map(pidNum => ({
+      playerId: pidNum,
+      name: SFK_PLAYERS[pidNum].name,
+      shirt: SFK_PLAYERS[pidNum].shirt,
+      thumbnail: playerThumbnails[pidNum] || null,
+      played: true,
+      selected: true,
+      goals: events.goals[pidNum] || 0,
+      assists: events.assists[pidNum] || 0,
+      yellowCards: events.yellowCards[pidNum] || 0,
+      redCards: events.redCards[pidNum] || 0,
+    })).sort((a,b) => a.shirt - b.shirt);
     return res.status(200).json({
       gameId: parseInt(gameId),
       homeTeam: header.HomeTeamDisplayName,
