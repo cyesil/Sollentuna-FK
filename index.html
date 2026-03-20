@@ -861,7 +861,8 @@ function renderStatsTable(d, prefix) {
   players.sort((a,b) => {
     const av = a[statsSort.col] ?? -1;
     const bv = b[statsSort.col] ?? -1;
-    return statsSort.dir * (bv - av);
+    if (bv !== av) return statsSort.dir * (bv - av);
+    return a.name.localeCompare(b.name, 'sv');
   });
 
   const g = (n, cls='') => n > 0 ? `<span class="badge ${cls}">${n}</span>` : `<span class="badge badge-zero">—</span>`;
@@ -870,10 +871,10 @@ function renderStatsTable(d, prefix) {
   const rows = players.map(p => `<tr>
       <td><span class="shirt-no">#${p.shirt}</span></td>
       <td class="player-name">${p.name}</td>
-      <td>${g(p.games)}</td>
-      <td>${g(p.starterGames || 0)}</td>
       <td>${m(p.minutesPlayed || 0)}</td>
       <td>${p.minutesPerGame > 0 ? `<span class="badge" style="background:rgba(0,212,255,0.1);color:var(--accent)">${p.minutesPerGame}'</span>` : '<span class="badge badge-zero">—</span>'}</td>
+      <td>${g(p.games)}</td>
+      <td>${g(p.starterGames || 0)}</td>
       <td>${g(p.goals,'badge-green')}</td>
       <td>${g(p.assists)}</td>
       <td>${g(p.yellowCards,'badge-yellow')}</td>
@@ -889,10 +890,10 @@ function renderStatsTable(d, prefix) {
   <div class="table-wrap" id="statsTableWrap"><table>
     <thead><tr>
       <th>#</th><th>Spelare</th>
-      ${th('games','Trupp')}
-      ${th('starterGames','Start 11')}
       ${th('minutesPlayed','Tot Min')}
       ${th('minutesPerGame','Min/Match')}
+      ${th('games','Trupp')}
+      ${th('starterGames','Start 11')}
       ${th('goals','Mål','color:var(--green)')}
       ${th('assists','Ast','color:var(--accent)')}
       ${th('yellowCards','Gult','color:var(--yellow)')}
