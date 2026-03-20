@@ -631,7 +631,7 @@ function renderMatchDetail(detail) {
       ${detail.ambiguous.map((a,i) => `
         <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;flex-wrap:wrap;">
           <span style="background:var(--surface2);border-radius:4px;padding:0.2rem 0.5rem;font-size:0.8rem;">
-            ${a.minute} ${a.type === 'goal' ? '⚽ Mål' : a.type === 'assist' ? '🎯 Assist' : a.type === 'yellowCard' ? '🟨 Gult kort' : '🟥 Rött kort'}
+            ${a.type === 'unknownPlayer' ? '👤 Okänd spelare i trupp' : a.minute + ' ' + (a.type === 'goal' ? '⚽ Mål' : a.type === 'assist' ? '🎯 Assist' : a.type === 'yellowCard' ? '🟨 Gult kort' : '🟥 Rött kort')}
           </span>
           <span style="color:var(--muted);font-size:0.85rem;">"${a.rawName}"</span>
           <select onchange="resolveAmbiguous(${i}, +this.value)" 
