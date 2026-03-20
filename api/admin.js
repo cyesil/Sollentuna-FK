@@ -48,6 +48,7 @@ Object.keys(SFK_PLAYERS).forEach(pid => {
 
 const LEAGUES = [
   {id:59554, type:'lig',      team:398871, label:'P16 Div.1 2025'},
+  {id:68703, type:'kupa',     team:398871, label:'P16 Ligacupen Grupp 3 2026'},
   {id:129362,type:'lig',      team:398871, label:'P16 Div.1 2026'},
   {id:70389, type:'kupa',     team:398871, label:'P16 Ligacupen 2026'},
   {id:59382, type:'hazirlik', team:398871, label:'P16 Träningsmatcher 2025'},
