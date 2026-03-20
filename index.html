@@ -700,9 +700,28 @@ function resolveAmbiguous(ambigIdx, playerId) {
   if (!playerId || playerId === -1) return; // ignorera
   
   const pid = parseInt(playerId);
-  const playerIdx = state.currentDetail.players.findIndex(p => p.playerId === pid);
+  let playerIdx = state.currentDetail.players.findIndex(p => p.playerId === pid);
   
-  if (playerIdx === -1) return;
+  // Oyuncu listede yoksa ekle (unknownPlayer durumu)
+  if (playerIdx === -1) {
+    const playerInfo = SFK_PLAYERS[pid];
+    if (!playerInfo) return;
+    const newPlayer = {
+      playerId: pid,
+      name: playerInfo.name,
+      shirt: playerInfo.shirt,
+      thumbnail: null,
+      isStarter: false,
+      isInSquad: true,
+      playedInMatch: true,
+      played: true,
+      selected: true,
+      minutesPlayed: a.type === 'unknownPlayer' ? 0 : 0,
+      goals: 0, assists: 0, yellowCards: 0, redCards: 0,
+    };
+    state.currentDetail.players.push(newPlayer);
+    playerIdx = state.currentDetail.players.length - 1;
+  }
   
   if (a.type === 'goal') {
     state.currentDetail.players[playerIdx].goals++;
