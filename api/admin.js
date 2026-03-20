@@ -206,20 +206,25 @@ module.exports = async (req, res) => {
     const mfToken = await getMinfotbollToken();
     const tid = parseInt(teamId);
 
-    const [overview, lineups, header] = await Promise.all([
+    const [overview, lineups, header, rosterData] = await Promise.all([
       minfotbollGet(`/api/magazinegameviewapi/initgameoverview?GameID=${gameId}`, mfToken),
       minfotbollGet(`/api/magazinegameviewapi/initgamelineups?GameID=${gameId}`, mfToken),
       minfotbollGet(`/api/gameapi/getgameheaderinfo?id=${gameId}`, mfToken),
+      minfotbollGet(`/api/followgameapi/initlivetimelineblurbs?GameID=${gameId}`, mfToken),
     ]);
 
     const isHome = header.HomeTeamID === tid;
     const lineupTeam = isHome ? lineups.HomeTeamLineUp : lineups.AwayTeamLineUp;
 
-    // Sadece o maçta oynayan SFK oyuncuları
+    // İlk 11 + yedekler - hem lineup hem roster'dan al
     const playedPlayerIds = new Set();
     const playerThumbnails = {};
     const playerPositions = {};
     const playerShirtNos = {};
+    const playerIsStarter = {};
+    const playerIsInSquad = {};
+
+    // İlk 11 - lineup'tan
     if (lineupTeam && lineupTeam.GameLineUpPlayers) {
       lineupTeam.GameLineUpPlayers.forEach(p => {
         if (SFK_PLAYER_IDS.has(p.PlayerID)) {
@@ -227,6 +232,28 @@ module.exports = async (req, res) => {
           playerThumbnails[p.PlayerID] = p.ThumbnailURL;
           playerPositions[p.PlayerID] = p.Position || '';
           playerShirtNos[p.PlayerID] = p.ShirtNumber || SFK_PLAYERS[p.PlayerID]?.shirt || 0;
+          playerIsStarter[p.PlayerID] = true;
+          playerIsInSquad[p.PlayerID] = true;
+        }
+      });
+    }
+
+    // Yedekler + kadro - GameTeamRoster'dan al
+    if (rosterData && rosterData.TimelineBlurbs) {
+      rosterData.TimelineBlurbs.forEach(b => {
+        if (b.GameTeamRoster && b.TeamID === tid) {
+          const roster = b.GameTeamRoster;
+          if (roster.Players) {
+            roster.Players.forEach(p => {
+              if (SFK_PLAYER_IDS.has(p.PlayerID)) {
+                playedPlayerIds.add(p.PlayerID);
+                if (!playerThumbnails[p.PlayerID]) playerThumbnails[p.PlayerID] = p.ThumbnailURL || null;
+                if (!playerShirtNos[p.PlayerID]) playerShirtNos[p.PlayerID] = p.ShirtNumber || SFK_PLAYERS[p.PlayerID]?.shirt || 0;
+                playerIsInSquad[p.PlayerID] = true;
+                if (!playerIsStarter[p.PlayerID]) playerIsStarter[p.PlayerID] = false;
+              }
+            });
+          }
         }
       });
     }
@@ -290,7 +317,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // SADECE o maçta oynayan SFK oyuncuları
+    // SADECE o maçta oynayan SFK oyuncuları (ilk 11 + yedekler)
     const players = [...playedPlayerIds].map(pidNum => ({
       playerId: pidNum,
       name: SFK_PLAYERS[pidNum].name,
@@ -298,14 +325,22 @@ module.exports = async (req, res) => {
       thumbnail: playerThumbnails[pidNum] || null,
       position: playerPositions[pidNum] || '',
       isGoalkeeper: (playerPositions[pidNum] || '').includes('Goalkeeper'),
-      isStarter: (playerPositions[pidNum] || '') !== '' && !(playerPositions[pidNum] || '').includes('NotSelected'),
+      isStarter: playerIsStarter[pidNum] === true,
+      isInSquad: playerIsInSquad[pidNum] === true,
       played: true,
       selected: true,
       goals: events.goals[pidNum] || 0,
       assists: events.assists[pidNum] || 0,
       yellowCards: events.yellowCards[pidNum] || 0,
       redCards: events.redCards[pidNum] || 0,
-    })).sort((a,b) => a.shirt - b.shirt);
+    })).sort((a,b) => {
+      // Önce kaleci, sonra ilk 11, sonra yedekler
+      if (a.isGoalkeeper && !b.isGoalkeeper) return -1;
+      if (!a.isGoalkeeper && b.isGoalkeeper) return 1;
+      if (a.isStarter && !b.isStarter) return -1;
+      if (!a.isStarter && b.isStarter) return 1;
+      return a.shirt - b.shirt;
+    });
     return res.status(200).json({
       gameId: parseInt(gameId),
       homeTeam: header.HomeTeamDisplayName,
