@@ -151,7 +151,7 @@ module.exports = async (req, res) => {
   const token = auth.replace('Bearer ', '');
   const user = verifyToken(token);
   if (!user) return res.status(401).json({ error: 'Giriş yapın' });
-  if (user.role !== 'admin') return res.status(403).json({ error: 'Admin yetkisi gerekli' });
+  if (user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Yetki gerekli' });
 
   const action = req.query.action;
 
