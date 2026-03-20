@@ -1007,8 +1007,8 @@ function renderStatsTable(d, prefix) {
   const rows = players.map(p => `<tr>
       <td><span class="shirt-no">#${p.shirt}</span></td>
       <td class="player-name">${p.name}</td>
-      <td>${m(p.minutesPlayed || 0)}</td>
       <td>${p.minutesPerGame > 0 ? `<span class="badge" style="background:rgba(0,212,255,0.1);color:var(--accent)">${p.minutesPerGame}'</span>` : '<span class="badge badge-zero">—</span>'}</td>
+      <td>${m(p.minutesPlayed || 0)}</td>
       <td>${g(p.games)}</td>
       <td>${g(p.starterGames || 0)}</td>
       <td>${g(p.goals,'badge-green')}</td>
@@ -1026,8 +1026,8 @@ function renderStatsTable(d, prefix) {
   <div class="table-wrap" id="statsTableWrap"><table>
     <thead><tr>
       <th>#</th><th>Spelare</th>
-      ${th('minutesPlayed','Tot Min')}
       ${th('minutesPerGame','Min/Match')}
+      ${th('minutesPlayed','Tot Min')}
       ${th('games','Trupp')}
       ${th('starterGames','Start 11')}
       ${th('goals','Mål','color:var(--green)')}
