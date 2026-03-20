@@ -25,7 +25,6 @@ const SFK_PLAYERS = {
   700147:{name:'Charlie Nordenson',shirt:20},
   576573:{name:'Albin Nordin',shirt:21},
   571068:{name:'Viggo Sejnäs',shirt:31},
-  65947:{name:'Leonel Mikhail',shirt:35},
   595628:{name:'Valter Ekehov',shirt:66},
   573259:{name:'Love Nytén',shirt:77},
 };
@@ -137,6 +136,7 @@ module.exports = async (req, res) => {
     players.forEach(p => {
       p.goalsPerGame = p.games > 0 ? Math.round((p.goals / p.games) * 100) / 100 : 0;
       p.minutesPerGoal = p.goals > 0 ? Math.round(p.minutesPlayed / p.goals) : null;
+      p.minutesPerGame = p.games > 0 ? Math.round(p.minutesPlayed / p.games) : 0;
     });
     const sorted = players.sort((a,b) => b.minutesPlayed - a.minutesPlayed || b.goals - a.goals);
 
