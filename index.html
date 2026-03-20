@@ -383,10 +383,6 @@
 
     <!-- OYUNCU VIEW -->
     <div id="viewOyuncu" style="display:none;">
-      <div class="tabs" style="margin-bottom:1.5rem;">
-        <button class="tab active" onclick="oyuncuTab('stats')" id="oyuncuTabStats">Statistik</button>
-        <button class="tab" onclick="oyuncuTab('matches')" id="oyuncuTabMatches">Matcher</button>
-      </div>
       <!-- Statistik -->
       <div id="oyuncuViewStats">
         <div class="filter-bar">
@@ -405,24 +401,7 @@
         </div>
         <div id="oyuncuStatsTable"><div class="empty-state">Ladda statistik</div></div>
       </div>
-      <!-- Matcher -->
-      <div id="oyuncuViewMatches" style="display:none;">
-        <div class="filter-bar">
-          <div><label>Från datum</label><input type="date" id="oyuncuMatchFrom" value="2025-01-01"></div>
-          <div><label>Till datum</label><input type="date" id="oyuncuMatchTo"></div>
-          <div>
-            <label>Matchtyp</label>
-            <select id="oyuncuMatchType">
-              <option value="hepsi">Alla matcher</option>
-              <option value="lig">Seriematcher</option>
-              <option value="kupa">Cupmatcher</option>
-              <option value="hazirlik">Träningsmatcher</option>
-            </select>
-          </div>
-          <div><button class="btn btn-primary" onclick="loadOyuncuMatches()">⚡ Hämta matcher</button></div>
-        </div>
-        <div id="oyuncuMatchList"><div class="empty-state">Hämta matcher för att börja</div></div>
-      </div>
+
     </div>
   </main>
 </div>
