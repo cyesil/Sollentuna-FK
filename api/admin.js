@@ -186,6 +186,10 @@ module.exports = async (req, res) => {
             awayTeam: g.AwayTeamDisplayName,
             homeScore: g.HomeTeamScore,
             awayScore: g.AwayTeamScore,
+            homeLogo: g.HomeTeamClubLogoURL || '',
+            awayLogo: g.AwayTeamClubLogoURL || '',
+            homeTeamId: g.HomeTeamID,
+            awayTeamId: g.AwayTeamID,
             leagueName: league.label,
             gameType: league.type,
             teamId: league.team,
@@ -461,7 +465,7 @@ module.exports = async (req, res) => {
         const statId = existingStat[0].id;
         await new Promise((resolve, reject) => {
           const bodyStr = JSON.stringify(statData);
-          const req = require('https').request({
+          const req = https.request({
             host: new URL(SUPABASE_URL).host,
             path: `/rest/v1/player_stats?id=eq.${statId}`,
             method: 'PATCH',
