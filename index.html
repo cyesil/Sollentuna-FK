@@ -261,6 +261,7 @@
     <div class="header-right">
       <span class="user-badge" id="userBadge"></span>
       <span class="role-badge" id="roleBadge"></span>
+      <button class="btn-refresh" onclick="refreshToken()" title="Förnya MinFotboll token" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;" id="refreshBtn">🔄 Förnya token</button>
       <button class="btn-logout" onclick="doLogout()">Logga ut</button>
     </div>
   </header>
@@ -467,6 +468,9 @@ function showApp() {
   rb.className = 'role-badge role-' + u.role;
 
   document.getElementById('viewAdmin').style.display = u.role === 'admin' ? 'block' : 'none';
+  // Refresh token butonu sadece admin'e görünsün
+  const rb = document.getElementById('refreshBtn');
+  if (rb) rb.style.display = u.role === 'admin' ? 'inline-block' : 'none';
   document.getElementById('viewAntrenor').style.display = u.role === 'antrenor' ? 'block' : 'none';
   document.getElementById('viewOyuncu').style.display = u.role === 'oyuncu' ? 'block' : 'none';
 
@@ -862,6 +866,40 @@ async function loadUsers() {
 }
 
 // ===================== INIT =====================
+async function refreshToken() {
+  const btn = document.getElementById('refreshBtn');
+  if (!btn) return;
+  btn.textContent = '⏳ Förnyas...';
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/refresh-token?secret=sfkRefresh2026!');
+    const d = await r.json();
+    if (d.success) {
+      btn.textContent = '✓ Token förnyad!';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+      setTimeout(() => {
+        btn.textContent = '🔄 Förnya token';
+        btn.style.color = 'var(--muted)';
+        btn.style.borderColor = 'var(--border)';
+        btn.disabled = false;
+      }, 3000);
+    } else {
+      btn.textContent = '❌ Misslyckades';
+      btn.style.color = 'var(--red)';
+      setTimeout(() => {
+        btn.textContent = '🔄 Förnya token';
+        btn.style.color = 'var(--muted)';
+        btn.style.borderColor = 'var(--border)';
+        btn.disabled = false;
+      }, 3000);
+    }
+  } catch(e) {
+    btn.textContent = '❌ Fel';
+    btn.disabled = false;
+  }
+}
+
 window.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 if (state.token && state.user) { showApp(); } else {
   document.getElementById('loginPage').style.display = 'flex';
