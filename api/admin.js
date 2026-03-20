@@ -467,6 +467,7 @@ module.exports = async (req, res) => {
       ambiguous,
       reporters: sfkReporters,
       selectedReporterId,
+      debugSubs: substitutions[606521] || null,
     });
   }
 
