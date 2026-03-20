@@ -62,6 +62,35 @@ function supabaseGet(path) {
   });
 }
 
+function httpGet(host, path, headers={}) {
+  return new Promise((resolve, reject) => {
+    const req = https.request({host, path, method:'GET', headers}, (res) => {
+      let data='';
+      res.on('data', chunk => data+=chunk);
+      res.on('end', () => { try{resolve(JSON.parse(data))}catch(e){resolve(data)} });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function httpPost(host, path, body, headers={}) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = JSON.stringify(body);
+    const req = https.request({
+      host, path, method:'POST',
+      headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(bodyStr),...headers}
+    }, (res) => {
+      let data='';
+      res.on('data', chunk => data+=chunk);
+      res.on('end', () => { try{resolve(JSON.parse(data))}catch(e){resolve(data)} });
+    });
+    req.on('error', reject);
+    req.write(bodyStr);
+    req.end();
+  });
+}
+
 const MINFOTBOLL_API = 'minfotboll-api.azurewebsites.net';
 
 function minfotbollGet(path, token) {
