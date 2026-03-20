@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sfk2026gizliAnahtar!';
 
 function supabaseRequest(method, path, body) {
   return new Promise((resolve, reject) => {
-    const bodyStr = (body && method !== 'GET') ? JSON.stringify(body) : '';
+    const bodyStr = (body && method !== 'GET' && method !== 'DELETE') ? JSON.stringify(body) : '';
     const url = new URL(SUPABASE_URL);
     const headers = {
       'apikey': SUPABASE_KEY,
@@ -180,6 +180,42 @@ module.exports = async (req, res) => {
     } catch(e) {
       return res.status(200).json({ ok: false, error: e.message });
     }
+  }
+
+  // Kullanıcı düzenle (sadece admin)
+  if (action === 'edituser' && req.method === 'POST') {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    const payload = verifyToken(token);
+    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Yetki yok' });
+    const { id, username, full_name, role, player_id } = req.body || {};
+    if (!id || !username) return res.status(400).json({ error: 'Eksik bilgi' });
+    const result = await supabaseRequest('PATCH', `/users?id=eq.${id}`, {
+      username, full_name, role, player_id: player_id || null
+    });
+    return res.status(200).json({ success: true });
+  }
+
+  // Şifre değiştir (sadece admin)
+  if (action === 'changepassword' && req.method === 'POST') {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    const payload = verifyToken(token);
+    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Yetki yok' });
+    const { id, password } = req.body || {};
+    if (!id || !password) return res.status(400).json({ error: 'Eksik bilgi' });
+    const hash = hashPassword(password);
+    await supabaseRequest('PATCH', `/users?id=eq.${id}`, { password_hash: hash });
+    return res.status(200).json({ success: true });
+  }
+
+  // Kullanıcı sil (sadece admin)
+  if (action === 'deleteuser' && req.method === 'POST') {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    const payload = verifyToken(token);
+    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Yetki yok' });
+    const { id } = req.body || {};
+    if (!id) return res.status(400).json({ error: 'ID gerekli' });
+    await supabaseRequest('DELETE', `/users?id=eq.${id}`, null);
+    return res.status(200).json({ success: true });
   }
 
   res.status(400).json({ error: 'Geçersiz istek' });
