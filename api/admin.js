@@ -327,7 +327,10 @@ module.exports = async (req, res) => {
         if (b.TypeID !== 4) return;
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
         if (!isOurTeam) return;
-        const key = `${b.Title}|${b.Description}|${b.GameMinute}`;
+        // Aynı oyuncu + aynı süre (±5 sn tolerans) = duplicate
+        const sec = b.GameClockSecond || 0;
+        const roundedSec = Math.round(sec / 5) * 5;
+        const key = `${b.Title}|${b.Description}|${roundedSec}`;
         if (!seenSubs.has(key)) {
           seenSubs.add(key);
           uniqueSubBlurbs.push(b);
@@ -467,7 +470,6 @@ module.exports = async (req, res) => {
       ambiguous,
       reporters: sfkReporters,
       selectedReporterId,
-      debugSubs: substitutions[606521] || null,
     });
   }
 
