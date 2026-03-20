@@ -105,11 +105,15 @@ module.exports = async (req, res) => {
             playerId: s.player_id,
             name: SFK_PLAYERS[s.player_id]?.name || s.player_name,
             shirt: SFK_PLAYERS[s.player_id]?.shirt || 0,
-            games: 0, goals: 0, assists: 0,
-            yellowCards: 0, redCards: 0,
+            games: 0, starterGames: 0, goals: 0, assists: 0,
+            yellowCards: 0, redCards: 0, minutesPlayed: 0,
           };
         }
-        if (s.played) playerMap[s.player_id].games++;
+        if (s.played) {
+          playerMap[s.player_id].games++;
+          if (s.is_starter) playerMap[s.player_id].starterGames++;
+          playerMap[s.player_id].minutesPlayed += s.minutes_played || 0;
+        }
         playerMap[s.player_id].goals += s.goals || 0;
         playerMap[s.player_id].assists += s.assists || 0;
         playerMap[s.player_id].yellowCards += s.yellow_cards || 0;
@@ -129,8 +133,15 @@ module.exports = async (req, res) => {
       };
     });
 
+    // Dakikaya göre sırala, ortalamalar ekle
+    players.forEach(p => {
+      p.goalsPerGame = p.games > 0 ? Math.round((p.goals / p.games) * 100) / 100 : 0;
+      p.minutesPerGoal = p.goals > 0 ? Math.round(p.minutesPlayed / p.goals) : null;
+    });
+    const sorted = players.sort((a,b) => b.minutesPlayed - a.minutesPlayed || b.goals - a.goals);
+
     return res.status(200).json({
-      players: players.sort((a,b) => b.goals - a.goals || b.games - a.games),
+      players: sorted,
       totalGames: matches.length,
       matches: matches.map(m => ({
         id: m.id, gameId: m.game_id, gameDate: m.game_date,
