@@ -579,16 +579,29 @@ function renderMatchDetail(detail) {
   const isSaved = state.savedMatchIds.has(detail.gameId);
   const d = new Date(detail.gameDate);
   const dateStr = d.toLocaleDateString('sv-SE', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const playedCount = detail.players.length;
 
   const rows = detail.players.map((p,i) => `
-    <tr>
-      <td><span class="shirt-no">${p.shirt}</span></td>
+    <tr id="prow_${i}" style="${p.selected ? '' : 'opacity:0.4;'}">
+      <td><span class="shirt-no">#${p.shirt}</span></td>
       <td class="player-name">${p.name}</td>
-      <td><input type="checkbox" ${p.played ? 'checked' : ''} onchange="updatePlayerDetail(${i}, 'played', this.checked)" style="cursor:pointer;"></td>
-      <td><input type="number" value="${p.goals}" min="0" max="20" style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;text-align:center;" onchange="updatePlayerDetail(${i}, 'goals', +this.value)"></td>
-      <td><input type="number" value="${p.assists}" min="0" max="20" style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;text-align:center;" onchange="updatePlayerDetail(${i}, 'assists', +this.value)"></td>
-      <td><input type="number" value="${p.yellowCards}" min="0" max="3" style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;text-align:center;" onchange="updatePlayerDetail(${i}, 'yellowCards', +this.value)"></td>
-      <td><input type="number" value="${p.redCards}" min="0" max="2" style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;text-align:center;" onchange="updatePlayerDetail(${i}, 'redCards', +this.value)"></td>
+      <td style="text-align:center;">
+        <input type="checkbox" ${p.selected ? 'checked' : ''} 
+          onchange="togglePlayerRow(${i}, this.checked)" 
+          style="cursor:pointer;width:16px;height:16px;">
+      </td>
+      <td><input type="number" value="${p.goals}" min="0" max="20" 
+        style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;text-align:center;" 
+        onchange="updatePlayerDetail(${i}, 'goals', +this.value)"></td>
+      <td><input type="number" value="${p.assists}" min="0" max="20" 
+        style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;text-align:center;" 
+        onchange="updatePlayerDetail(${i}, 'assists', +this.value)"></td>
+      <td><input type="number" value="${p.yellowCards}" min="0" max="3" 
+        style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;text-align:center;" 
+        onchange="updatePlayerDetail(${i}, 'yellowCards', +this.value)"></td>
+      <td><input type="number" value="${p.redCards}" min="0" max="2" 
+        style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;text-align:center;" 
+        onchange="updatePlayerDetail(${i}, 'redCards', +this.value)"></td>
     </tr>
   `).join('');
 
@@ -599,16 +612,24 @@ function renderMatchDetail(detail) {
           <div class="detail-teams">${detail.homeTeam} vs ${detail.awayTeam}</div>
           <div class="detail-score">${detail.homeScore} - ${detail.awayScore}</div>
           <div class="detail-meta">${dateStr} · ${detail.leagueName}</div>
+          <div style="margin-top:0.4rem;color:var(--green);font-size:0.85rem;">
+            ✓ ${playedCount} SFK oyuncusu bu maçta oynadı
+          </div>
         </div>
-        <button class="btn btn-success" onclick="saveMatch()" ${isSaved ? '' : ''}>
-          ${isSaved ? '✓ Uppdatera' : '💾 Spara match'}
-        </button>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;align-items:flex-end;">
+          <button class="btn btn-success" onclick="saveMatch()">
+            ${isSaved ? '✓ Uppdatera' : '💾 Spara match'}
+          </button>
+          <div style="font-size:0.75rem;color:var(--muted);">
+            Seçili olmayan oyuncular kaydedilmez
+          </div>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr>
             <th>#</th><th>Spelare</th>
-            <th title="Spelade">Spelade</th>
+            <th title="Kaydet">Kaydet</th>
             <th style="color:var(--green)">⚽ Mål</th>
             <th style="color:var(--accent)">🎯 Ast</th>
             <th style="color:var(--yellow)">🟨 Gult</th>
@@ -620,8 +641,15 @@ function renderMatchDetail(detail) {
     </div>
   `;
 
-  // Detail verisini state'e kaydet
   state.currentDetail = detail;
+}
+
+function togglePlayerRow(idx, selected) {
+  if (state.currentDetail && state.currentDetail.players[idx]) {
+    state.currentDetail.players[idx].selected = selected;
+    const row = document.getElementById('prow_' + idx);
+    if (row) row.style.opacity = selected ? '1' : '0.4';
+  }
 }
 
 function updatePlayerDetail(idx, field, value) {
@@ -634,10 +662,20 @@ async function saveMatch() {
   if (!state.currentDetail) return;
   setStatus('Sparar match...');
   try {
+    // Sadece seçili oyuncuları gönder
+    const payload = {
+      ...state.currentDetail,
+      players: state.currentDetail.players.filter(p => p.selected)
+    };
+    if (payload.players.length === 0) {
+      setError('Hiç oyuncu seçilmedi!');
+      setStatus('', false);
+      return;
+    }
     const r = await fetch('/api/admin?action=savematch', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify(state.currentDetail)
+      body: JSON.stringify(payload)
     });
     const d = await r.json();
     if (!r.ok) { setError(d.error); setStatus('',false); return; }
