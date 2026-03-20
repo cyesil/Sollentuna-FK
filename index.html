@@ -591,7 +591,11 @@ function renderMatchDetail(detail) {
   const rows = detail.players.map((p,i) => `
     <tr id="prow_${i}" style="${p.selected ? '' : 'opacity:0.4;'}">
       <td><span class="shirt-no">#${p.shirt}</span></td>
-      <td class="player-name">${p.name}</td>
+      <td class="player-name">
+        ${p.name}
+        ${p.isGoalkeeper ? '<span style="font-size:0.7rem;color:var(--yellow);margin-left:4px;">GK</span>' : ''}
+        ${p.isStarter ? '<span style="font-size:0.7rem;color:var(--green);margin-left:4px;">11</span>' : '<span style="font-size:0.7rem;color:var(--muted);margin-left:4px;">Bänk</span>'}
+      </td>
       <td style="text-align:center;">
         <input type="checkbox" ${p.selected ? 'checked' : ''} 
           onchange="togglePlayerRow(${i}, this.checked)" 
