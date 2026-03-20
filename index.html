@@ -735,10 +735,10 @@ function renderMatchDetail(detail) {
           <select onchange="resolveAmbiguous(${i}, +this.value)" 
             style="background:var(--surface2);border:1px solid var(--yellow);color:var(--text);padding:0.3rem 0.6rem;border-radius:6px;font-size:0.85rem;flex:1;min-width:180px;">
             <option value="">— Välj spelare —</option>
+            <option value="-1">Inte vår spelare — ignorera</option>
             ${Object.keys(SFK_PLAYERS).map(pid => 
               `<option value="${pid}">#${SFK_PLAYERS[pid].shirt} ${SFK_PLAYERS[pid].name}</option>`
             ).join('')}
-            <option value="-1">Inte vår spelare — ignorera</option>
           </select>
         </div>
       `).join('')}
@@ -867,6 +867,17 @@ function updatePlayerDetail(idx, field, value) {
 
 async function saveMatch() {
   if (!state.currentDetail) return;
+
+  // Çözülmemiş oklara händelser var mı kontrol et
+  const selects = document.querySelectorAll('[onchange*="resolveAmbiguous"]');
+  let unresolved = 0;
+  selects.forEach(s => {
+    if (!s.disabled && s.value === '') unresolved++;
+  });
+  if (unresolved > 0) {
+    alert(`${unresolved} oklara händelse(r) har inte lösts. Välj spelare eller ignorera för alla händelser innan du sparar.`);
+    return;
+  }
   setStatus('Sparar match...');
   try {
     // Sadece seçili oyuncuları gönder
