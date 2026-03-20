@@ -238,10 +238,24 @@ module.exports = async (req, res) => {
     const playerIsInSquad = {};
     const playerPositions = {};
     const squadPlayerIds = new Set();
+    const unknownRosterPlayers = []; // Listede olmayan oyuncular
 
     if (rosterTeam && rosterTeam.Players) {
       rosterTeam.Players.forEach(p => {
-        if (!SFK_PLAYER_IDS.has(p.PlayerID)) return;
+        if (!SFK_PLAYER_IDS.has(p.PlayerID)) {
+          // Listede olmayan oyuncu — ambiguous olarak sor
+          if (p.FirstName || p.LastName || p.ShirtNumber) {
+            unknownRosterPlayers.push({
+              type: 'unknownPlayer',
+              rawName: `${p.ShirtNumber ? p.ShirtNumber + '. ' : ''}${p.FirstName || ''} ${p.LastName || ''}`.trim(),
+              originalPlayerID: p.PlayerID,
+              shirtNumber: p.ShirtNumber,
+              minute: null,
+              description: 'Kadroda ama listede yok'
+            });
+          }
+          return;
+        }
         squadPlayerIds.add(p.PlayerID);
         playerIsInSquad[p.PlayerID] = true;
         playerIsStarter[p.PlayerID] = false;
@@ -315,7 +329,7 @@ module.exports = async (req, res) => {
 
     // ADIM 4: OLAYLAR — Gol, asist, kart
     const events = { goals:{}, assists:{}, yellowCards:{}, redCards:{} };
-    const ambiguous = [];
+    const ambiguous = [...unknownRosterPlayers]; // Listede olmayan kadro oyuncuları
 
     if (overview && overview.Blurbs) {
       overview.Blurbs.forEach(b => {
