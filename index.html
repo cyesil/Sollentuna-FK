@@ -281,7 +281,7 @@
       <div class="tabs">
         <button class="tab active" onclick="adminTab('matches')">Matcher</button>
         <button class="tab" onclick="adminTab('stats')">Statistik</button>
-        <button class="tab" onclick="adminTab('users')">Användare</button>
+        ${state.user?.role === 'admin' ? '<button class="tab" onclick="adminTab('users')">Användare</button>' : ''}
       </div>
 
       <!-- MAÇLAR TAB -->
@@ -383,7 +383,46 @@
 
     <!-- OYUNCU VIEW -->
     <div id="viewOyuncu" style="display:none;">
-      <div id="myStatsContent"><div class="empty-state">Laddar din statistik...</div></div>
+      <div class="tabs" style="margin-bottom:1.5rem;">
+        <button class="tab active" onclick="oyuncuTab('stats')" id="oyuncuTabStats">Statistik</button>
+        <button class="tab" onclick="oyuncuTab('matches')" id="oyuncuTabMatches">Matcher</button>
+      </div>
+      <!-- Statistik -->
+      <div id="oyuncuViewStats">
+        <div class="filter-bar">
+          <div><label>Från datum</label><input type="date" id="oyuncuFrom" value="2025-01-01"></div>
+          <div><label>Till datum</label><input type="date" id="oyuncuTo"></div>
+          <div>
+            <label>Matchtyp</label>
+            <select id="oyuncuType">
+              <option value="hepsi">Alla matcher</option>
+              <option value="lig">Seriematcher</option>
+              <option value="kupa">Cupmatcher</option>
+              <option value="hazirlik">Träningsmatcher</option>
+            </select>
+          </div>
+          <div><button class="btn btn-primary" onclick="loadOyuncuStats()">📊 Visa statistik</button></div>
+        </div>
+        <div id="oyuncuStatsTable"><div class="empty-state">Ladda statistik</div></div>
+      </div>
+      <!-- Matcher -->
+      <div id="oyuncuViewMatches" style="display:none;">
+        <div class="filter-bar">
+          <div><label>Från datum</label><input type="date" id="oyuncuMatchFrom" value="2025-01-01"></div>
+          <div><label>Till datum</label><input type="date" id="oyuncuMatchTo"></div>
+          <div>
+            <label>Matchtyp</label>
+            <select id="oyuncuMatchType">
+              <option value="hepsi">Alla matcher</option>
+              <option value="lig">Seriematcher</option>
+              <option value="kupa">Cupmatcher</option>
+              <option value="hazirlik">Träningsmatcher</option>
+            </select>
+          </div>
+          <div><button class="btn btn-primary" onclick="loadOyuncuMatches()">⚡ Hämta matcher</button></div>
+        </div>
+        <div id="oyuncuMatchList"><div class="empty-state">Hämta matcher för att börja</div></div>
+      </div>
     </div>
   </main>
 </div>
@@ -470,18 +509,31 @@ function showApp() {
   rb.textContent = u.role === 'admin' ? 'Admin' : u.role === 'antrenor' ? 'Tränare' : 'Spelare';
   rb.className = 'role-badge role-' + u.role;
 
-  document.getElementById('viewAdmin').style.display = u.role === 'admin' ? 'block' : 'none';
+  // Admin ve Tränare aynı admin panelini görür
+  document.getElementById('viewAdmin').style.display = (u.role === 'admin' || u.role === 'antrenor') ? 'block' : 'none';
+  document.getElementById('viewAntrenor').style.display = 'none';
+  document.getElementById('viewOyuncu').style.display = u.role === 'oyuncu' ? 'block' : 'none';
   // Refresh token butonu sadece admin'e görünsün
   const refreshBtn = document.getElementById('refreshBtn');
   if (refreshBtn) refreshBtn.style.display = u.role === 'admin' ? 'inline-block' : 'none';
-  document.getElementById('viewAntrenor').style.display = u.role === 'antrenor' ? 'block' : 'none';
-  document.getElementById('viewOyuncu').style.display = u.role === 'oyuncu' ? 'block' : 'none';
 
   document.getElementById('adminTo').value = new Date().toISOString().slice(0,10);
   document.getElementById('statsTo').value = new Date().toISOString().slice(0,10);
   document.getElementById('trTo').value = new Date().toISOString().slice(0,10);
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
+  // Tränare için Users tabını gizle
+  if (u.role === 'antrenor') {
+    document.querySelectorAll('#viewAdmin .tab').forEach(t => {
+      if (t.textContent.trim() === 'Användare') t.style.display = 'none';
+    });
+  }
+  // Oyuncu için tarih alanlarını doldur
+  if (u.role === 'oyuncu') {
+    const today = new Date().toISOString().slice(0,10);
+    document.getElementById('oyuncuTo').value = today;
+    document.getElementById('oyuncuMatchTo').value = today;
+  }
   if (u.role === 'oyuncu') loadMyStats();
 }
 
@@ -686,9 +738,9 @@ function renderMatchDetail(detail) {
             <input type="number" id="gameDuration" value="90" min="10" max="120" 
               style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;text-align:center;">
           </div>
-          <button class="btn btn-success" onclick="saveMatch()">
+          ${state.user?.role !== 'oyuncu' ? `<button class="btn btn-success" onclick="saveMatch()">
             ${isSaved ? '✓ Uppdatera' : '💾 Spara match'}
-          </button>
+          </button>` : '<span style="color:var(--muted);font-size:0.8rem;">Skrivskyddad</span>'}
           <div style="font-size:0.75rem;color:var(--muted);">
             Ospärade spelare sparas inte
           </div>
@@ -1176,6 +1228,83 @@ async function deleteUser(id, username) {
     if (!r.ok) { alert(d.error); return; }
     loadUsers();
   } catch(e) { alert('Fel: ' + e.message); }
+}
+
+// ===================== OYUNCU FONKSİYONLARI =====================
+function oyuncuTab(tab) {
+  document.getElementById('oyuncuTabStats').classList.toggle('active', tab === 'stats');
+  document.getElementById('oyuncuTabMatches').classList.toggle('active', tab === 'matches');
+  document.getElementById('oyuncuViewStats').style.display = tab === 'stats' ? 'block' : 'none';
+  document.getElementById('oyuncuViewMatches').style.display = tab === 'matches' ? 'block' : 'none';
+}
+
+async function loadOyuncuStats() {
+  setStatus('Laddar statistik...');
+  try {
+    const from = document.getElementById('oyuncuFrom').value;
+    const to = document.getElementById('oyuncuTo').value;
+    const type = document.getElementById('oyuncuType').value;
+    const params = new URLSearchParams({action:'playerstats'});
+    if (type && type !== 'hepsi') params.append('gameType', type);
+    if (from) params.append('dateFrom', from);
+    if (to) params.append('dateTo', to);
+    const r = await fetch('/api/stats?' + params, {headers: authHeaders()});
+    const d = await r.json();
+    setStatus('', false);
+    document.getElementById('oyuncuStatsTable').innerHTML = renderStatsTable(d, 'oyuncu');
+  } catch(e) {
+    setError('Fel: ' + e.message);
+    setStatus('', false);
+  }
+}
+
+async function loadOyuncuMatches() {
+  setStatus('Hämtar matcher...');
+  try {
+    const from = document.getElementById('oyuncuMatchFrom').value;
+    const to = document.getElementById('oyuncuMatchTo').value;
+    const type = document.getElementById('oyuncuMatchType').value;
+    const params = new URLSearchParams({action:'savedmatches'});
+    if (type && type !== 'hepsi') params.append('gameType', type);
+    if (from) params.append('dateFrom', from);
+    if (to) params.append('dateTo', to);
+    const r = await fetch('/api/admin?' + params, {headers: authHeaders()});
+    const matches = await r.json();
+    setStatus('', false);
+    const el = document.getElementById('oyuncuMatchList');
+    if (!Array.isArray(matches) || !matches.length) {
+      el.innerHTML = '<div class="empty-state">Inga matcher hittades</div>';
+      return;
+    }
+    el.innerHTML = matches
+      .filter(m => {
+        if (type && type !== 'hepsi' && m.game_type !== type) return false;
+        if (from && new Date(m.game_date) < new Date(from)) return false;
+        if (to && new Date(m.game_date) > new Date(to + 'T23:59:59')) return false;
+        return true;
+      })
+      .map(m => {
+        const d = new Date(m.game_date);
+        const dateStr = d.toLocaleDateString('sv-SE', {day:'2-digit',month:'short',year:'numeric'});
+        const typeClass = 'type-' + (m.game_type || 'lig');
+        return `<div class="match-card">
+          <div>
+            <div class="match-score">${m.home_score} - ${m.away_score}</div>
+            <div class="match-meta">${dateStr}</div>
+          </div>
+          <div class="match-teams">
+            <div class="home">${m.home_team}</div>
+            <div class="away">${m.away_team}</div>
+            <div style="margin-top:0.3rem;">
+              <span class="match-type-badge ${typeClass}">${m.league_name}</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+  } catch(e) {
+    setError('Fel: ' + e.message);
+    setStatus('', false);
+  }
 }
 
 // ===================== INIT =====================
