@@ -200,7 +200,25 @@ module.exports = async (req, res) => {
     const playerId = user.player_id;
     if (!playerId) return res.status(400).json({ error: 'Player ID tanımlı değil' });
 
-    const stats = await supabaseGet(`/player_stats?player_id=eq.${playerId}&select=*,matches(*)`);
+    // Filtreleme parametreleri
+    const { gameType, dateFrom, dateTo } = req.query;
+
+    // Önce maçları filtrele
+    let matchQuery = '/matches?select=id';
+    if (gameType && gameType !== 'hepsi') matchQuery += `&game_type=eq.${gameType}`;
+    if (dateFrom) matchQuery += `&game_date=gte.${dateFrom}`;
+    if (dateTo) matchQuery += `&game_date=lte.${dateTo}T23:59:59`;
+    const filteredMatches = await supabaseGet(matchQuery);
+    const matchIds = Array.isArray(filteredMatches) ? filteredMatches.map(m => m.id) : [];
+
+    let statsQuery = `/player_stats?player_id=eq.${playerId}&select=*,matches(*)`;
+    if (matchIds.length > 0 && (gameType || dateFrom || dateTo)) {
+      statsQuery = `/player_stats?player_id=eq.${playerId}&match_id=in.(${matchIds.join(',')})&select=*,matches(*)`;
+    } else if (matchIds.length === 0 && (gameType || dateFrom || dateTo)) {
+      return res.status(200).json({ playerId, name: SFK_PLAYERS[playerId]?.name, shirt: SFK_PLAYERS[playerId]?.shirt || 0, games: 0, starterGames: 0, minutesPlayed: 0, goals: 0, assists: 0, yellowCards: 0, redCards: 0, matchDetails: [] });
+    }
+
+    const stats = await supabaseGet(statsQuery);
     if (!Array.isArray(stats)) return res.status(200).json({ stats: [] });
 
     // Thumbnail'i player_stats'tan al, yoksa MinFotboll'dan çek
