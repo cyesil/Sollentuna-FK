@@ -470,6 +470,8 @@ module.exports = async (req, res) => {
       ambiguous,
       reporters: sfkReporters,
       selectedReporterId,
+      debugSubs606521: substitutions[606521] || [],
+      debugUniqueSubs: uniqueSubBlurbs.filter(b=>b.TypeID===4).map(b=>({title:b.Title,desc:b.Description,min:b.GameMinute,sec:b.GameClockSecond})),
     });
   }
 
