@@ -318,8 +318,7 @@ module.exports = async (req, res) => {
     const substitutions = {};
     const defaultDur = 90;
 
-    // Değişiklikleri işlemeden önce duplicate'leri temizle (birden fazla rapportör olabilir)
-    // Aynı dakika + aynı oyuncu = duplicate → sadece birini al
+    // Değişiklikleri işlemeden önce duplicate'leri temizle ve SIRALA
     const seenSubs = new Set();
     const uniqueSubBlurbs = [];
     if (overview && overview.Blurbs) {
@@ -327,7 +326,6 @@ module.exports = async (req, res) => {
         if (b.TypeID !== 4) return;
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
         if (!isOurTeam) return;
-        // Aynı oyuncu + aynı süre (±5 sn tolerans) = duplicate
         const sec = b.GameClockSecond || 0;
         const roundedSec = Math.round(sec / 5) * 5;
         const key = `${b.Title}|${b.Description}|${roundedSec}`;
@@ -337,6 +335,9 @@ module.exports = async (req, res) => {
         }
       });
     }
+
+    // Kronolojik sıraya koy - önce erken dakikalar işlensin
+    uniqueSubBlurbs.sort((a, b) => (a.GameClockSecond || 0) - (b.GameClockSecond || 0));
 
     uniqueSubBlurbs.forEach(b => {
       const clockSec = b.GameClockSecond || 0;
@@ -470,9 +471,7 @@ module.exports = async (req, res) => {
       ambiguous,
       reporters: sfkReporters,
       selectedReporterId,
-      debugSubs606521: substitutions[606521] || substitutions['606521'] || 'NOT_FOUND',
-      debugSubsKeys: Object.keys(substitutions),
-      debugUniqueSubs: uniqueSubBlurbs.filter(b=>b.TypeID===4).map(b=>({title:b.Title,desc:b.Description,min:b.GameMinute,sec:b.GameClockSecond})),
+
     });
   }
 
