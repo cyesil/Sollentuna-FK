@@ -522,9 +522,9 @@ function showApp() {
   document.getElementById('trTo').value = new Date().toISOString().slice(0,10);
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
-  // Users tabını sadece admin görsün
+  // Users tabı: admin ve tränare görsün
   const usersTab = document.getElementById('usersTab');
-  if (usersTab) usersTab.style.display = u.role === 'admin' ? 'inline-block' : 'none';
+  if (usersTab) usersTab.style.display = (u.role === 'admin' || u.role === 'antrenor') ? 'inline-block' : 'none';
   // Oyuncu için tarih alanlarını doldur
   if (u.role === 'oyuncu') {
     const today = new Date().toISOString().slice(0,10);
@@ -1100,11 +1100,11 @@ async function loadUsers() {
               style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.25rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">
               ✏️ Redigera
             </button>
-            <button onclick="showChangePassword(${u.id},'${u.username}')"
+            ${state.user.role === 'admin' || u.role !== 'admin' ? `<button onclick="showChangePassword(${u.id},'${u.username}')"
               style="background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:0.25rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">
               🔑 Lösenord
-            </button>
-            ${u.username !== '${state.user?.username}' ? `<button onclick="deleteUser(${u.id},'${u.username}')"
+            </button>` : ''}
+            ${u.id !== state.user.id ? `<button onclick="deleteUser(${u.id},'${u.username}')"
               style="background:rgba(255,23,68,0.1);border:1px solid var(--red);color:var(--red);padding:0.25rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">
               🗑️
             </button>` : ''}
