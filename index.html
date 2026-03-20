@@ -801,6 +801,7 @@ async function loadStats() {
     const r = await fetch('/api/stats?' + params, {headers: authHeaders()});
     const d = await r.json();
     setStatus('', false);
+    window._lastStatsEl = document.getElementById('statsTable');
     document.getElementById('statsTable').innerHTML = renderStatsTable(d, 'stats');
   } catch(e) {
     setError('Fel: ' + e.message);
@@ -821,6 +822,7 @@ async function loadTrStats() {
     const r = await fetch('/api/stats?' + params, {headers: authHeaders()});
     const d = await r.json();
     setStatus('', false);
+    window._lastStatsEl = document.getElementById('trStatsTable');
     document.getElementById('trStatsTable').innerHTML = renderStatsTable(d, 'tr');
   } catch(e) {
     setError('Fel: ' + e.message);
@@ -828,40 +830,75 @@ async function loadTrStats() {
   }
 }
 
+// Stats tablosu sıralama state'i
+const statsSort = { col: 'minutesPlayed', dir: -1 };
+
+function sortStatsTable(col) {
+  if (statsSort.col === col) {
+    statsSort.dir *= -1;
+  } else {
+    statsSort.col = col;
+    statsSort.dir = -1;
+  }
+  // Aktif sıralama göstergesi
+  document.querySelectorAll('.stats-th').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === col) th.classList.add(statsSort.dir === -1 ? 'sort-desc' : 'sort-asc');
+  });
+  // Tabloyu yeniden render et
+  if (window._lastStatsData) {
+    const el = window._lastStatsEl;
+    if (el) el.innerHTML = renderStatsTable(window._lastStatsData, '');
+  }
+}
+
 function renderStatsTable(d, prefix) {
-  const players = d.players || [];
+  window._lastStatsData = d;
+  const players = [...(d.players || [])];
   if (!players.length) return '<div class="empty-state">Ingen statistik hittades</div>';
 
-  const rows = players.map(p => {
-    const g = (n, cls='') => n > 0 ? `<span class="badge ${cls}">${n}</span>` : `<span class="badge badge-zero">—</span>`;
-    return `<tr>
+  // Sırala
+  players.sort((a,b) => {
+    const av = a[statsSort.col] ?? -1;
+    const bv = b[statsSort.col] ?? -1;
+    return statsSort.dir * (bv - av);
+  });
+
+  const g = (n, cls='') => n > 0 ? `<span class="badge ${cls}">${n}</span>` : `<span class="badge badge-zero">—</span>`;
+  const m = (n) => n > 0 ? `<span class="badge">${n}</span>` : `<span class="badge badge-zero">—</span>`;
+
+  const rows = players.map(p => `<tr>
       <td><span class="shirt-no">#${p.shirt}</span></td>
       <td class="player-name">${p.name}</td>
       <td>${g(p.games)}</td>
       <td>${g(p.starterGames || 0)}</td>
-      <td>${(p.minutesPlayed || 0) > 0 ? `<span class="badge">${p.minutesPlayed}</span>` : '<span class="badge badge-zero">—</span>'}</td>
+      <td>${m(p.minutesPlayed || 0)}</td>
+      <td>${p.minutesPerGame > 0 ? `<span class="badge" style="background:rgba(0,212,255,0.1);color:var(--accent)">${p.minutesPerGame}'</span>` : '<span class="badge badge-zero">—</span>'}</td>
       <td>${g(p.goals,'badge-green')}</td>
       <td>${g(p.assists)}</td>
       <td>${g(p.yellowCards,'badge-yellow')}</td>
       <td>${g(p.redCards,'badge-red')}</td>
-      <td style="font-size:0.82rem;color:var(--muted);">${p.goalsPerGame > 0 ? p.goalsPerGame : '—'}</td>
-      <td style="font-size:0.82rem;color:var(--muted);">${p.minutesPerGoal ? p.minutesPerGoal + "'" : '—'}</td>
-    </tr>`;
-  }).join('');
+      <td style="font-size:0.85rem;color:var(--muted);">${p.goalsPerGame > 0 ? p.goalsPerGame : '—'}</td>
+      <td style="font-size:0.85rem;color:var(--muted);">${p.minutesPerGoal ? p.minutesPerGoal + "'" : '—'}</td>
+    </tr>`).join('');
+
+  const thStyle = `cursor:pointer;user-select:none;`;
+  const th = (col, label, style='') => `<th class="stats-th" data-col="${col}" onclick="sortStatsTable('${col}')" style="${thStyle}${style}" title="Sortera efter ${label}">${label} ${statsSort.col===col ? (statsSort.dir===-1?'↓':'↑') : '↕'}</th>`;
 
   return `<div style="margin-bottom:0.75rem;color:var(--muted);font-size:0.85rem;">${d.totalGames || 0} matcher sparade</div>
-  <div class="table-wrap"><table>
+  <div class="table-wrap" id="statsTableWrap"><table>
     <thead><tr>
       <th>#</th><th>Spelare</th>
-      <th title="Antal matcher i trupp">Trupp</th>
-      <th title="Starter i första 11">Start 11</th>
-      <th title="Totala minuter spelade">⏱ Tot Min</th>
-      <th style="color:var(--green)">⚽ Mål</th>
-      <th style="color:var(--accent)">🎯 Ast</th>
-      <th style="color:var(--yellow)">🟨 Gult</th>
-      <th style="color:var(--red)">🟥 Rött</th>
-      <th title="Mål per match">Mål/Match</th>
-      <th title="Minuter per mål">Min/Mål</th>
+      ${th('games','Trupp')}
+      ${th('starterGames','Start 11')}
+      ${th('minutesPlayed','Tot Min')}
+      ${th('minutesPerGame','Min/Match')}
+      ${th('goals','Mål','color:var(--green)')}
+      ${th('assists','Ast','color:var(--accent)')}
+      ${th('yellowCards','Gult','color:var(--yellow)')}
+      ${th('redCards','Rött','color:var(--red)')}
+      ${th('goalsPerGame','Mål/Match')}
+      ${th('minutesPerGoal','Min/Mål')}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
