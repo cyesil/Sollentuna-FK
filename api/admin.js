@@ -385,9 +385,14 @@ module.exports = async (req, res) => {
     const ambiguous = [...unknownRosterPlayers]; // Listede olmayan kadro oyuncuları
 
     // Rapportör filtresi için EventID seti
+    // Tek SFK rapportörü varsa otomatik filtrele
+    let effectiveReporterId = selectedReporterId;
+    if (!effectiveReporterId && sfkReporters.length === 1) {
+      effectiveReporterId = sfkReporters[0].memberId;
+    }
     let allowedEventIds = null;
-    if (selectedReporterId && reporterEvents[selectedReporterId]) {
-      allowedEventIds = reporterEvents[selectedReporterId];
+    if (effectiveReporterId && reporterEvents[effectiveReporterId]) {
+      allowedEventIds = reporterEvents[effectiveReporterId];
     }
 
     // Olaylar için de duplicate temizle (aynı dakika + oyuncu + tip)
@@ -398,12 +403,10 @@ module.exports = async (req, res) => {
         if (allowedEventIds && b.ItemID && !allowedEventIds.has(b.ItemID)) return;
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
         if (!isOurTeam) return;
-        // Duplicate kontrolü - rapportör seçilmemişse uygula
-        if (!allowedEventIds) {
-          const eventKey = `${b.TypeID}|${b.Title}|${b.GameMinute}`;
-          if (seenEvents.has(eventKey)) return;
-          seenEvents.add(eventKey);
-        }
+        // Duplicate kontrolü - her zaman uygula
+        const eventKey = `${b.TypeID}|${b.Title}|${b.GameMinute}`;
+        if (seenEvents.has(eventKey)) return;
+        seenEvents.add(eventKey);
         const playerName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
         if (!playerName) return;
         const pid = findPlayer(playerName);
