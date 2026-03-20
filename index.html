@@ -235,6 +235,9 @@
       header { padding: 0 1rem; }
     }
   </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/sv.js"></script>
 </head>
 <body>
 
@@ -899,6 +902,19 @@ async function refreshToken() {
     btn.disabled = false;
   }
 }
+
+// Flatpickr - İsveçce takvim
+document.addEventListener('DOMContentLoaded', () => {
+  const dateConfig = {
+    locale: 'sv',
+    dateFormat: 'Y-m-d',
+    allowInput: true,
+  };
+  ['adminFrom','adminTo','statsFrom','statsTo','trFrom','trTo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) flatpickr(el, dateConfig);
+  });
+});
 
 window.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 if (state.token && state.user) { showApp(); } else {
