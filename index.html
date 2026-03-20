@@ -861,11 +861,14 @@ function renderStatsTable(d, prefix) {
   players.sort((a,b) => {
     const av = a[statsSort.col] ?? 0;
     const bv = b[statsSort.col] ?? 0;
-    // 0 değerler her zaman en alta
-    if (av === 0 && bv === 0) return a.name.localeCompare(b.name, 'sv');
-    if (av === 0) return 1;
-    if (bv === 0) return -1;
-    if (bv !== av) return statsSort.dir * (bv - av);
+    // null/0 değerler her zaman en alta (sıralama yönünden bağımsız)
+    const aEmpty = av === 0 || av === null;
+    const bEmpty = bv === 0 || bv === null;
+    if (aEmpty && bEmpty) return a.name.localeCompare(b.name, 'sv');
+    if (aEmpty) return 1;
+    if (bEmpty) return -1;
+    // Değerler farklıysa: dir=-1 demek büyük üste (azalan)
+    if (bv !== av) return (bv - av) * statsSort.dir * -1;
     return a.name.localeCompare(b.name, 'sv');
   });
 
