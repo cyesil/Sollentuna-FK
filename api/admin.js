@@ -6,6 +6,10 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const JWT_SECRET = process.env.JWT_SECRET || 'sfk2026gizliAnahtar!';
 const MINFOTBOLL_API = 'minfotboll-api.azurewebsites.net';
 
+// Forma numarasından PlayerID bul
+const SHIRT_TO_PLAYER_ID = {};
+// Bu aşağıda SFK_PLAYERS tanımlandıktan sonra doldurulacak
+
 const SFK_PLAYER_IDS = new Set([
   583483,562656,659792,571649,572299,597435,700142,595639,
   571652,558820,571659,589844,572290,572006,595633,606521,
@@ -36,6 +40,11 @@ const SFK_PLAYERS = {
   595628:{name:'Valter Ekehov',shirt:66},
   573259:{name:'Love Nytén',shirt:77},
 };
+
+// Forma no → PlayerID eşleştirmesi
+Object.keys(SFK_PLAYERS).forEach(pid => {
+  SHIRT_TO_PLAYER_ID[SFK_PLAYERS[pid].shirt] = parseInt(pid);
+});
 
 const LEAGUES = [
   {id:59554, type:'lig',      team:398871, label:'P16 Div.1 2025'},
@@ -222,6 +231,7 @@ module.exports = async (req, res) => {
     }
     // Olayları işle
     const events = { goals:{}, assists:{}, yellowCards:{}, redCards:{} };
+    const ambiguous = [];
     if (overview && overview.Blurbs) {
       overview.Blurbs.forEach(b => {
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
@@ -229,8 +239,15 @@ module.exports = async (req, res) => {
         const playerName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
         if (!playerName) return;
 
-        const findPlayer = (name) => {
-          const nl = name.toLowerCase();
+        const findPlayer = (nameOrShirt) => {
+          const s = String(nameOrShirt).trim();
+          // Önce forma numarasıyla dene
+          const shirtNum = parseInt(s.split(' ')[0]);
+          if (!isNaN(shirtNum) && SHIRT_TO_PLAYER_ID[shirtNum]) {
+            return SHIRT_TO_PLAYER_ID[shirtNum];
+          }
+          // İsimle dene
+          const nl = s.toLowerCase();
           return parseInt(Object.keys(SFK_PLAYERS).find(id => {
             const full = SFK_PLAYERS[id].name.toLowerCase();
             const parts = full.split(' ');
@@ -239,20 +256,35 @@ module.exports = async (req, res) => {
           }));
         };
         const pid = findPlayer(playerName);
-        if (!pid) return;
-
+        
         if (b.TypeID === 1 && b.IsGoal) {
-          events.goals[pid] = (events.goals[pid] || 0) + 1;
+          if (pid) {
+            events.goals[pid] = (events.goals[pid] || 0) + 1;
+          } else {
+            ambiguous.push({ type: 'goal', rawName: playerName, minute: b.GameMinute, description: b.Description });
+          }
           const assistPrefix = b.Description && (b.Description.includes('Assist av:') ? 'Assist av:' : b.Description.includes('Assist by:') ? 'Assist by:' : null);
           if (assistPrefix) {
             const assistName = b.Description.replace(assistPrefix, '').trim().replace(/^\d+\.\s*/, '').trim();
             const apid = findPlayer(assistName);
-            if (apid) events.assists[apid] = (events.assists[apid] || 0) + 1;
+            if (apid) {
+              events.assists[apid] = (events.assists[apid] || 0) + 1;
+            } else {
+              ambiguous.push({ type: 'assist', rawName: assistName, minute: b.GameMinute, description: b.Description });
+            }
           }
         } else if (b.TypeID === 6) {
-          events.yellowCards[pid] = (events.yellowCards[pid] || 0) + 1;
+          if (pid) {
+            events.yellowCards[pid] = (events.yellowCards[pid] || 0) + 1;
+          } else {
+            ambiguous.push({ type: 'yellowCard', rawName: playerName, minute: b.GameMinute, description: b.Description });
+          }
         } else if (b.TypeID === 7) {
-          events.redCards[pid] = (events.redCards[pid] || 0) + 1;
+          if (pid) {
+            events.redCards[pid] = (events.redCards[pid] || 0) + 1;
+          } else {
+            ambiguous.push({ type: 'redCard', rawName: playerName, minute: b.GameMinute, description: b.Description });
+          }
         }
       });
     }
@@ -283,6 +315,7 @@ module.exports = async (req, res) => {
       leagueName: header.LeagueName,
       gameType: getGameType(header.LeagueName),
       players,
+      ambiguous,
     });
   }
 
