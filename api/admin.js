@@ -285,7 +285,9 @@ module.exports = async (req, res) => {
         if (outPid) {
           if (!substitutions[outPid]) substitutions[outPid] = [];
           // En son açık kaydı kapat
-          const last = substitutions[outPid].findLast ? substitutions[outPid].findLast(s => s.outAt === null) : null;
+          const arr = substitutions[outPid];
+          let last = null;
+          for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].outAt === null) { last = arr[i]; break; } }
           if (last) last.outAt = minute;
           else substitutions[outPid].push({ inAt: 0, outAt: minute }); // İlk 11'den çıktı
         }
