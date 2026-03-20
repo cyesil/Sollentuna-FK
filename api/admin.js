@@ -318,32 +318,44 @@ module.exports = async (req, res) => {
     const substitutions = {};
     const defaultDur = 90;
 
+    // Değişiklikleri işlemeden önce duplicate'leri temizle (birden fazla rapportör olabilir)
+    // Aynı dakika + aynı oyuncu = duplicate → sadece birini al
+    const seenSubs = new Set();
+    const uniqueSubBlurbs = [];
     if (overview && overview.Blurbs) {
       overview.Blurbs.forEach(b => {
         if (b.TypeID !== 4) return;
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
         if (!isOurTeam) return;
-        const clockSec = b.GameClockSecond || 0;
-        const minute = Math.ceil(clockSec / 60);
-        const inName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
-        const outRaw = b.Description ? b.Description.replace(/^Out\s+/i, '').replace(/^\d+\.\s*/, '').trim() : null;
-        const inPid = inName ? findPlayer(inName) : null;
-        const outPid = outRaw ? findPlayer(outRaw) : null;
-        if (inPid && SFK_PLAYER_IDS.has(inPid)) {
-          squadPlayerIds.add(inPid);
-          if (!substitutions[inPid]) substitutions[inPid] = [];
-          substitutions[inPid].push({ inAt: minute, outAt: null });
-        }
-        if (outPid && SFK_PLAYER_IDS.has(outPid)) {
-          if (!substitutions[outPid]) substitutions[outPid] = [];
-          const arr = substitutions[outPid];
-          let last = null;
-          for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].outAt === null) { last = arr[i]; break; } }
-          if (last) last.outAt = minute;
-          else substitutions[outPid].push({ inAt: 0, outAt: minute });
+        const key = `${b.Title}|${b.Description}|${b.GameMinute}`;
+        if (!seenSubs.has(key)) {
+          seenSubs.add(key);
+          uniqueSubBlurbs.push(b);
         }
       });
     }
+
+    uniqueSubBlurbs.forEach(b => {
+      const clockSec = b.GameClockSecond || 0;
+      const minute = Math.ceil(clockSec / 60);
+      const inName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
+      const outRaw = b.Description ? b.Description.replace(/^Out\s+/i, '').replace(/^\d+\.\s*/, '').trim() : null;
+      const inPid = inName ? findPlayer(inName) : null;
+      const outPid = outRaw ? findPlayer(outRaw) : null;
+      if (inPid && SFK_PLAYER_IDS.has(inPid)) {
+        squadPlayerIds.add(inPid);
+        if (!substitutions[inPid]) substitutions[inPid] = [];
+        substitutions[inPid].push({ inAt: minute, outAt: null });
+      }
+      if (outPid && SFK_PLAYER_IDS.has(outPid)) {
+        if (!substitutions[outPid]) substitutions[outPid] = [];
+        const arr = substitutions[outPid];
+        let last = null;
+        for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].outAt === null) { last = arr[i]; break; } }
+        if (last) last.outAt = minute;
+        else substitutions[outPid].push({ inAt: 0, outAt: minute });
+      }
+    });
 
     // Dakika hesabı
     const calcMinutes = (pidNum, isStarter, gameDur) => {
@@ -374,12 +386,20 @@ module.exports = async (req, res) => {
       allowedEventIds = reporterEvents[selectedReporterId];
     }
 
+    // Olaylar için de duplicate temizle (aynı dakika + oyuncu + tip)
+    const seenEvents = new Set();
     if (overview && overview.Blurbs) {
       overview.Blurbs.forEach(b => {
         // Rapportör seçiliyse sadece onun girdiği olayları al
         if (allowedEventIds && b.ItemID && !allowedEventIds.has(b.ItemID)) return;
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
         if (!isOurTeam) return;
+        // Duplicate kontrolü - rapportör seçilmemişse uygula
+        if (!allowedEventIds) {
+          const eventKey = `${b.TypeID}|${b.Title}|${b.GameMinute}`;
+          if (seenEvents.has(eventKey)) return;
+          seenEvents.add(eventKey);
+        }
         const playerName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
         if (!playerName) return;
         const pid = findPlayer(playerName);
