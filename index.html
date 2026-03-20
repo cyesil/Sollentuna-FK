@@ -281,7 +281,7 @@
       <div class="tabs">
         <button class="tab active" onclick="adminTab('matches')">Matcher</button>
         <button class="tab" onclick="adminTab('stats')">Statistik</button>
-        ${state.user?.role === 'admin' ? '<button class="tab" onclick="adminTab('users')">Användare</button>' : ''}
+        <button class="tab" id="usersTab" onclick="adminTab('users')" style="display:none;">Användare</button>
       </div>
 
       <!-- MAÇLAR TAB -->
@@ -522,12 +522,9 @@ function showApp() {
   document.getElementById('trTo').value = new Date().toISOString().slice(0,10);
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
-  // Tränare için Users tabını gizle
-  if (u.role === 'antrenor') {
-    document.querySelectorAll('#viewAdmin .tab').forEach(t => {
-      if (t.textContent.trim() === 'Användare') t.style.display = 'none';
-    });
-  }
+  // Users tabını sadece admin görsün
+  const usersTab = document.getElementById('usersTab');
+  if (usersTab) usersTab.style.display = u.role === 'admin' ? 'inline-block' : 'none';
   // Oyuncu için tarih alanlarını doldur
   if (u.role === 'oyuncu') {
     const today = new Date().toISOString().slice(0,10);
@@ -738,9 +735,9 @@ function renderMatchDetail(detail) {
             <input type="number" id="gameDuration" value="90" min="10" max="120" 
               style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;text-align:center;">
           </div>
-          ${state.user?.role !== 'oyuncu' ? `<button class="btn btn-success" onclick="saveMatch()">
+          <button class="btn btn-success" onclick="saveMatch()">
             ${isSaved ? '✓ Uppdatera' : '💾 Spara match'}
-          </button>` : '<span style="color:var(--muted);font-size:0.8rem;">Skrivskyddad</span>'}
+          </button>
           <div style="font-size:0.75rem;color:var(--muted);">
             Ospärade spelare sparas inte
           </div>
