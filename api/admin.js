@@ -99,14 +99,29 @@ function httpPost(host, path, body, headers={}) {
 
 function supabaseRequest(method, path, body) {
   const url = new URL(SUPABASE_URL);
-  const headers = {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-    'Content-Type': 'application/json',
-    'Prefer': 'return=representation',
-  };
-  return httpPost(url.host, `/rest/v1${path}`, body || {}, headers)
-    .catch(() => null);
+  return new Promise((resolve, reject) => {
+    const bodyStr = (body && method !== 'DELETE') ? JSON.stringify(body) : '';
+    const headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+    };
+    if (bodyStr) headers['Content-Length'] = Buffer.byteLength(bodyStr);
+    const req = https.request({
+      host: url.host,
+      path: `/rest/v1${path}`,
+      method,
+      headers,
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { resolve(data); } });
+    });
+    req.on('error', (e) => { console.error('supabaseRequest error:', e); resolve(null); });
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
 }
 
 function supabaseGet(path) {
