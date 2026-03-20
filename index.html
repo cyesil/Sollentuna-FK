@@ -1273,6 +1273,14 @@ function renderMyStats(d) {
   if (!d || d.error) return '<div class="empty-state">Ingen statistik hittades</div>';
   const g = (n,cls='') => n > 0 ? `<span class="badge ${cls}">${n}</span>` : `<span class="badge badge-zero">—</span>`;
   return `
+    <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1.5rem;">
+      ${d.thumbnail ? `<img src="${d.thumbnail}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);" onerror="this.style.display='none'">` : 
+        `<div style="width:80px;height:80px;border-radius:50%;background:var(--surface2);border:3px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:2rem;">👤</div>`}
+      <div>
+        <div style="font-size:1.4rem;font-weight:700;font-family:'Barlow Condensed',sans-serif;">${d.name}</div>
+        <div style="color:var(--muted);font-size:0.9rem;">#${d.shirt} · Spelare</div>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;margin-bottom:1.5rem;">
       <div class="stat-card"><div class="stat-val">${d.games||0}</div><div class="stat-lbl">Trupp</div></div>
       <div class="stat-card"><div class="stat-val">${d.starterGames||0}</div><div class="stat-lbl">Start 11</div></div>
