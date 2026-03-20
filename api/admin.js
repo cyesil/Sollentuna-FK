@@ -38,13 +38,14 @@ const SFK_PLAYERS = {
 };
 
 const LEAGUES = [
-  {id:59554, type:'lig', team:398871, label:'P16 Div.1 2025'},
-  {id:129362,type:'lig', team:398871, label:'P16 Div.1 2026'},
-  {id:70389, type:'kupa',team:398871, label:'P16 Ligacupen 2026'},
-  {id:69555, type:'hazirlik',team:398871,label:'P16 Träningsmatcher 2026'},
-  {id:69500, type:'lig', team:74782,  label:'P17 Allsvenskan 2026'},
-  {id:70384, type:'kupa',team:74782,  label:'P17 Ligacupen 2026'},
-  {id:70816, type:'hazirlik',team:74782,label:'P17 Träningsmatcher 2026'},
+  {id:59554, type:'lig',      team:398871, label:'P16 Div.1 2025'},
+  {id:129362,type:'lig',      team:398871, label:'P16 Div.1 2026'},
+  {id:70389, type:'kupa',     team:398871, label:'P16 Ligacupen 2026'},
+  {id:59382, type:'hazirlik', team:398871, label:'P16 Träningsmatcher 2025'},
+  {id:69555, type:'hazirlik', team:398871, label:'P16 Träningsmatcher 2026'},
+  {id:69500, type:'lig',      team:74782,  label:'P17 Allsvenskan 2026'},
+  {id:70384, type:'kupa',     team:74782,  label:'P17 Ligacupen 2026'},
+  {id:70816, type:'hazirlik', team:74782,  label:'P17 Träningsmatcher 2026'},
 ];
 
 function verifyToken(token) {
