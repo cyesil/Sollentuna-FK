@@ -546,10 +546,31 @@ function renderMatchList(matches) {
     const d = new Date(m.gameDate);
     const dateStr = d.toLocaleDateString('sv-SE', {day:'2-digit',month:'short',year:'numeric'});
     const typeClass = 'type-' + m.gameType;
+    const SFK_IDS = [398871, 74782];
+    const isHome = SFK_IDS.includes(m.homeTeamId);
+    const sfkLogo = 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Sollentuna_FK_logo_%282022%29.svg/960px-Sollentuna_FK_logo_%282022%29.svg.png';
+    const opponentLogo = isHome ? m.awayLogo : m.homeLogo;
+    const opponentName = isHome ? m.awayTeam : m.homeTeam;
+    const sfkScore = isHome ? m.homeScore : m.awayScore;
+    const oppScore = isHome ? m.awayScore : m.homeScore;
+    const logoStyle = 'width:36px;height:36px;object-fit:contain;border-radius:4px;';
+
     return `<div class="match-card ${isSaved ? 'saved' : ''}" onclick="loadMatchDetail(${JSON.stringify(m).replace(/"/g,'&quot;')})">
-      <div>
-        <div class="match-score">${m.homeScore} - ${m.awayScore}</div>
-        <div class="match-meta">${dateStr}</div>
+      <div style="display:flex;align-items:center;gap:0.5rem;min-width:120px;">
+        ${isHome 
+          ? `<img src="${sfkLogo}" style="${logoStyle}" onerror="this.style.display='none'">
+             <div style="text-align:center;">
+               <div class="match-score">${sfkScore} - ${oppScore}</div>
+               <div class="match-meta">${dateStr}</div>
+             </div>
+             <img src="${opponentLogo}" style="${logoStyle}" onerror="this.style.display='none'">`
+          : `<img src="${opponentLogo}" style="${logoStyle}" onerror="this.style.display='none'">
+             <div style="text-align:center;">
+               <div class="match-score">${oppScore} - ${sfkScore}</div>
+               <div class="match-meta">${dateStr}</div>
+             </div>
+             <img src="${sfkLogo}" style="${logoStyle}" onerror="this.style.display='none'">`
+        }
       </div>
       <div class="match-teams">
         <div class="home">${m.homeTeam}</div>
