@@ -210,12 +210,46 @@ module.exports = async (req, res) => {
     const mfToken = await getMinfotbollToken();
     const tid = parseInt(teamId);
 
-    const [overview, lineups, header, rosterData] = await Promise.all([
+    const [overview, lineups, header, rosterData, timelineData] = await Promise.all([
       minfotbollGet(`/api/magazinegameviewapi/initgameoverview?GameID=${gameId}`, mfToken),
       minfotbollGet(`/api/magazinegameviewapi/initgamelineups?GameID=${gameId}`, mfToken),
       minfotbollGet(`/api/gameapi/getgameheaderinfo?id=${gameId}`, mfToken),
       minfotbollGet(`/api/followgameapi/initlivetimelineblurbs?GameID=${gameId}`, mfToken),
+      minfotbollGet(`/api/followgameapi/initlivetimelineblurbs?GameID=${gameId}`, mfToken),
     ]);
+
+    // Rapportörleri bul - her iki takımın TeamStaff'ından MemberID → isim
+    const memberMap = {};
+    [lineups.HomeTeamGameTeamRoster, lineups.AwayTeamGameTeamRoster].forEach(roster => {
+      if (roster?.TeamStaff) {
+        roster.TeamStaff.forEach(s => {
+          memberMap[s.MemberID] = { name: s.FullName, teamId: roster.TeamID };
+        });
+      }
+    });
+
+    // Timeline'daki olayları rapportöre göre grupla
+    const reporterEvents = {}; // memberID -> [EREventID]
+    if (rosterData?.TimelineBlurbs) {
+      rosterData.TimelineBlurbs.forEach(b => {
+        if (b.EREventInfo && b.InsertMemberID) {
+          if (!reporterEvents[b.InsertMemberID]) reporterEvents[b.InsertMemberID] = new Set();
+          reporterEvents[b.InsertMemberID].add(b.EREventInfo.EREventID);
+        }
+      });
+    }
+
+    // Birden fazla SFK rapportörü var mı?
+    const sfkReporters = Object.entries(reporterEvents)
+      .filter(([mid]) => memberMap[mid]?.teamId === tid)
+      .map(([mid, events]) => ({
+        memberId: parseInt(mid),
+        name: memberMap[mid]?.name || `ID: ${mid}`,
+        eventCount: events.size,
+      }));
+
+    // Seçili rapportör varsa filtrele
+    const selectedReporterId = req.query.reporterId ? parseInt(req.query.reporterId) : null;
 
     const isHome = header.HomeTeamID === tid;
     const lineupTeam = isHome ? lineups.HomeTeamLineUp : lineups.AwayTeamLineUp;
@@ -334,8 +368,16 @@ module.exports = async (req, res) => {
     const events = { goals:{}, assists:{}, yellowCards:{}, redCards:{} };
     const ambiguous = [...unknownRosterPlayers]; // Listede olmayan kadro oyuncuları
 
+    // Rapportör filtresi için EventID seti
+    let allowedEventIds = null;
+    if (selectedReporterId && reporterEvents[selectedReporterId]) {
+      allowedEventIds = reporterEvents[selectedReporterId];
+    }
+
     if (overview && overview.Blurbs) {
       overview.Blurbs.forEach(b => {
+        // Rapportör seçiliyse sadece onun girdiği olayları al
+        if (allowedEventIds && b.ItemID && !allowedEventIds.has(b.ItemID)) return;
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
         if (!isOurTeam) return;
         const playerName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
@@ -403,6 +445,8 @@ module.exports = async (req, res) => {
       gameType: getGameType(header.LeagueName),
       players,
       ambiguous,
+      reporters: sfkReporters,
+      selectedReporterId,
     });
   }
 
