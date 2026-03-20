@@ -444,26 +444,44 @@ module.exports = async (req, res) => {
     // Oyuncu istatistiklerini kaydet
     for (const p of players) {
       const existingStat = await supabaseGet(`/player_stats?match_id=eq.${matchId}&player_id=eq.${p.playerId}&select=id`);
+      const statData = {
+        player_name: p.name,
+        shirt_number: p.shirt,
+        played: p.played,
+        is_starter: p.isStarter || false,
+        minutes_played: p.minutesPlayed || 0,
+        goals: p.goals || 0,
+        assists: p.assists || 0,
+        yellow_cards: p.yellowCards || 0,
+        red_cards: p.redCards || 0,
+      };
+
       if (Array.isArray(existingStat) && existingStat.length > 0) {
         // Güncelle - PATCH
-        await httpGet(new URL(SUPABASE_URL).host, `/rest/v1/player_stats?id=eq.${existingStat[0].id}`, {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
+        const statId = existingStat[0].id;
+        await new Promise((resolve, reject) => {
+          const bodyStr = JSON.stringify(statData);
+          const req = require('https').request({
+            host: new URL(SUPABASE_URL).host,
+            path: `/rest/v1/player_stats?id=eq.${statId}`,
+            method: 'PATCH',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(bodyStr),
+              'Prefer': 'return=representation',
+            }
+          }, (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>resolve(d)); });
+          req.on('error', reject);
+          req.write(bodyStr);
+          req.end();
         });
       } else {
-        const minutesPlayed = p.minutesPlayed || 0;
         await supabaseRequest('POST', '/player_stats', {
           match_id: matchId,
           player_id: p.playerId,
-          player_name: p.name,
-          shirt_number: p.shirt,
-          played: p.played,
-          is_starter: p.isStarter || false,
-          minutes_played: minutesPlayed,
-          goals: p.goals || 0,
-          assists: p.assists || 0,
-          yellow_cards: p.yellowCards || 0,
-          red_cards: p.redCards || 0,
+          ...statData,
         });
       }
     }
