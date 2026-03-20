@@ -887,7 +887,7 @@ async function saveMatch() {
       gameDuration,
       players: state.currentDetail.players.filter(p => p.selected).map(p => ({
         ...p,
-        minutesPlayed: p.isStarter ? gameDuration : Math.round(gameDuration / 2)
+        minutesPlayed: p.minutesPlayed || 0
       }))
     };
     if (payload.players.length === 0) {
