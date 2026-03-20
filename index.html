@@ -700,7 +700,7 @@ function renderMatchDetail(detail) {
         👥 ${detail.reporters.length} rapportör bulundu — Hangisinin verilerini kullanayım?
       </div>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-        <button onclick="loadMatchDetail(state.currentMatch, null)"
+        <button onclick="loadMatchDetail(state.selectedMatch, null)"
           style="padding:0.4rem 0.9rem;border-radius:6px;cursor:pointer;font-size:0.85rem;
           border:1px solid ${!detail.selectedReporterId ? 'var(--accent)' : 'var(--border)'};
           background:${!detail.selectedReporterId ? 'rgba(0,212,255,0.15)' : 'var(--surface2)'};
@@ -708,7 +708,7 @@ function renderMatchDetail(detail) {
           Alla (duplicat-risk)
         </button>
         ${detail.reporters.map(rep => `
-          <button onclick="loadMatchDetail(state.currentMatch, ${rep.memberId})"
+          <button onclick="loadMatchDetail(state.selectedMatch, ${rep.memberId})"
             style="padding:0.4rem 0.9rem;border-radius:6px;cursor:pointer;font-size:0.85rem;
             border:1px solid ${detail.selectedReporterId === rep.memberId ? 'var(--green)' : 'var(--border)'};
             background:${detail.selectedReporterId === rep.memberId ? 'rgba(0,230,118,0.15)' : 'var(--surface2)'};
@@ -790,7 +790,6 @@ function renderMatchDetail(detail) {
     </div>
   `;
 
-  state.currentMatch = match;
   state.currentDetail = detail;
 }
 
