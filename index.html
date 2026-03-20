@@ -287,8 +287,8 @@
       <!-- MAÇLAR TAB -->
       <div id="adminMatches">
         <div class="filter-bar">
-          <div><label>Från datum</label><input type="date" id="adminFrom" value="2025-01-01"></div>
-          <div><label>Till datum</label><input type="date" id="adminTo"></div>
+          <div><label>Från datum</label><input type="date" id="adminFrom" value="2025-11-08"></div>
+          <div><label>Till datum</label><input type="date" id="adminTo" value=""></div>
           <div>
             <label>Matchtyp</label>
             <select id="adminType">
@@ -591,10 +591,11 @@ function renderMatchDetail(detail) {
   const rows = detail.players.map((p,i) => `
     <tr id="prow_${i}" style="${p.selected ? '' : 'opacity:0.4;'}">
       <td><span class="shirt-no">#${p.shirt}</span></td>
-      <td class="player-name">
-        ${p.name}
-        ${p.isGoalkeeper ? '<span style="font-size:0.7rem;color:var(--yellow);margin-left:4px;">GK</span>' : ''}
-        ${p.isStarter ? '<span style="font-size:0.7rem;color:var(--green);margin-left:4px;">11</span>' : '<span style="font-size:0.7rem;color:var(--muted);margin-left:4px;">Bänk</span>'}
+      <td class="player-name">${p.name}</td>
+      <td>
+        ${p.isGoalkeeper ? '<span style="font-size:0.72rem;background:rgba(255,214,0,0.15);color:var(--yellow);border-radius:4px;padding:1px 5px;">MV</span>' : 
+          p.isStarter ? '<span style="font-size:0.72rem;background:rgba(0,230,118,0.15);color:var(--green);border-radius:4px;padding:1px 5px;">11</span>' : 
+          '<span style="font-size:0.72rem;background:rgba(107,114,128,0.1);color:var(--muted);border-radius:4px;padding:1px 5px;">Bänk</span>'}
       </td>
       <td style="text-align:center;">
         <input type="checkbox" ${p.selected ? 'checked' : ''} 
@@ -620,7 +621,7 @@ function renderMatchDetail(detail) {
   const ambiguousHtml = detail.ambiguous && detail.ambiguous.length > 0 ? `
     <div style="background:rgba(255,214,0,0.08);border:1px solid rgba(255,214,0,0.3);border-radius:10px;padding:1rem;margin-bottom:1rem;">
       <div style="color:var(--yellow);font-weight:700;margin-bottom:0.75rem;">
-        ⚠️ ${detail.ambiguous.length} belirsiz olay — Hangi oyuncu olduğunu seç
+        ⚠️ ${detail.ambiguous.length} oklara händelser — Välj rätt spelare
       </div>
       ${detail.ambiguous.map((a,i) => `
         <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;flex-wrap:wrap;">
@@ -634,7 +635,7 @@ function renderMatchDetail(detail) {
             ${Object.keys(SFK_PLAYERS).map(pid => 
               `<option value="${pid}">#${SFK_PLAYERS[pid].shirt} ${SFK_PLAYERS[pid].name}</option>`
             ).join('')}
-            <option value="-1">Inte vår spelare (ignorera)</option>
+            <option value="-1">Inte vår spelare — ignorera</option>
           </select>
         </div>
       `).join('')}
@@ -666,6 +667,7 @@ function renderMatchDetail(detail) {
         <table>
           <thead><tr>
             <th>#</th><th>Spelare</th>
+            <th title="Roll">Roll</th>
             <th title="Spara">Spara</th>
             <th style="color:var(--green)">⚽ Mål</th>
             <th style="color:var(--accent)">🎯 Ast</th>
