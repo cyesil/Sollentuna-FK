@@ -552,25 +552,13 @@ module.exports = async (req, res) => {
       };
 
       if (Array.isArray(existingStat) && existingStat.length > 0) {
-        // Güncelle - PATCH
+        // Güncelle - DELETE + INSERT (PATCH güvenilir değil)
         const statId = existingStat[0].id;
-        await new Promise((resolve, reject) => {
-          const bodyStr = JSON.stringify(statData);
-          const req = https.request({
-            host: new URL(SUPABASE_URL).host,
-            path: `/rest/v1/player_stats?id=eq.${statId}`,
-            method: 'PATCH',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(bodyStr),
-              'Prefer': 'return=representation',
-            }
-          }, (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>resolve(d)); });
-          req.on('error', reject);
-          req.write(bodyStr);
-          req.end();
+        await supabaseRequest('DELETE', `/player_stats?id=eq.${statId}`, null);
+        await supabaseRequest('POST', '/player_stats', {
+          match_id: matchId,
+          player_id: p.playerId,
+          ...statData,
         });
       } else {
         await supabaseRequest('POST', '/player_stats', {
