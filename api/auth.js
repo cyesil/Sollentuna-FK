@@ -88,6 +88,16 @@ module.exports = async (req, res) => {
 
   const action = req.query.action;
 
+  // Body test
+  if (action === 'testbody') {
+    return res.status(200).json({ 
+      body: req.body, 
+      bodyType: typeof req.body,
+      username: req.body?.username,
+      password: req.body?.password,
+    });
+  }
+
   // Login
   if (action === 'login' && req.method === 'POST') {
     const { username, password } = req.body || {};
