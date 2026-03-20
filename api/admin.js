@@ -257,6 +257,66 @@ module.exports = async (req, res) => {
         }
       });
     }
+    // Değişiklikleri işle - dakika hesabı için
+    const substitutions = {}; // playerId -> [{inAt, outAt}]
+    const gameDurationSec = 90 * 60; // default 90 dk
+
+    if (overview && overview.Blurbs) {
+      overview.Blurbs.forEach(b => {
+        if (b.TypeID !== 4) return; // Sadece değişiklikler
+        const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
+        if (!isOurTeam) return;
+
+        const clockSec = b.GameClockSecond || 0;
+        const minute = Math.ceil(clockSec / 60);
+
+        // Giren oyuncu - Title'dan forma no + isim
+        const inName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
+        // Çıkan oyuncu - Description'dan "Out X. isim"
+        const outRaw = b.Description ? b.Description.replace(/^Out\s+/i, '').replace(/^\d+\.\s*/, '').trim() : null;
+
+        const inPid = inName ? findPlayer(inName) : null;
+        const outPid = outRaw ? findPlayer(outRaw) : null;
+
+        if (inPid) {
+          if (!substitutions[inPid]) substitutions[inPid] = [];
+          substitutions[inPid].push({ inAt: minute, outAt: null });
+        }
+        if (outPid) {
+          if (!substitutions[outPid]) substitutions[outPid] = [];
+          // En son açık kaydı kapat
+          const last = substitutions[outPid].findLast ? substitutions[outPid].findLast(s => s.outAt === null) : null;
+          if (last) last.outAt = minute;
+          else substitutions[outPid].push({ inAt: 0, outAt: minute }); // İlk 11'den çıktı
+        }
+      });
+    }
+
+    // Oyuncu dakikasını hesapla
+    const calcMinutes = (pidNum, isStarter, gameDur) => {
+      const subs = substitutions[pidNum] || [];
+      
+      if (isStarter) {
+        // İlk 11 - oyundan çıktı mı?
+        const outSub = subs.find(s => s.inAt === 0 && s.outAt !== null);
+        if (outSub) {
+          // Çıktı, sonra tekrar girdi mi?
+          let total = outSub.outAt;
+          const reEntries = subs.filter(s => s.inAt > 0);
+          reEntries.forEach(s => total += (s.outAt || gameDur) - s.inAt);
+          return total;
+        }
+        // Değişiklik yoksa tam süre
+        return gameDur;
+      } else {
+        // Yedek - giriş dakikasından itibaren
+        if (subs.length === 0) return Math.round(gameDur / 2); // bilinmiyorsa yarı
+        let total = 0;
+        subs.forEach(s => total += (s.outAt || gameDur) - s.inAt);
+        return total;
+      }
+    };
+
     // Olayları işle
     const events = { goals:{}, assists:{}, yellowCards:{}, redCards:{} };
     const ambiguous = [];
@@ -318,22 +378,28 @@ module.exports = async (req, res) => {
     }
 
     // SADECE o maçta oynayan SFK oyuncuları (ilk 11 + yedekler)
-    const players = [...playedPlayerIds].map(pidNum => ({
-      playerId: pidNum,
-      name: SFK_PLAYERS[pidNum].name,
-      shirt: playerShirtNos[pidNum] || SFK_PLAYERS[pidNum].shirt,
-      thumbnail: playerThumbnails[pidNum] || null,
-      position: playerPositions[pidNum] || '',
-      isGoalkeeper: (playerPositions[pidNum] || '').includes('Goalkeeper'),
-      isStarter: playerIsStarter[pidNum] === true,
-      isInSquad: playerIsInSquad[pidNum] === true,
-      played: true,
-      selected: true,
-      goals: events.goals[pidNum] || 0,
-      assists: events.assists[pidNum] || 0,
-      yellowCards: events.yellowCards[pidNum] || 0,
-      redCards: events.redCards[pidNum] || 0,
-    })).sort((a,b) => {
+    const defaultDur = 90;
+    const players = [...playedPlayerIds].map(pidNum => {
+      const isStarter = playerIsStarter[pidNum] === true;
+      const minutesPlayed = calcMinutes(pidNum, isStarter, defaultDur);
+      return {
+        playerId: pidNum,
+        name: SFK_PLAYERS[pidNum].name,
+        shirt: playerShirtNos[pidNum] || SFK_PLAYERS[pidNum].shirt,
+        thumbnail: playerThumbnails[pidNum] || null,
+        position: playerPositions[pidNum] || '',
+        isGoalkeeper: (playerPositions[pidNum] || '').includes('Goalkeeper'),
+        isStarter,
+        isInSquad: playerIsInSquad[pidNum] === true,
+        played: true,
+        selected: true,
+        minutesPlayed,
+        goals: events.goals[pidNum] || 0,
+        assists: events.assists[pidNum] || 0,
+        yellowCards: events.yellowCards[pidNum] || 0,
+        redCards: events.redCards[pidNum] || 0,
+      };
+    }).sort((a,b) => {
       // Önce kaleci, sonra ilk 11, sonra yedekler
       if (a.isGoalkeeper && !b.isGoalkeeper) return -1;
       if (!a.isGoalkeeper && b.isGoalkeeper) return 1;
@@ -361,6 +427,7 @@ module.exports = async (req, res) => {
             leagueName, gameType, players } = req.body || {};
 
     if (!gameId || !players) return res.status(400).json({ error: 'Eksik bilgi' });
+    const gameDuration = req.body.gameDuration || 90;
 
     // Maç zaten kayıtlı mı?
     const existing = await supabaseGet(`/matches?game_id=eq.${gameId}&select=id`);
@@ -386,7 +453,8 @@ module.exports = async (req, res) => {
         game_id: gameId, game_date: gameDate, home_team: homeTeam,
         away_team: awayTeam, home_score: parseInt(homeScore),
         away_score: parseInt(awayScore), league_name: leagueName,
-        game_type: gameType, approved_by: user.id,
+        game_type: gameType, game_duration: parseInt(gameDuration) || 90,
+        approved_by: user.id,
         approved_at: new Date().toISOString(),
       });
       matchId = Array.isArray(match) ? match[0].id : match.id;
@@ -402,12 +470,15 @@ module.exports = async (req, res) => {
           'Authorization': `Bearer ${SUPABASE_KEY}`,
         });
       } else {
+        const minutesPlayed = p.minutesPlayed || 0;
         await supabaseRequest('POST', '/player_stats', {
           match_id: matchId,
           player_id: p.playerId,
           player_name: p.name,
           shirt_number: p.shirt,
           played: p.played,
+          is_starter: p.isStarter || false,
+          minutes_played: minutesPlayed,
           goals: p.goals || 0,
           assists: p.assists || 0,
           yellow_cards: p.yellowCards || 0,
