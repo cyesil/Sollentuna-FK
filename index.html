@@ -590,6 +590,11 @@ function renderMatchDetail(detail) {
 
   const rows = detail.players.map((p,i) => `
     <tr id="prow_${i}" style="${p.selected ? '' : 'opacity:0.4;'}">
+      <td style="text-align:center;">
+        <input type="checkbox" ${p.selected ? 'checked' : ''} 
+          onchange="togglePlayerRow(${i}, this.checked)" 
+          style="cursor:pointer;width:16px;height:16px;">
+      </td>
       <td><span class="shirt-no">#${p.shirt}</span></td>
       <td class="player-name">${p.name}</td>
       <td>
@@ -601,11 +606,6 @@ function renderMatchDetail(detail) {
           style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--accent);border-radius:4px;padding:2px 6px;text-align:center;"
           onchange="updatePlayerDetail(${i}, 'minutesPlayed', +this.value)"
           title="Minuter spelade">
-      </td>
-      <td style="text-align:center;">
-        <input type="checkbox" ${p.selected ? 'checked' : ''} 
-          onchange="togglePlayerRow(${i}, this.checked)" 
-          style="cursor:pointer;width:16px;height:16px;">
       </td>
       <td><input type="number" value="${p.goals}" min="0" max="20" 
         style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;text-align:center;" 
@@ -676,10 +676,10 @@ function renderMatchDetail(detail) {
       <div class="table-wrap">
         <table>
           <thead><tr>
+            <th title="Inkludera">✓</th>
             <th>#</th><th>Spelare</th>
             <th title="Roll">Roll</th>
             <th title="Minuter spelade">⏱ Min</th>
-            <th title="Inkludera">✓</th>
             <th style="color:var(--green)">⚽ Mål</th>
             <th style="color:var(--accent)">🎯 Ast</th>
             <th style="color:var(--yellow)">🟨 Gult</th>
