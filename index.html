@@ -597,6 +597,12 @@ function renderMatchDetail(detail) {
           p.isStarter ? '<span style="font-size:0.72rem;background:rgba(0,230,118,0.15);color:var(--green);border-radius:4px;padding:1px 5px;">11</span>' : 
           '<span style="font-size:0.72rem;background:rgba(107,114,128,0.1);color:var(--muted);border-radius:4px;padding:1px 5px;">Bänk</span>'}
       </td>
+      <td>
+        <input type="number" value="${p.minutesPlayed || 0}" min="0" max="120"
+          style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--accent);border-radius:4px;padding:2px 6px;text-align:center;"
+          onchange="updatePlayerDetail(${i}, 'minutesPlayed', +this.value)"
+          title="Minuter spelade">
+      </td>
       <td style="text-align:center;">
         <input type="checkbox" ${p.selected ? 'checked' : ''} 
           onchange="togglePlayerRow(${i}, this.checked)" 
@@ -655,6 +661,11 @@ function renderMatchDetail(detail) {
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:0.5rem;align-items:flex-end;">
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <label style="font-size:0.82rem;color:var(--muted);">Matchtid (min):</label>
+            <input type="number" id="gameDuration" value="90" min="10" max="120" 
+              style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;text-align:center;">
+          </div>
           <button class="btn btn-success" onclick="saveMatch()">
             ${isSaved ? '✓ Uppdatera' : '💾 Spara match'}
           </button>
@@ -741,9 +752,14 @@ async function saveMatch() {
   setStatus('Sparar match...');
   try {
     // Sadece seçili oyuncuları gönder
+    const gameDuration = parseInt(document.getElementById('gameDuration')?.value) || 90;
     const payload = {
       ...state.currentDetail,
-      players: state.currentDetail.players.filter(p => p.selected)
+      gameDuration,
+      players: state.currentDetail.players.filter(p => p.selected).map(p => ({
+        ...p,
+        minutesPlayed: p.isStarter ? gameDuration : Math.round(gameDuration / 2)
+      }))
     };
     if (payload.players.length === 0) {
       setError('Ingen spelare vald!');
@@ -822,6 +838,8 @@ function renderStatsTable(d, prefix) {
       <td><span class="shirt-no">#${p.shirt}</span></td>
       <td class="player-name">${p.name}</td>
       <td>${g(p.games)}</td>
+      <td>${g(p.starterGames || 0)}</td>
+      <td>${(p.minutesPlayed || 0) > 0 ? `<span class="badge">${p.minutesPlayed}</span>` : '<span class="badge badge-zero">—</span>'}</td>
       <td>${g(p.goals,'badge-green')}</td>
       <td>${g(p.assists)}</td>
       <td>${g(p.yellowCards,'badge-yellow')}</td>
@@ -833,7 +851,9 @@ function renderStatsTable(d, prefix) {
   <div class="table-wrap"><table>
     <thead><tr>
       <th>#</th><th>Spelare</th>
-      <th>Matcher</th>
+      <th title="Matcher spelade">Matcher</th>
+      <th title="Starter">Start</th>
+      <th title="Minuter spelade">⏱ Min</th>
       <th style="color:var(--green)">⚽ Mål</th>
       <th style="color:var(--accent)">🎯 Ast</th>
       <th style="color:var(--yellow)">🟨 Gult</th>
