@@ -275,9 +275,9 @@
     <!-- ADMIN VIEW -->
     <div id="viewAdmin" style="display:none;">
       <div class="tabs">
-        <button class="tab active" onclick="adminTab('matches')">Maçlar</button>
-        <button class="tab" onclick="adminTab('stats')">İstatistikler</button>
-        <button class="tab" onclick="adminTab('users')">Kullanıcılar</button>
+        <button class="tab active" onclick="adminTab('matches')">Matcher</button>
+        <button class="tab" onclick="adminTab('stats')">Statistik</button>
+        <button class="tab" onclick="adminTab('users')">Användare</button>
       </div>
 
       <!-- MAÇLAR TAB -->
@@ -613,7 +613,7 @@ function renderMatchDetail(detail) {
           <div class="detail-score">${detail.homeScore} - ${detail.awayScore}</div>
           <div class="detail-meta">${dateStr} · ${detail.leagueName}</div>
           <div style="margin-top:0.4rem;color:var(--green);font-size:0.85rem;">
-            ✓ ${playedCount} SFK oyuncusu bu maçta oynadı
+            ✓ ${playedCount} SFK-spelare spelade i denna match
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:0.5rem;align-items:flex-end;">
@@ -621,7 +621,7 @@ function renderMatchDetail(detail) {
             ${isSaved ? '✓ Uppdatera' : '💾 Spara match'}
           </button>
           <div style="font-size:0.75rem;color:var(--muted);">
-            Seçili olmayan oyuncular kaydedilmez
+            Ospärade spelare sparas inte
           </div>
         </div>
       </div>
@@ -629,7 +629,7 @@ function renderMatchDetail(detail) {
         <table>
           <thead><tr>
             <th>#</th><th>Spelare</th>
-            <th title="Kaydet">Kaydet</th>
+            <th title="Spara">Spara</th>
             <th style="color:var(--green)">⚽ Mål</th>
             <th style="color:var(--accent)">🎯 Ast</th>
             <th style="color:var(--yellow)">🟨 Gult</th>
@@ -668,7 +668,7 @@ async function saveMatch() {
       players: state.currentDetail.players.filter(p => p.selected)
     };
     if (payload.players.length === 0) {
-      setError('Hiç oyuncu seçilmedi!');
+      setError('Ingen spelare vald!');
       setStatus('', false);
       return;
     }
