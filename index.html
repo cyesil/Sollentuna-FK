@@ -616,8 +616,34 @@ function renderMatchDetail(detail) {
     </tr>
   `).join('');
 
+  // Belirsiz olaylar paneli
+  const ambiguousHtml = detail.ambiguous && detail.ambiguous.length > 0 ? `
+    <div style="background:rgba(255,214,0,0.08);border:1px solid rgba(255,214,0,0.3);border-radius:10px;padding:1rem;margin-bottom:1rem;">
+      <div style="color:var(--yellow);font-weight:700;margin-bottom:0.75rem;">
+        ⚠️ ${detail.ambiguous.length} belirsiz olay — Hangi oyuncu olduğunu seç
+      </div>
+      ${detail.ambiguous.map((a,i) => `
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;flex-wrap:wrap;">
+          <span style="background:var(--surface2);border-radius:4px;padding:0.2rem 0.5rem;font-size:0.8rem;">
+            ${a.minute} ${a.type === 'goal' ? '⚽ Mål' : a.type === 'assist' ? '🎯 Assist' : a.type === 'yellowCard' ? '🟨 Gult kort' : '🟥 Rött kort'}
+          </span>
+          <span style="color:var(--muted);font-size:0.85rem;">"${a.rawName}"</span>
+          <select onchange="resolveAmbiguous(${i}, +this.value)" 
+            style="background:var(--surface2);border:1px solid var(--yellow);color:var(--text);padding:0.3rem 0.6rem;border-radius:6px;font-size:0.85rem;flex:1;min-width:180px;">
+            <option value="">— Välj spelare —</option>
+            ${Object.keys(SFK_PLAYERS).map(pid => 
+              `<option value="${pid}">#${SFK_PLAYERS[pid].shirt} ${SFK_PLAYERS[pid].name}</option>`
+            ).join('')}
+            <option value="-1">Inte vår spelare (ignorera)</option>
+          </select>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
   document.getElementById('matchDetail').innerHTML = `
     <div class="detail-panel">
+      ${ambiguousHtml}
       <div class="detail-header">
         <div>
           <div class="detail-teams">${detail.homeTeam} vs ${detail.awayTeam}</div>
@@ -653,6 +679,45 @@ function renderMatchDetail(detail) {
   `;
 
   state.currentDetail = detail;
+}
+
+function resolveAmbiguous(ambigIdx, playerId) {
+  if (!state.currentDetail || !state.currentDetail.ambiguous) return;
+  const a = state.currentDetail.ambiguous[ambigIdx];
+  if (!playerId || playerId === -1) return; // ignorera
+  
+  const pid = parseInt(playerId);
+  const playerIdx = state.currentDetail.players.findIndex(p => p.playerId === pid);
+  
+  if (playerIdx === -1) return;
+  
+  if (a.type === 'goal') {
+    state.currentDetail.players[playerIdx].goals++;
+    // Input'u güncelle
+    const inputs = document.querySelectorAll(`#prow_${playerIdx} input[type=number]`);
+    if (inputs[0]) inputs[0].value = state.currentDetail.players[playerIdx].goals;
+  } else if (a.type === 'assist') {
+    state.currentDetail.players[playerIdx].assists++;
+    const inputs = document.querySelectorAll(`#prow_${playerIdx} input[type=number]`);
+    if (inputs[1]) inputs[1].value = state.currentDetail.players[playerIdx].assists;
+  } else if (a.type === 'yellowCard') {
+    state.currentDetail.players[playerIdx].yellowCards++;
+    const inputs = document.querySelectorAll(`#prow_${playerIdx} input[type=number]`);
+    if (inputs[2]) inputs[2].value = state.currentDetail.players[playerIdx].yellowCards;
+  } else if (a.type === 'redCard') {
+    state.currentDetail.players[playerIdx].redCards++;
+    const inputs = document.querySelectorAll(`#prow_${playerIdx} input[type=number]`);
+    if (inputs[3]) inputs[3].value = state.currentDetail.players[playerIdx].redCards;
+  }
+  
+  // Çözülen olayı işaretle
+  const select = document.querySelectorAll('[onchange*="resolveAmbiguous"]')[ambigIdx];
+  if (select) {
+    select.style.borderColor = 'var(--green)';
+    select.disabled = true;
+    const label = select.parentElement.querySelector('span:first-child');
+    if (label) label.style.textDecoration = 'line-through';
+  }
 }
 
 function togglePlayerRow(idx, selected) {
