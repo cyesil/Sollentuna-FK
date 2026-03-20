@@ -209,11 +209,15 @@ module.exports = async (req, res) => {
     // Sadece o maçta oynayan SFK oyuncuları
     const playedPlayerIds = new Set();
     const playerThumbnails = {};
+    const playerPositions = {};
+    const playerShirtNos = {};
     if (lineupTeam && lineupTeam.GameLineUpPlayers) {
       lineupTeam.GameLineUpPlayers.forEach(p => {
         if (SFK_PLAYER_IDS.has(p.PlayerID)) {
           playedPlayerIds.add(p.PlayerID);
           playerThumbnails[p.PlayerID] = p.ThumbnailURL;
+          playerPositions[p.PlayerID] = p.Position || '';
+          playerShirtNos[p.PlayerID] = p.ShirtNumber || SFK_PLAYERS[p.PlayerID]?.shirt || 0;
         }
       });
     }
@@ -234,8 +238,9 @@ module.exports = async (req, res) => {
 
         if (b.TypeID === 1 && b.IsGoal) {
           events.goals[pid] = (events.goals[pid] || 0) + 1;
-          if (b.Description && b.Description.includes('Assist av:')) {
-            const assistName = b.Description.replace('Assist av:', '').trim().replace(/^\d+\.\s*/, '').trim();
+          const assistPrefix = b.Description && (b.Description.includes('Assist av:') ? 'Assist av:' : b.Description.includes('Assist by:') ? 'Assist by:' : null);
+          if (assistPrefix) {
+            const assistName = b.Description.replace(assistPrefix, '').trim().replace(/^\d+\.\s*/, '').trim();
             const apid = parseInt(Object.keys(SFK_PLAYERS).find(id => {
               const n = SFK_PLAYERS[id].name.toLowerCase();
               return n === assistName.toLowerCase() || n.includes(assistName.toLowerCase());
@@ -254,8 +259,11 @@ module.exports = async (req, res) => {
     const players = [...playedPlayerIds].map(pidNum => ({
       playerId: pidNum,
       name: SFK_PLAYERS[pidNum].name,
-      shirt: SFK_PLAYERS[pidNum].shirt,
+      shirt: playerShirtNos[pidNum] || SFK_PLAYERS[pidNum].shirt,
       thumbnail: playerThumbnails[pidNum] || null,
+      position: playerPositions[pidNum] || '',
+      isGoalkeeper: (playerPositions[pidNum] || '').includes('Goalkeeper'),
+      isStarter: (playerPositions[pidNum] || '') !== '' && !(playerPositions[pidNum] || '').includes('NotSelected'),
       played: true,
       selected: true,
       goals: events.goals[pidNum] || 0,
