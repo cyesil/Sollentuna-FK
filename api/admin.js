@@ -216,175 +216,139 @@ module.exports = async (req, res) => {
 
     const isHome = header.HomeTeamID === tid;
     const lineupTeam = isHome ? lineups.HomeTeamLineUp : lineups.AwayTeamLineUp;
+    const rosterTeam = isHome ? lineups.HomeTeamGameTeamRoster : lineups.AwayTeamGameTeamRoster;
 
-    // İlk 11 + yedekler - hem lineup hem roster'dan al
-    const playedPlayerIds = new Set();
-    const playerThumbnails = {};
-    const playerPositions = {};
-    const playerShirtNos = {};
-    const playerIsStarter = {};
-    const playerIsInSquad = {};
-
-    // İlk 11 - lineup'tan
-    if (lineupTeam && lineupTeam.GameLineUpPlayers) {
-      lineupTeam.GameLineUpPlayers.forEach(p => {
-        if (SFK_PLAYER_IDS.has(p.PlayerID)) {
-          playedPlayerIds.add(p.PlayerID);
-          playerThumbnails[p.PlayerID] = p.ThumbnailURL;
-          playerPositions[p.PlayerID] = p.Position || '';
-          playerShirtNos[p.PlayerID] = p.ShirtNumber || SFK_PLAYERS[p.PlayerID]?.shirt || 0;
-          playerIsStarter[p.PlayerID] = true;
-          playerIsInSquad[p.PlayerID] = true;
-        }
-      });
-    }
-
-    // Yedekler + kadro - GameTeamRoster'dan al
-    if (rosterData && rosterData.TimelineBlurbs) {
-      rosterData.TimelineBlurbs.forEach(b => {
-        if (b.GameTeamRoster && b.TeamID === tid) {
-          const roster = b.GameTeamRoster;
-          if (roster.Players) {
-            roster.Players.forEach(p => {
-              if (SFK_PLAYER_IDS.has(p.PlayerID)) {
-                playedPlayerIds.add(p.PlayerID);
-                if (!playerThumbnails[p.PlayerID]) playerThumbnails[p.PlayerID] = p.ThumbnailURL || null;
-                if (!playerShirtNos[p.PlayerID]) playerShirtNos[p.PlayerID] = p.ShirtNumber || SFK_PLAYERS[p.PlayerID]?.shirt || 0;
-                playerIsInSquad[p.PlayerID] = true;
-                if (!playerIsStarter[p.PlayerID]) playerIsStarter[p.PlayerID] = false;
-              }
-            });
-          }
-        }
-      });
-    }
     // findPlayer - forma numarası veya isimle oyuncu bul
     const findPlayer = (nameOrShirt) => {
       const s = String(nameOrShirt).trim();
       const shirtNum = parseInt(s.split(' ')[0]);
-      if (!isNaN(shirtNum) && SHIRT_TO_PLAYER_ID[shirtNum]) {
-        return SHIRT_TO_PLAYER_ID[shirtNum];
-      }
+      if (!isNaN(shirtNum) && SHIRT_TO_PLAYER_ID[shirtNum]) return SHIRT_TO_PLAYER_ID[shirtNum];
       const nl = s.toLowerCase();
       return parseInt(Object.keys(SFK_PLAYERS).find(id => {
         const full = SFK_PLAYERS[id].name.toLowerCase();
-        const parts = full.split(' ');
-        const lastName = parts[parts.length - 1];
+        const lastName = full.split(' ').pop();
         return full === nl || full.includes(nl) || nl.includes(full) || lastName === nl;
       }));
     };
 
-    // Değişiklikleri işle - dakika hesabı için
-    const substitutions = {}; // playerId -> [{inAt, outAt}]
-    const gameDurationSec = 90 * 60; // default 90 dk
+    // ADIM 1: ROSTER — Kadroya çağrılan tüm SFK oyuncuları
+    const playerThumbnails = {};
+    const playerShirtNos = {};
+    const playerIsStarter = {};
+    const playerIsInSquad = {};
+    const playerPositions = {};
+    const squadPlayerIds = new Set();
+
+    if (rosterTeam && rosterTeam.Players) {
+      rosterTeam.Players.forEach(p => {
+        if (!SFK_PLAYER_IDS.has(p.PlayerID)) return;
+        squadPlayerIds.add(p.PlayerID);
+        playerIsInSquad[p.PlayerID] = true;
+        playerIsStarter[p.PlayerID] = false;
+        playerShirtNos[p.PlayerID] = p.ShirtNumber || SFK_PLAYERS[p.PlayerID]?.shirt || 0;
+        playerThumbnails[p.PlayerID] = p.ThumbnailURL || null;
+      });
+    }
+
+    // ADIM 2: LINEUP — İlk 11'i işaretle
+    if (lineupTeam && lineupTeam.GameLineUpPlayers) {
+      lineupTeam.GameLineUpPlayers.forEach(p => {
+        if (!SFK_PLAYER_IDS.has(p.PlayerID)) return;
+        squadPlayerIds.add(p.PlayerID);
+        playerIsInSquad[p.PlayerID] = true;
+        playerIsStarter[p.PlayerID] = true;
+        playerPositions[p.PlayerID] = p.Position || '';
+        playerShirtNos[p.PlayerID] = playerShirtNos[p.PlayerID] || p.ShirtNumber || SFK_PLAYERS[p.PlayerID]?.shirt || 0;
+        playerThumbnails[p.PlayerID] = playerThumbnails[p.PlayerID] || p.ThumbnailURL || null;
+      });
+    }
+
+    // ADIM 3: DEĞİŞİKLİKLER — Kim girdi/çıktı, hangi dakikada
+    const substitutions = {};
+    const defaultDur = 90;
 
     if (overview && overview.Blurbs) {
       overview.Blurbs.forEach(b => {
-        if (b.TypeID !== 4) return; // Sadece değişiklikler
+        if (b.TypeID !== 4) return;
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
         if (!isOurTeam) return;
-
         const clockSec = b.GameClockSecond || 0;
         const minute = Math.ceil(clockSec / 60);
-
-        // Giren oyuncu - Title'dan forma no + isim
         const inName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
-        // Çıkan oyuncu - Description'dan "Out X. isim"
         const outRaw = b.Description ? b.Description.replace(/^Out\s+/i, '').replace(/^\d+\.\s*/, '').trim() : null;
-
         const inPid = inName ? findPlayer(inName) : null;
         const outPid = outRaw ? findPlayer(outRaw) : null;
-
-        if (inPid) {
+        if (inPid && SFK_PLAYER_IDS.has(inPid)) {
+          squadPlayerIds.add(inPid);
           if (!substitutions[inPid]) substitutions[inPid] = [];
           substitutions[inPid].push({ inAt: minute, outAt: null });
         }
-        if (outPid) {
+        if (outPid && SFK_PLAYER_IDS.has(outPid)) {
           if (!substitutions[outPid]) substitutions[outPid] = [];
-          // En son açık kaydı kapat
           const arr = substitutions[outPid];
           let last = null;
           for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].outAt === null) { last = arr[i]; break; } }
           if (last) last.outAt = minute;
-          else substitutions[outPid].push({ inAt: 0, outAt: minute }); // İlk 11'den çıktı
+          else substitutions[outPid].push({ inAt: 0, outAt: minute });
         }
       });
     }
 
-    // Oyuncu dakikasını hesapla
+    // Dakika hesabı
     const calcMinutes = (pidNum, isStarter, gameDur) => {
       const subs = substitutions[pidNum] || [];
-      
       if (isStarter) {
-        // İlk 11 - oyundan çıktı mı?
         const outSub = subs.find(s => s.inAt === 0 && s.outAt !== null);
         if (outSub) {
-          // Çıktı, sonra tekrar girdi mi?
           let total = outSub.outAt;
-          const reEntries = subs.filter(s => s.inAt > 0);
-          reEntries.forEach(s => total += (s.outAt || gameDur) - s.inAt);
+          subs.filter(s => s.inAt > 0).forEach(s => total += (s.outAt || gameDur) - s.inAt);
           return total;
         }
-        // Değişiklik yoksa tam süre
         return gameDur;
       } else {
-        // Yedek - giriş dakikasından itibaren
-        if (subs.length === 0) return Math.round(gameDur / 2); // bilinmiyorsa yarı
+        if (subs.length === 0) return 0; // Kadroda ama oyuna girmedi
         let total = 0;
         subs.forEach(s => total += (s.outAt || gameDur) - s.inAt);
         return total;
       }
     };
 
-    // Olayları işle
+    // ADIM 4: OLAYLAR — Gol, asist, kart
     const events = { goals:{}, assists:{}, yellowCards:{}, redCards:{} };
     const ambiguous = [];
+
     if (overview && overview.Blurbs) {
       overview.Blurbs.forEach(b => {
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
         if (!isOurTeam) return;
         const playerName = b.Title ? b.Title.replace(/^\d+\.\s*/, '').trim() : null;
         if (!playerName) return;
-
         const pid = findPlayer(playerName);
-        
         if (b.TypeID === 1 && b.IsGoal) {
-          if (pid) {
-            events.goals[pid] = (events.goals[pid] || 0) + 1;
-          } else {
-            ambiguous.push({ type: 'goal', rawName: playerName, minute: b.GameMinute, description: b.Description });
-          }
+          if (pid) events.goals[pid] = (events.goals[pid] || 0) + 1;
+          else ambiguous.push({ type: 'goal', rawName: playerName, minute: b.GameMinute, description: b.Description });
           const assistPrefix = b.Description && (b.Description.includes('Assist av:') ? 'Assist av:' : b.Description.includes('Assist by:') ? 'Assist by:' : null);
           if (assistPrefix) {
             const assistName = b.Description.replace(assistPrefix, '').trim().replace(/^\d+\.\s*/, '').trim();
             const apid = findPlayer(assistName);
-            if (apid) {
-              events.assists[apid] = (events.assists[apid] || 0) + 1;
-            } else {
-              ambiguous.push({ type: 'assist', rawName: assistName, minute: b.GameMinute, description: b.Description });
-            }
+            if (apid) events.assists[apid] = (events.assists[apid] || 0) + 1;
+            else ambiguous.push({ type: 'assist', rawName: assistName, minute: b.GameMinute, description: b.Description });
           }
         } else if (b.TypeID === 6) {
-          if (pid) {
-            events.yellowCards[pid] = (events.yellowCards[pid] || 0) + 1;
-          } else {
-            ambiguous.push({ type: 'yellowCard', rawName: playerName, minute: b.GameMinute, description: b.Description });
-          }
+          if (pid) events.yellowCards[pid] = (events.yellowCards[pid] || 0) + 1;
+          else ambiguous.push({ type: 'yellowCard', rawName: playerName, minute: b.GameMinute, description: b.Description });
         } else if (b.TypeID === 7) {
-          if (pid) {
-            events.redCards[pid] = (events.redCards[pid] || 0) + 1;
-          } else {
-            ambiguous.push({ type: 'redCard', rawName: playerName, minute: b.GameMinute, description: b.Description });
-          }
+          if (pid) events.redCards[pid] = (events.redCards[pid] || 0) + 1;
+          else ambiguous.push({ type: 'redCard', rawName: playerName, minute: b.GameMinute, description: b.Description });
         }
       });
     }
 
-    // SADECE o maçta oynayan SFK oyuncuları (ilk 11 + yedekler)
-    const defaultDur = 90;
-    const players = [...playedPlayerIds].map(pidNum => {
+    // TÜM KADRO — roster + lineup + değişiklikle giren oyuncular
+    const players = [...squadPlayerIds].map(pidNum => {
       const isStarter = playerIsStarter[pidNum] === true;
       const minutesPlayed = calcMinutes(pidNum, isStarter, defaultDur);
+      const playedInMatch = isStarter || (substitutions[pidNum] && substitutions[pidNum].length > 0);
       return {
         playerId: pidNum,
         name: SFK_PLAYERS[pidNum].name,
@@ -393,7 +357,8 @@ module.exports = async (req, res) => {
         position: playerPositions[pidNum] || '',
         isGoalkeeper: (playerPositions[pidNum] || '').includes('Goalkeeper'),
         isStarter,
-        isInSquad: playerIsInSquad[pidNum] === true,
+        isInSquad: true,
+        playedInMatch,
         played: true,
         selected: true,
         minutesPlayed,
@@ -403,13 +368,13 @@ module.exports = async (req, res) => {
         redCards: events.redCards[pidNum] || 0,
       };
     }).sort((a,b) => {
-      // Önce kaleci, sonra ilk 11, sonra yedekler
       if (a.isGoalkeeper && !b.isGoalkeeper) return -1;
       if (!a.isGoalkeeper && b.isGoalkeeper) return 1;
       if (a.isStarter && !b.isStarter) return -1;
       if (!a.isStarter && b.isStarter) return 1;
       return a.shirt - b.shirt;
     });
+
     return res.status(200).json({
       gameId: parseInt(gameId),
       homeTeam: header.HomeTeamDisplayName,
