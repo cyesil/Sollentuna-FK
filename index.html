@@ -1046,6 +1046,7 @@ async function loadMyStats() {
   try {
     const r = await fetch('/api/stats?action=mystats', {headers: authHeaders()});
     const d = await r.json();
+    if (!document.getElementById('myStatsContent')) return;
     const el = document.getElementById('myStatsContent');
     el.innerHTML = `
       <div class="my-stats-card">
@@ -1268,6 +1269,40 @@ async function deleteUser(id, username) {
 }
 
 // ===================== OYUNCU FONKSİYONLARI =====================
+function renderMyStats(d) {
+  if (!d || d.error) return '<div class="empty-state">Ingen statistik hittades</div>';
+  const g = (n,cls='') => n > 0 ? `<span class="badge ${cls}">${n}</span>` : `<span class="badge badge-zero">—</span>`;
+  return `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;margin-bottom:1.5rem;">
+      <div class="stat-card"><div class="stat-val">${d.games||0}</div><div class="stat-lbl">Trupp</div></div>
+      <div class="stat-card"><div class="stat-val">${d.starterGames||0}</div><div class="stat-lbl">Start 11</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--accent)">${d.minutesPlayed||0}'</div><div class="stat-lbl">Tot Min</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${d.goals||0}</div><div class="stat-lbl">Mål</div></div>
+      <div class="stat-card"><div class="stat-val">${d.assists||0}</div><div class="stat-lbl">Assist</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--yellow)">${d.yellowCards||0}</div><div class="stat-lbl">Gult</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--red)">${d.redCards||0}</div><div class="stat-lbl">Rött</div></div>
+    </div>
+    ${d.matchDetails && d.matchDetails.length > 0 ? `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Datum</th><th>Match</th><th>Resultat</th><th>Min</th><th style="color:var(--green)">Mål</th><th style="color:var(--accent)">Ast</th><th style="color:var(--yellow)">🟨</th><th style="color:var(--red)">🟥</th></tr></thead>
+      <tbody>${d.matchDetails.map(m => {
+        const date = new Date(m.gameDate).toLocaleDateString('sv-SE',{day:'2-digit',month:'short'});
+        return `<tr>
+          <td style="color:var(--muted);font-size:0.82rem;">${date}</td>
+          <td class="player-name" style="font-size:0.85rem;">${m.homeTeam} vs ${m.awayTeam}</td>
+          <td style="font-weight:700;">${m.homeScore}-${m.awayScore}</td>
+          <td>${m.minutesPlayed > 0 ? `<span class="badge">${m.minutesPlayed}'</span>` : '<span class="badge badge-zero">—</span>'}</td>
+          <td>${m.goals > 0 ? `<span class="badge badge-green">${m.goals}</span>` : '—'}</td>
+          <td>${m.assists > 0 ? `<span class="badge">${m.assists}</span>` : '—'}</td>
+          <td>${m.yellowCards > 0 ? `<span class="badge badge-yellow">${m.yellowCards}</span>` : '—'}</td>
+          <td>${m.redCards > 0 ? `<span class="badge badge-red">${m.redCards}</span>` : '—'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>` : '<div class="empty-state">Inga matcher hittades</div>'}
+  `;
+}
+
+
 function oyuncuTab(tab) {
   document.getElementById('oyuncuTabStats').classList.toggle('active', tab === 'stats');
   document.getElementById('oyuncuTabMatches').classList.toggle('active', tab === 'matches');
@@ -1281,14 +1316,14 @@ async function loadOyuncuStats() {
     const from = document.getElementById('oyuncuFrom').value;
     const to = document.getElementById('oyuncuTo').value;
     const type = document.getElementById('oyuncuType').value;
-    const params = new URLSearchParams({action:'playerstats'});
+    const params = new URLSearchParams({action:'mystats'});
     if (type && type !== 'hepsi') params.append('gameType', type);
     if (from) params.append('dateFrom', from);
     if (to) params.append('dateTo', to);
     const r = await fetch('/api/stats?' + params, {headers: authHeaders()});
     const d = await r.json();
     setStatus('', false);
-    document.getElementById('oyuncuStatsTable').innerHTML = renderStatsTable(d, 'oyuncu');
+    document.getElementById('oyuncuStatsTable').innerHTML = renderMyStats(d);
   } catch(e) {
     setError('Fel: ' + e.message);
     setStatus('', false);
