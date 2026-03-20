@@ -164,12 +164,17 @@ module.exports = async (req, res) => {
       playerId,
       name: SFK_PLAYERS[playerId]?.name || user.full_name,
       shirt: SFK_PLAYERS[playerId]?.shirt || 0,
-      games: 0, goals: 0, assists: 0, yellowCards: 0, redCards: 0,
+      games: 0, starterGames: 0, minutesPlayed: 0,
+      goals: 0, assists: 0, yellowCards: 0, redCards: 0,
       matchDetails: [],
     };
 
     stats.forEach(s => {
-      if (s.played) summary.games++;
+      if (s.played) {
+        summary.games++;
+        if (s.is_starter) summary.starterGames++;
+        summary.minutesPlayed += s.minutes_played || 0;
+      }
       summary.goals += s.goals || 0;
       summary.assists += s.assists || 0;
       summary.yellowCards += s.yellow_cards || 0;
@@ -182,6 +187,8 @@ module.exports = async (req, res) => {
           homeScore: s.matches?.home_score,
           awayScore: s.matches?.away_score,
           leagueName: s.matches?.league_name,
+          isStarter: s.is_starter,
+          minutesPlayed: s.minutes_played || 0,
           goals: s.goals, assists: s.assists,
           yellowCards: s.yellow_cards, redCards: s.red_cards,
         });
