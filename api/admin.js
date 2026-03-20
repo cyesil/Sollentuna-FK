@@ -192,6 +192,7 @@ module.exports = async (req, res) => {
           });
         });
       } catch(e) {}
+    }));
 
     allGames.sort((a,b) => new Date(b.gameDate) - new Date(a.gameDate));
     return res.status(200).json(allGames);
