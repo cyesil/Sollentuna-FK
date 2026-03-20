@@ -62,6 +62,20 @@ function supabaseGet(path) {
   });
 }
 
+const MINFOTBOLL_API = 'minfotboll-api.azurewebsites.net';
+
+function minfotbollGet(path, token) {
+  return httpGet(MINFOTBOLL_API, path, { 'Authorization': `Bearer ${token}` });
+}
+
+async function getMinfotbollToken() {
+  const refreshToken = process.env.MINFOTBOLL_REFRESH_TOKEN;
+  const accessToken = process.env.MINFOTBOLL_ACCESS_TOKEN;
+  const result = await httpPost(MINFOTBOLL_API, '/api/jwtapi/refreshtoken', {accessToken, refreshToken});
+  if (!result?.AccessToken) throw new Error('MinFotboll token alınamadı');
+  return result.AccessToken;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -160,9 +174,22 @@ module.exports = async (req, res) => {
     const stats = await supabaseGet(`/player_stats?player_id=eq.${playerId}&select=*,matches(*)`);
     if (!Array.isArray(stats)) return res.status(200).json({ stats: [] });
 
-    // Thumbnail'i player_stats'tan al (thumbnail sütunu varsa)
-    const thumbnailRow = await supabaseGet(`/player_stats?player_id=eq.${playerId}&thumbnail=not.is.null&select=thumbnail&limit=1`);
-    const thumbnail = Array.isArray(thumbnailRow) && thumbnailRow[0]?.thumbnail || null;
+    // Thumbnail'i player_stats'tan al, yoksa MinFotboll'dan çek
+    const thumbnailRow = await supabaseGet(`/player_stats?player_id=eq.${playerId}&select=thumbnail&limit=1`);
+    let thumbnail = Array.isArray(thumbnailRow) && thumbnailRow[0]?.thumbnail || null;
+    
+    // DB'de yoksa MinFotboll'dan çek
+    if (!thumbnail) {
+      try {
+        const mfToken = await getMinfotbollToken();
+        const teamId = 398871; // P16 team
+        const roster = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=${teamId}`, mfToken);
+        if (Array.isArray(roster)) {
+          const player = roster.find(p => p.PlayerID === playerId);
+          if (player?.ThumbnailURL) thumbnail = player.ThumbnailURL;
+        }
+      } catch(e) {}
+    }
 
     const summary = {
       playerId,
