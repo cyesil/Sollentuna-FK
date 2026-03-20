@@ -859,8 +859,12 @@ function renderStatsTable(d, prefix) {
 
   // Sırala
   players.sort((a,b) => {
-    const av = a[statsSort.col] ?? -1;
-    const bv = b[statsSort.col] ?? -1;
+    const av = a[statsSort.col] ?? 0;
+    const bv = b[statsSort.col] ?? 0;
+    // 0 değerler her zaman en alta
+    if (av === 0 && bv === 0) return a.name.localeCompare(b.name, 'sv');
+    if (av === 0) return 1;
+    if (bv === 0) return -1;
     if (bv !== av) return statsSort.dir * (bv - av);
     return a.name.localeCompare(b.name, 'sv');
   });
