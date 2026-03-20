@@ -98,6 +98,20 @@ module.exports = async (req, res) => {
     });
   }
 
+  // Login debug
+  if (action === 'logindebug' && req.method === 'POST') {
+    const { username, password } = req.body || {};
+    const hash = hashPassword(password);
+    const users = await supabaseRequest('GET', `/users?username=eq.${encodeURIComponent(username)}&select=*`);
+    const dbHash = Array.isArray(users) && users[0] ? users[0].password_hash : 'NOT FOUND';
+    return res.status(200).json({ 
+      computedHash: hash, 
+      dbHash, 
+      match: hash === dbHash,
+      usersFound: Array.isArray(users) ? users.length : 0
+    });
+  }
+
   // Login
   if (action === 'login' && req.method === 'POST') {
     const { username, password } = req.body || {};
