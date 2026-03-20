@@ -844,6 +844,8 @@ function renderStatsTable(d, prefix) {
       <td>${g(p.assists)}</td>
       <td>${g(p.yellowCards,'badge-yellow')}</td>
       <td>${g(p.redCards,'badge-red')}</td>
+      <td style="font-size:0.82rem;color:var(--muted);">${p.goalsPerGame > 0 ? p.goalsPerGame : '—'}</td>
+      <td style="font-size:0.82rem;color:var(--muted);">${p.minutesPerGoal ? p.minutesPerGoal + "'" : '—'}</td>
     </tr>`;
   }).join('');
 
@@ -858,6 +860,8 @@ function renderStatsTable(d, prefix) {
       <th style="color:var(--accent)">🎯 Ast</th>
       <th style="color:var(--yellow)">🟨 Gult</th>
       <th style="color:var(--red)">🟥 Rött</th>
+      <th title="Mål per match">Mål/Match</th>
+      <th title="Minuter per mål">Min/Mål</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
