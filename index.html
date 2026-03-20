@@ -633,7 +633,7 @@ function renderMatchList(matches) {
   }).join('');
 }
 
-async function loadMatchDetail(match) {
+async function loadMatchDetail(match, reporterId = null) {
   state.selectedMatch = match;
   document.querySelectorAll('.match-card').forEach(c => c.classList.remove('selected'));
   event.currentTarget.classList.add('selected');
@@ -642,7 +642,8 @@ async function loadMatchDetail(match) {
   document.getElementById('matchDetail').innerHTML = '<div class="empty-state">Laddar...</div>';
 
   try {
-    const r = await fetch(`/api/admin?action=matchdetail&gameId=${match.gameId}&teamId=${match.teamId}`, {headers: authHeaders()});
+    const reporterParam = reporterId ? `&reporterId=${reporterId}` : '';
+    const r = await fetch(`/api/admin?action=matchdetail&gameId=${match.gameId}&teamId=${match.teamId}${reporterParam}`, {headers: authHeaders()});
     const detail = await r.json();
     setStatus('', false);
     renderMatchDetail(detail);
@@ -692,6 +693,33 @@ function renderMatchDetail(detail) {
     </tr>
   `).join('');
 
+  // Rapportör seçim paneli
+  const reportersHtml = detail.reporters && detail.reporters.length > 1 ? `
+    <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.25);border-radius:10px;padding:1rem;margin-bottom:1rem;">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:0.75rem;">
+        👥 ${detail.reporters.length} rapportör bulundu — Hangisinin verilerini kullanayım?
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <button onclick="loadMatchDetail(state.currentMatch, null)"
+          style="padding:0.4rem 0.9rem;border-radius:6px;cursor:pointer;font-size:0.85rem;
+          border:1px solid ${!detail.selectedReporterId ? 'var(--accent)' : 'var(--border)'};
+          background:${!detail.selectedReporterId ? 'rgba(0,212,255,0.15)' : 'var(--surface2)'};
+          color:${!detail.selectedReporterId ? 'var(--accent)' : 'var(--text)'};">
+          Alla (duplicat-risk)
+        </button>
+        ${detail.reporters.map(rep => `
+          <button onclick="loadMatchDetail(state.currentMatch, ${rep.memberId})"
+            style="padding:0.4rem 0.9rem;border-radius:6px;cursor:pointer;font-size:0.85rem;
+            border:1px solid ${detail.selectedReporterId === rep.memberId ? 'var(--green)' : 'var(--border)'};
+            background:${detail.selectedReporterId === rep.memberId ? 'rgba(0,230,118,0.15)' : 'var(--surface2)'};
+            color:${detail.selectedReporterId === rep.memberId ? 'var(--green)' : 'var(--text)'};">
+            ✓ ${rep.name} (${rep.eventCount} händelser)
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  ` : '';
+
   // Belirsiz olaylar paneli
   const ambiguousHtml = detail.ambiguous && detail.ambiguous.length > 0 ? `
     <div style="background:rgba(255,214,0,0.08);border:1px solid rgba(255,214,0,0.3);border-radius:10px;padding:1rem;margin-bottom:1rem;">
@@ -719,6 +747,7 @@ function renderMatchDetail(detail) {
 
   document.getElementById('matchDetail').innerHTML = `
     <div class="detail-panel">
+      ${reportersHtml}
       ${ambiguousHtml}
       <div class="detail-header">
         <div>
@@ -761,6 +790,7 @@ function renderMatchDetail(detail) {
     </div>
   `;
 
+  state.currentMatch = match;
   state.currentDetail = detail;
 }
 
