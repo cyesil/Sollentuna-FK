@@ -384,21 +384,26 @@ module.exports = async (req, res) => {
     const events = { goals:{}, assists:{}, yellowCards:{}, redCards:{} };
     const ambiguous = [...unknownRosterPlayers]; // Listede olmayan kadro oyuncuları
 
-    // Rapportör filtresi için EventID seti
-    // Tek SFK rapportörü varsa otomatik filtrele
+    // Rapportör filtresi - sadece manuel seçimde uygula
     let effectiveReporterId = selectedReporterId;
-    if (!effectiveReporterId && sfkReporters.length === 1) {
-      effectiveReporterId = sfkReporters[0].memberId;
-    }
     let allowedEventIds = null;
     if (effectiveReporterId && reporterEvents[effectiveReporterId]) {
       allowedEventIds = reporterEvents[effectiveReporterId];
     }
 
-    // Olaylar için de duplicate temizle (aynı dakika + oyuncu + tip)
+    // Olaylar için duplicate temizle - SFK rapportörü önce işle
     const seenEvents = new Set();
+    const sfkRepEventIds = sfkReporters.length > 0 && reporterEvents[sfkReporters[0]?.memberId]
+      ? reporterEvents[sfkReporters[0].memberId] : null;
+
     if (overview && overview.Blurbs) {
-      overview.Blurbs.forEach(b => {
+      // SFK rapportörünün olayları önce, diğerleri sonra
+      const sortedBlurbs = [...overview.Blurbs].sort((a, b) => {
+        const aIsSfk = sfkRepEventIds?.has(a.ItemID) ? 0 : 1;
+        const bIsSfk = sfkRepEventIds?.has(b.ItemID) ? 0 : 1;
+        return aIsSfk - bIsSfk;
+      });
+      sortedBlurbs.forEach(b => {
         // Rapportör seçiliyse sadece onun girdiği olayları al
         if (allowedEventIds && b.ItemID && !allowedEventIds.has(b.ItemID)) return;
         const isOurTeam = isHome ? !b.IsAwayTeamAction : b.IsAwayTeamAction;
