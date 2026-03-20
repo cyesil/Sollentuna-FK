@@ -469,8 +469,8 @@ function showApp() {
 
   document.getElementById('viewAdmin').style.display = u.role === 'admin' ? 'block' : 'none';
   // Refresh token butonu sadece admin'e görünsün
-  const rb = document.getElementById('refreshBtn');
-  if (rb) rb.style.display = u.role === 'admin' ? 'inline-block' : 'none';
+  const refreshBtn = document.getElementById('refreshBtn');
+  if (refreshBtn) refreshBtn.style.display = u.role === 'admin' ? 'inline-block' : 'none';
   document.getElementById('viewAntrenor').style.display = u.role === 'antrenor' ? 'block' : 'none';
   document.getElementById('viewOyuncu').style.display = u.role === 'oyuncu' ? 'block' : 'none';
 
