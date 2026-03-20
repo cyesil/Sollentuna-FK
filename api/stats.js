@@ -160,10 +160,15 @@ module.exports = async (req, res) => {
     const stats = await supabaseGet(`/player_stats?player_id=eq.${playerId}&select=*,matches(*)`);
     if (!Array.isArray(stats)) return res.status(200).json({ stats: [] });
 
+    // Thumbnail'i player_stats'tan al (thumbnail sütunu varsa)
+    const thumbnailRow = await supabaseGet(`/player_stats?player_id=eq.${playerId}&thumbnail=not.is.null&select=thumbnail&limit=1`);
+    const thumbnail = Array.isArray(thumbnailRow) && thumbnailRow[0]?.thumbnail || null;
+
     const summary = {
       playerId,
       name: SFK_PLAYERS[playerId]?.name || user.full_name,
       shirt: SFK_PLAYERS[playerId]?.shirt || 0,
+      thumbnail,
       games: 0, starterGames: 0, minutesPlayed: 0,
       goals: 0, assists: 0, yellowCards: 0, redCards: 0,
       matchDetails: [],
