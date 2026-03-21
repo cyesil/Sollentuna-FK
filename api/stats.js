@@ -122,7 +122,8 @@ module.exports = async (req, res) => {
   if (action === 'playerstats') {
     if (user.role === 'oyuncu') return res.status(403).json({ error: 'Yetki yok' });
 
-    const { gameType, dateFrom, dateTo } = req.query;
+    const { gameType, dateFrom, dateTo, leagueNames } = req.query;
+    const leagueNameList = leagueNames ? leagueNames.split('|') : [];
 
     // Maçları filtrele
     let matchQuery = '/matches?select=*';
@@ -130,8 +131,15 @@ module.exports = async (req, res) => {
     if (dateFrom) matchQuery += `&game_date=gte.${dateFrom}`;
     if (dateTo) matchQuery += `&game_date=lte.${dateTo}T23:59:59`;
 
-    const matches = await supabaseGet(matchQuery);
+    let matches = await supabaseGet(matchQuery);
     if (!Array.isArray(matches) || matches.length === 0) {
+      return res.status(200).json({ players: [], totalGames: 0 });
+    }
+    // Lig ismine göre filtrele
+    if (leagueNameList.length > 0) {
+      matches = matches.filter(m => leagueNameList.includes(m.league_name));
+    }
+    if (matches.length === 0) {
       return res.status(200).json({ players: [], totalGames: 0 });
     }
 
@@ -201,14 +209,18 @@ module.exports = async (req, res) => {
     if (!playerId) return res.status(400).json({ error: 'Player ID tanımlı değil' });
 
     // Filtreleme parametreleri
-    const { gameType, dateFrom, dateTo } = req.query;
+    const { gameType, dateFrom, dateTo, leagueNames: myLeagueNames } = req.query;
+    const myLeagueList = myLeagueNames ? myLeagueNames.split('|') : [];
 
     // Önce maçları filtrele
-    let matchQuery = '/matches?select=id';
+    let matchQuery = '/matches?select=id,league_name';
     if (gameType && gameType !== 'hepsi') matchQuery += `&game_type=eq.${gameType}`;
     if (dateFrom) matchQuery += `&game_date=gte.${dateFrom}`;
     if (dateTo) matchQuery += `&game_date=lte.${dateTo}T23:59:59`;
-    const filteredMatches = await supabaseGet(matchQuery);
+    let filteredMatches = await supabaseGet(matchQuery);
+    if (myLeagueList.length > 0 && Array.isArray(filteredMatches)) {
+      filteredMatches = filteredMatches.filter(m => myLeagueList.includes(m.league_name));
+    }
     const matchIds = Array.isArray(filteredMatches) ? filteredMatches.map(m => m.id) : [];
 
     let statsQuery = `/player_stats?player_id=eq.${playerId}&select=*,matches(*)`;
