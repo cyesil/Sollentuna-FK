@@ -238,6 +238,18 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/sv.js"></script>
+
+<style>
+.ms-dropdown { position:relative; display:inline-block; min-width:200px; }
+.ms-dropdown-btn { width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:0.45rem 0.75rem; border-radius:6px; cursor:pointer; text-align:left; display:flex; justify-content:space-between; align-items:center; font-size:0.9rem; }
+.ms-dropdown-btn:after { content:'▾'; margin-left:0.5rem; }
+.ms-dropdown-list { display:none; position:absolute; top:100%; left:0; right:0; background:var(--surface2); border:1px solid var(--accent); border-radius:6px; z-index:100; max-height:280px; overflow-y:auto; margin-top:2px; box-shadow:0 4px 20px rgba(0,0,0,0.3); }
+.ms-dropdown-list.open { display:block; }
+.ms-dropdown-list label { display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.75rem; cursor:pointer; font-size:0.85rem; }
+.ms-dropdown-list label:hover { background:rgba(0,212,255,0.08); }
+.ms-dropdown-actions { display:flex; gap:0.5rem; padding:0.4rem 0.75rem; border-bottom:1px solid var(--border); }
+.ms-dropdown-actions button { font-size:0.75rem; background:none; border:1px solid var(--border); color:var(--muted); padding:2px 8px; border-radius:4px; cursor:pointer; }
+</style>
 </head>
 <body>
 
@@ -322,24 +334,24 @@
           <div><label>Till datum</label><input type="date" id="statsTo"></div>
           <div><button class="btn btn-primary" onclick="loadStats()">📊 Visa statistik</button></div>
         </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-            <span style="font-size:0.8rem;color:var(--muted);font-weight:600;">LIGA / MATCHTYP</span>
-            <div style="display:flex;gap:0.5rem;">
-              <button onclick="setAllLeagues(true)" style="font-size:0.75rem;background:none;border:1px solid var(--border);color:var(--muted);padding:2px 8px;border-radius:4px;cursor:pointer;">Alla</button>
-              <button onclick="setAllLeagues(false)" style="font-size:0.75rem;background:none;border:1px solid var(--border);color:var(--muted);padding:2px 8px;border-radius:4px;cursor:pointer;">Ingen</button>
+        <div style="margin-bottom:1rem;">
+          <div class="ms-dropdown">
+            <button class="ms-dropdown-btn" id="statsLeagueBtn"><span>Alla ligor</span></button>
+            <div class="ms-dropdown-list" id="statsLeagueList">
+              <div class="ms-dropdown-actions">
+                <button onclick="setAllLeagues(true)">Alla</button>
+                <button onclick="setAllLeagues(false)">Ingen</button>
+              </div>
+              <label><input type="checkbox" class="league-filter" value="P16 Div.1 2025" checked> P16 Div.1 2025</label>
+<label><input type="checkbox" class="league-filter" value="P16 Div.1 2026" checked> P16 Div.1 2026</label>
+<label><input type="checkbox" class="league-filter" value="P16 Ligacupen 2026" checked> P16 Ligacupen 2026</label>
+<label><input type="checkbox" class="league-filter" value="P16 Ligacupen Grupp 3 2026" checked> P16 Ligacupen Grupp 3 2026</label>
+<label><input type="checkbox" class="league-filter" value="P16 Träningsmatcher 2025" checked> P16 Träningsmatcher 2025</label>
+<label><input type="checkbox" class="league-filter" value="P16 Träningsmatcher 2026" checked> P16 Träningsmatcher 2026</label>
+<label><input type="checkbox" class="league-filter" value="P17 Allsvenskan 2026" checked> P17 Allsvenskan 2026</label>
+<label><input type="checkbox" class="league-filter" value="P17 Ligacupen 2026" checked> P17 Ligacupen 2026</label>
+<label><input type="checkbox" class="league-filter" value="P17 Träningsmatcher 2026" checked> P17 Träningsmatcher 2026</label>
             </div>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1.5rem;">
-            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="league-filter" value="P16 Div.1 2025" checked style="cursor:pointer;">P16 Div.1 2025</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="league-filter" value="P16 Div.1 2026" checked style="cursor:pointer;">P16 Div.1 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="league-filter" value="P16 Ligacupen 2026" checked style="cursor:pointer;">P16 Ligacupen 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="league-filter" value="P16 Ligacupen Grupp 3 2026" checked style="cursor:pointer;">P16 Ligacupen Grupp 3 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="league-filter" value="P16 Träningsmatcher 2025" checked style="cursor:pointer;">P16 Träningsmatcher 2025</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="league-filter" value="P16 Träningsmatcher 2026" checked style="cursor:pointer;">P16 Träningsmatcher 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="league-filter" value="P17 Allsvenskan 2026" checked style="cursor:pointer;">P17 Allsvenskan 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="league-filter" value="P17 Ligacupen 2026" checked style="cursor:pointer;">P17 Ligacupen 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="league-filter" value="P17 Träningsmatcher 2026" checked style="cursor:pointer;">P17 Träningsmatcher 2026</label>
           </div>
         </div>
         <div id="statsTable"><div class="empty-state">Ladda statistik</div></div>
@@ -401,24 +413,24 @@
           <div><label>Till datum</label><input type="date" id="oyuncuTo"></div>
           <div><button class="btn btn-primary" onclick="loadOyuncuStats()">📊 Visa statistik</button></div>
         </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-            <span style="font-size:0.8rem;color:var(--muted);font-weight:600;">LIGA / MATCHTYP</span>
-            <div style="display:flex;gap:0.5rem;">
-              <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>c.checked=true)" style="font-size:0.75rem;background:none;border:1px solid var(--border);color:var(--muted);padding:2px 8px;border-radius:4px;cursor:pointer;">Alla</button>
-              <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>c.checked=false)" style="font-size:0.75rem;background:none;border:1px solid var(--border);color:var(--muted);padding:2px 8px;border-radius:4px;cursor:pointer;">Ingen</button>
+        <div style="margin-bottom:1rem;">
+          <div class="ms-dropdown">
+            <button class="ms-dropdown-btn" id="oyuncuLeagueBtn"><span>Alla ligor</span></button>
+            <div class="ms-dropdown-list" id="oyuncuLeagueList">
+              <div class="ms-dropdown-actions">
+                <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>{c.checked=true;c.dispatchEvent(new Event('change'))})">Alla</button>
+                <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>{c.checked=false;c.dispatchEvent(new Event('change'))})">Ingen</button>
+              </div>
+              <label><input type="checkbox" class="oyuncu-league-filter" value="P16 Div.1 2025" checked> P16 Div.1 2025</label>
+<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Div.1 2026" checked> P16 Div.1 2026</label>
+<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Ligacupen 2026" checked> P16 Ligacupen 2026</label>
+<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Ligacupen Grupp 3 2026" checked> P16 Ligacupen Grupp 3 2026</label>
+<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Träningsmatcher 2025" checked> P16 Träningsmatcher 2025</label>
+<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Träningsmatcher 2026" checked> P16 Träningsmatcher 2026</label>
+<label><input type="checkbox" class="oyuncu-league-filter" value="P17 Allsvenskan 2026" checked> P17 Allsvenskan 2026</label>
+<label><input type="checkbox" class="oyuncu-league-filter" value="P17 Ligacupen 2026" checked> P17 Ligacupen 2026</label>
+<label><input type="checkbox" class="oyuncu-league-filter" value="P17 Träningsmatcher 2026" checked> P17 Träningsmatcher 2026</label>
             </div>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1.5rem;">
-            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="oyuncu-league-filter" value="P16 Div.1 2025" checked style="cursor:pointer;">P16 Div.1 2025</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="oyuncu-league-filter" value="P16 Div.1 2026" checked style="cursor:pointer;">P16 Div.1 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="oyuncu-league-filter" value="P16 Ligacupen 2026" checked style="cursor:pointer;">P16 Ligacupen 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="oyuncu-league-filter" value="P16 Ligacupen Grupp 3 2026" checked style="cursor:pointer;">P16 Ligacupen Grupp 3 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="oyuncu-league-filter" value="P16 Träningsmatcher 2025" checked style="cursor:pointer;">P16 Träningsmatcher 2025</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="oyuncu-league-filter" value="P16 Träningsmatcher 2026" checked style="cursor:pointer;">P16 Träningsmatcher 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="oyuncu-league-filter" value="P17 Allsvenskan 2026" checked style="cursor:pointer;">P17 Allsvenskan 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="oyuncu-league-filter" value="P17 Ligacupen 2026" checked style="cursor:pointer;">P17 Ligacupen 2026</label>
-<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="oyuncu-league-filter" value="P17 Träningsmatcher 2026" checked style="cursor:pointer;">P17 Träningsmatcher 2026</label>
           </div>
         </div>
         <div id="oyuncuStatsTable"><div class="empty-state">Ladda statistik</div></div>
@@ -1449,6 +1461,32 @@ window.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 if (state.token && state.user) { showApp(); } else {
   document.getElementById('loginPage').style.display = 'flex';
 }
+</script>
+
+<script>
+function initMultiDropdown(btnId, listId) {
+  const btn = document.getElementById(btnId);
+  const list = document.getElementById(listId);
+  if (!btn || !list) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    list.classList.toggle('open');
+  });
+  document.addEventListener('click', () => list.classList.remove('open'));
+  list.addEventListener('click', (e) => e.stopPropagation());
+  // Label güncellemesi
+  const updateLabel = () => {
+    const checkboxes = list.querySelectorAll('input[type=checkbox]');
+    const checked = [...checkboxes].filter(c => c.checked);
+    const span = btn.querySelector('span');
+    if (span) span.textContent = checked.length === checkboxes.length ? 'Alla ligor' : checked.length === 0 ? 'Ingen vald' : `${checked.length} ligor valda`;
+  };
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', updateLabel));
+}
+document.addEventListener('DOMContentLoaded', () => {
+  initMultiDropdown('statsLeagueBtn', 'statsLeagueList');
+  initMultiDropdown('oyuncuLeagueBtn', 'oyuncuLeagueList');
+});
 </script>
 </body>
 </html>
