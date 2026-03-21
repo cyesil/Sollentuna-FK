@@ -332,27 +332,20 @@
         <div class="filter-bar">
           <div><label>Från datum</label><input type="date" id="statsFrom" value="2025-01-01"></div>
           <div><label>Till datum</label><input type="date" id="statsTo"></div>
-          <div><button class="btn btn-primary" onclick="loadStats()">📊 Visa statistik</button></div>
-        </div>
-        <div style="margin-bottom:1rem;">
-          <div class="ms-dropdown">
-            <button class="ms-dropdown-btn" id="statsLeagueBtn"><span>Alla ligor</span></button>
-            <div class="ms-dropdown-list" id="statsLeagueList">
-              <div class="ms-dropdown-actions">
-                <button onclick="setAllLeagues(true)">Alla</button>
-                <button onclick="setAllLeagues(false)">Ingen</button>
+          <div>
+            <label>Liga</label>
+            <div class="ms-dropdown">
+              <button class="ms-dropdown-btn" id="statsLeagueBtn"><span>Alla ligor</span></button>
+              <div class="ms-dropdown-list" id="statsLeagueList">
+                <div class="ms-dropdown-actions">
+                  <button onclick="setAllLeagues(true)">Alla</button>
+                  <button onclick="setAllLeagues(false)">Ingen</button>
+                </div>
+                <div id="leagueFilterItems"><!-- dinamik --></div>
               </div>
-              <label><input type="checkbox" class="league-filter" value="P16 Div.1 2025" checked> P16 Div.1 2025</label>
-<label><input type="checkbox" class="league-filter" value="P16 Div.1 2026" checked> P16 Div.1 2026</label>
-<label><input type="checkbox" class="league-filter" value="P16 Ligacupen 2026" checked> P16 Ligacupen 2026</label>
-<label><input type="checkbox" class="league-filter" value="P16 Ligacupen Grupp 3 2026" checked> P16 Ligacupen Grupp 3 2026</label>
-<label><input type="checkbox" class="league-filter" value="P16 Träningsmatcher 2025" checked> P16 Träningsmatcher 2025</label>
-<label><input type="checkbox" class="league-filter" value="P16 Träningsmatcher 2026" checked> P16 Träningsmatcher 2026</label>
-<label><input type="checkbox" class="league-filter" value="P17 Allsvenskan 2026" checked> P17 Allsvenskan 2026</label>
-<label><input type="checkbox" class="league-filter" value="P17 Ligacupen 2026" checked> P17 Ligacupen 2026</label>
-<label><input type="checkbox" class="league-filter" value="P17 Träningsmatcher 2026" checked> P17 Träningsmatcher 2026</label>
             </div>
           </div>
+          <div><button class="btn btn-primary" onclick="loadStats()">📊 Visa statistik</button></div>
         </div>
         <div id="statsTable"><div class="empty-state">Ladda statistik</div></div>
       </div>
@@ -421,15 +414,7 @@
                 <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>{c.checked=true;c.dispatchEvent(new Event('change'))})">Alla</button>
                 <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>{c.checked=false;c.dispatchEvent(new Event('change'))})">Ingen</button>
               </div>
-              <label><input type="checkbox" class="oyuncu-league-filter" value="P16 Div.1 2025" checked> P16 Div.1 2025</label>
-<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Div.1 2026" checked> P16 Div.1 2026</label>
-<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Ligacupen 2026" checked> P16 Ligacupen 2026</label>
-<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Ligacupen Grupp 3 2026" checked> P16 Ligacupen Grupp 3 2026</label>
-<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Träningsmatcher 2025" checked> P16 Träningsmatcher 2025</label>
-<label><input type="checkbox" class="oyuncu-league-filter" value="P16 Träningsmatcher 2026" checked> P16 Träningsmatcher 2026</label>
-<label><input type="checkbox" class="oyuncu-league-filter" value="P17 Allsvenskan 2026" checked> P17 Allsvenskan 2026</label>
-<label><input type="checkbox" class="oyuncu-league-filter" value="P17 Ligacupen 2026" checked> P17 Ligacupen 2026</label>
-<label><input type="checkbox" class="oyuncu-league-filter" value="P17 Träningsmatcher 2026" checked> P17 Träningsmatcher 2026</label>
+              <div id="oyuncuLeagueFilterItems"><!-- dinamik --></div>
             </div>
           </div>
         </div>
@@ -535,6 +520,7 @@ function showApp() {
   document.getElementById('trTo').value = new Date().toISOString().slice(0,10);
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
+  if (u.role === 'admin' || u.role === 'antrenor') loadLeagueFilters();
   // Users tabı: admin ve tränare görsün
   const usersTab = document.getElementById('usersTab');
   if (usersTab) usersTab.style.display = (u.role === 'admin' || u.role === 'antrenor') ? 'inline-block' : 'none';
@@ -992,6 +978,45 @@ function sortStatsTable(col) {
     const el = window._lastStatsEl;
     if (el) el.innerHTML = renderStatsTable(window._lastStatsData, '');
   }
+}
+
+// Lig listesini DB'den çek ve dropdown'u doldur
+async function loadLeagueFilters() {
+  try {
+    const r = await fetch('/api/admin?action=savedmatches', {headers: authHeaders()});
+    const matches = await r.json();
+    if (!Array.isArray(matches)) return;
+    const leagues = [...new Set(matches.map(m => m.league_name).filter(Boolean))].sort();
+    
+    // Admin dropdown
+    const adminEl = document.getElementById('leagueFilterItems');
+    if (adminEl) {
+      adminEl.innerHTML = leagues.map(l => 
+        `<label><input type="checkbox" class="league-filter" value="${l}" checked> ${l}</label>`
+      ).join('');
+      // Checkbox değişince label güncelle
+      adminEl.querySelectorAll('input').forEach(cb => cb.addEventListener('change', () => {
+        const all = adminEl.querySelectorAll('input');
+        const checked = adminEl.querySelectorAll('input:checked');
+        const span = document.querySelector('#statsLeagueBtn span');
+        if (span) span.textContent = checked.length === all.length ? 'Alla ligor' : checked.length === 0 ? 'Ingen vald' : `${checked.length} ligor valda`;
+      }));
+    }
+
+    // Oyuncu dropdown
+    const oyuncuEl = document.getElementById('oyuncuLeagueFilterItems');
+    if (oyuncuEl) {
+      oyuncuEl.innerHTML = leagues.map(l =>
+        `<label><input type="checkbox" class="oyuncu-league-filter" value="${l}" checked> ${l}</label>`
+      ).join('');
+      oyuncuEl.querySelectorAll('input').forEach(cb => cb.addEventListener('change', () => {
+        const all = oyuncuEl.querySelectorAll('input');
+        const checked = oyuncuEl.querySelectorAll('input:checked');
+        const span = document.querySelector('#oyuncuLeagueBtn span');
+        if (span) span.textContent = checked.length === all.length ? 'Alla ligor' : checked.length === 0 ? 'Ingen vald' : `${checked.length} ligor valda`;
+      }));
+    }
+  } catch(e) {}
 }
 
 function setAllLeagues(checked) {
