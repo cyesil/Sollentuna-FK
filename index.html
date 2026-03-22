@@ -530,9 +530,9 @@ function showApp() {
   if (refreshBtn) refreshBtn.style.display = u.role === 'admin' ? 'inline-block' : 'none';
 
   const today = new Date().toISOString().slice(0,10);
-  ['adminTo','statsTo','trTo','oyuncuTo'].forEach(id => {
+  ['adminTo','statsTo','trTo','oyuncuTo','oyuncuFrom'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.value = today;
+    if (el && !el.value) el.value = id.includes('To') ? today : '2025-01-01';
   });
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
