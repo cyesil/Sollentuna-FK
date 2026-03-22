@@ -101,7 +101,7 @@ async function getMinfotbollToken() {
   const refreshToken = process.env.MINFOTBOLL_REFRESH_TOKEN;
   const accessToken = process.env.MINFOTBOLL_ACCESS_TOKEN;
   const result = await httpPost(MINFOTBOLL_API, '/api/jwtapi/refreshtoken', {accessToken, refreshToken});
-  if (!result?.AccessToken) throw new Error('MinFotboll token alınamadı');
+  if (!result?.AccessToken) throw new Error('MinFotboll-token kunde inte hämtas');
   return result.AccessToken;
 }
 
@@ -114,7 +114,7 @@ module.exports = async (req, res) => {
   const auth = req.headers.authorization || '';
   const token = auth.replace('Bearer ', '');
   const user = verifyToken(token);
-  if (!user) return res.status(401).json({ error: 'Giriş yapın' });
+  if (!user) return res.status(401).json({ error: 'Vänligen logga in' });
 
   const action = req.query.action;
 
@@ -206,7 +206,7 @@ module.exports = async (req, res) => {
   // Kendi istatistikleri (oyuncu)
   if (action === 'mystats') {
     const playerId = user.player_id;
-    if (!playerId) return res.status(400).json({ error: 'Player ID tanımlı değil' });
+    if (!playerId) return res.status(400).json({ error: 'Spelar-ID är inte definierat' });
 
     // Filtreleme parametreleri
     const { gameType, dateFrom, dateTo, leagueNames: myLeagueNames } = req.query;
@@ -290,5 +290,5 @@ module.exports = async (req, res) => {
     return res.status(200).json(summary);
   }
 
-  res.status(400).json({ error: 'Geçersiz action' });
+  res.status(400).json({ error: 'Ogiltig åtgärd' });
 };
