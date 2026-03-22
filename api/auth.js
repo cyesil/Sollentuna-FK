@@ -182,11 +182,11 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Kullanıcı düzenle (sadece admin)
+  // Kullanıcı düzenle (admin + tränare)
   if (action === 'edituser' && req.method === 'POST') {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Yetki yok' });
+    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Yetki yok' });
     const { id, username, full_name, role, player_id } = req.body || {};
     if (!id || !username) return res.status(400).json({ error: 'Eksik bilgi' });
     const result = await supabaseRequest('PATCH', `/users?id=eq.${id}`, {
@@ -195,26 +195,55 @@ module.exports = async (req, res) => {
     return res.status(200).json({ success: true });
   }
 
-  // Şifre değiştir (sadece admin)
+  // Şifre değiştir (admin her kullanıcının, tränare sadece admin olmayanların)
   if (action === 'changepassword' && req.method === 'POST') {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Yetki yok' });
+    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Yetki yok' });
     const { id, password } = req.body || {};
     if (!id || !password) return res.status(400).json({ error: 'Eksik bilgi' });
+    // Tränare admin şifresini değiştiremez
+    if (payload.role === 'antrenor') {
+      const target = await supabaseGet(`/users?id=eq.${id}&select=role`);
+      if (Array.isArray(target) && target[0]?.role === 'admin') return res.status(403).json({ error: 'Admin şifresi değiştirilemez' });
+    }
     const hash = hashPassword(password);
     await supabaseRequest('PATCH', `/users?id=eq.${id}`, { password_hash: hash });
     return res.status(200).json({ success: true });
   }
 
-  // Kullanıcı sil (sadece admin)
+  // Kullanıcı sil (admin + tränare, admin silinemez)
   if (action === 'deleteuser' && req.method === 'POST') {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Yetki yok' });
+    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Yetki yok' });
+    // Tränare admin kullanıcısını silemez
+    if (payload.role === 'antrenor') {
+      const { id } = req.body || {};
+      const target = await supabaseGet(`/users?id=eq.${id}&select=role`);
+      if (Array.isArray(target) && target[0]?.role === 'admin') return res.status(403).json({ error: 'Admin silinemez' });
+    }
     const { id } = req.body || {};
     if (!id) return res.status(400).json({ error: 'ID gerekli' });
     await supabaseRequest('DELETE', `/users?id=eq.${id}`, null);
+    return res.status(200).json({ success: true });
+  }
+
+  // Kendi şifresini değiştir (tüm roller)
+  if (action === 'changeownpassword' && req.method === 'POST') {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    const payload = verifyToken(token);
+    if (!payload) return res.status(401).json({ error: 'Giriş yapın' });
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Eksik bilgi' });
+    // Mevcut şifreyi kontrol et
+    const users = await supabaseGet(`/users?id=eq.${payload.id}&select=id,password_hash`);
+    if (!Array.isArray(users) || users.length === 0) return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    const currentHash = hashPassword(currentPassword);
+    if (users[0].password_hash !== currentHash) return res.status(400).json({ error: 'Nuvarande lösenord är felaktigt' });
+    // Yeni şifreyi kaydet
+    const newHash = hashPassword(newPassword);
+    await supabaseRequest('PATCH', `/users?id=eq.${payload.id}`, { password_hash: newHash });
     return res.status(200).json({ success: true });
   }
 
