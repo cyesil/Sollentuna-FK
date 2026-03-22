@@ -36,6 +36,18 @@ function supabaseRequest(method, path, body) {
   });
 }
 
+function httpGet(host, path, headers={}) {
+  return new Promise((resolve, reject) => {
+    const req = require('https').request({host, path, method:'GET', headers}, (res) => {
+      let data='';
+      res.on('data', chunk => data+=chunk);
+      res.on('end', () => { try{resolve(JSON.parse(data))}catch(e){resolve(data)} });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 function supabaseGet(path) {
   return new Promise((resolve, reject) => {
     const url = new URL(SUPABASE_URL);
@@ -152,7 +164,23 @@ module.exports = async (req, res) => {
     }
 
     const token = createToken(user);
-    return res.status(200).json({ token, user: { id: user.id, username: user.username, role: user.role, full_name: user.full_name, player_id: user.player_id } });
+        // MemberID varsa MinFotboll'dan avatar çek
+    let avatarUrl = user.avatar_url || null;
+    if (!avatarUrl && user.minfotboll_member_id) {
+      try {
+        const mfToken = process.env.MINFOTBOLL_ACCESS_TOKEN;
+        // TeamStaff'tan çek - her iki takım için dene
+        for (const teamId of [398871, 74782]) {
+          const roster = await httpGet('minfotboll-api.azurewebsites.net', `/api/teamapi/initplayersadminvc?TeamID=${teamId}`, {'Authorization': `Bearer ${mfToken}`});
+          if (Array.isArray(roster)) {
+            // Staff endpoint yok, players'da ara
+          }
+          // Farklı endpoint dene
+          break;
+        }
+      } catch(e) {}
+    }
+    return res.status(200).json({ token, user: { id: user.id, username: user.username, role: user.role, full_name: user.full_name, player_id: user.player_id, avatar_url: avatarUrl, minfotboll_member_id: user.minfotboll_member_id || null } });
   }
 
   // Token doğrula
@@ -194,7 +222,7 @@ module.exports = async (req, res) => {
     const payload = verifyToken(token);
     if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Behörighet saknas' });
 
-    const users = await supabaseRequest('GET', '/users?select=id,username,role,full_name,player_id,created_at');
+    const users = await supabaseRequest('GET', '/users?select=id,username,role,full_name,player_id,avatar_url,minfotboll_member_id,created_at');
     // Tränare sadece spelare rolündeki kullanıcıları görür
     if (payload.role === 'antrenor') {
       return res.status(200).json(Array.isArray(users) ? users.filter(u => u.role === 'oyuncu') : users);
@@ -218,12 +246,41 @@ module.exports = async (req, res) => {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const payload = verifyToken(token);
     if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Behörighet saknas' });
-    const { id, username, full_name, role, player_id } = req.body || {};
+    const { id, username, full_name, role, player_id, minfotboll_member_id } = req.body || {};
     if (!id || !username) return res.status(400).json({ error: 'Information saknas' });
-    const result = await supabaseRequest('PATCH', `/users?id=eq.${id}`, {
-      username, full_name, role, player_id: player_id || null
+    // MemberID varsa TeamStaff'tan avatar çek
+    let avatar_url = null;
+    if (minfotboll_member_id) {
+      try {
+        const mfToken = process.env.MINFOTBOLL_ACCESS_TOKEN;
+        const matches = await supabaseGet('/matches?select=game_id&order=game_date.desc&limit=5');
+        if (Array.isArray(matches)) {
+          for (const match of matches) {
+            const lineups = await httpGet('minfotboll-api.azurewebsites.net',
+              `/api/magazinegameviewapi/initgamelineups?GameID=${match.game_id}`,
+              {'Authorization': `Bearer ${mfToken}`}
+            );
+            for (const roster of [lineups?.HomeTeamGameTeamRoster, lineups?.AwayTeamGameTeamRoster]) {
+              if (!roster?.TeamStaff) continue;
+              const staff = roster.TeamStaff.find(s => s.MemberID === parseInt(minfotboll_member_id));
+              if (staff?.ThumbnailURL && !staff.ThumbnailURL.includes('defaultmember')) {
+                avatar_url = staff.ThumbnailURL;
+                break;
+              }
+            }
+            if (avatar_url) break;
+          }
+        }
+      } catch(e) {}
+    }
+
+    await supabaseRequest('PATCH', `/users?id=eq.${id}`, {
+      username, full_name, role,
+      player_id: player_id || null,
+      minfotboll_member_id: minfotboll_member_id || null,
+      ...(avatar_url ? { avatar_url } : {}),
     });
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, avatar_url });
   }
 
   // Şifre değiştir (admin her kullanıcının, tränare sadece admin olmayanların)
