@@ -294,6 +294,7 @@
         <button class="tab active" onclick="adminTab('matches')">Matcher</button>
         <button class="tab" onclick="adminTab('stats')">Statistik</button>
         <button class="tab" id="usersTab" onclick="adminTab('users')" style="display:none;">Användare</button>
+        <button class="tab" onclick="adminTab('todo')">📋 Todo</button>
       </div>
 
       <!-- MAÇLAR TAB -->
@@ -342,6 +343,19 @@
                   <button onclick="setAllLeagues(false)">Ingen</button>
                 </div>
                 <div id="leagueFilterItems"><!-- dinamik --></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label>Spelare</label>
+            <div class="ms-dropdown">
+              <button class="ms-dropdown-btn" id="statsPlayerBtn" style="min-width:160px;"><span>Alla spelare</span></button>
+              <div class="ms-dropdown-list" id="statsPlayerList">
+                <div class="ms-dropdown-actions">
+                  <button onclick="setAllPlayers(true)">Alla</button>
+                  <button onclick="setAllPlayers(false)">Ingen</button>
+                </div>
+                <div id="playerFilterItems"><!-- dinamik --></div>
               </div>
             </div>
           </div>
@@ -520,7 +534,10 @@ function showApp() {
   document.getElementById('trTo').value = new Date().toISOString().slice(0,10);
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
-  if (u.role === 'admin' || u.role === 'antrenor') loadLeagueFilters();
+  if (u.role === 'admin' || u.role === 'antrenor') {
+    loadLeagueFilters();
+    initPlayerFilter();
+  }
   // Users tabı: admin ve tränare görsün
   const usersTab = document.getElementById('usersTab');
   if (usersTab) usersTab.style.display = (u.role === 'admin' || u.role === 'antrenor') ? 'inline-block' : 'none';
@@ -551,6 +568,8 @@ function adminTab(tab) {
   document.getElementById('adminMatches').style.display = tab === 'matches' ? 'block' : 'none';
   document.getElementById('adminStats').style.display = tab === 'stats' ? 'block' : 'none';
   document.getElementById('adminUsers').style.display = tab === 'users' ? 'block' : 'none';
+  document.getElementById('adminTodo').style.display = tab === 'todo' ? 'block' : 'none';
+  if (tab === 'todo') loadTodos();
 }
 
 // ===================== FETCH MATCHES =====================
@@ -1019,6 +1038,47 @@ async function loadLeagueFilters() {
   } catch(e) {}
 }
 
+function setAllPlayers(checked) {
+  document.querySelectorAll('.player-filter').forEach(cb => {
+    cb.checked = checked;
+    cb.dispatchEvent(new Event('change'));
+  });
+}
+
+function getSelectedPlayers() {
+  const checked = [...document.querySelectorAll('.player-filter:checked')];
+  // Hepsi seçiliyse boş döndür (filtre yok)
+  const all = document.querySelectorAll('.player-filter');
+  if (checked.length === all.length) return [];
+  return checked.map(cb => parseInt(cb.value));
+}
+
+function initPlayerFilter() {
+  // Oyuncu listesini SFK_PLAYERS'dan doldur - forma sırasına göre
+  const el = document.getElementById('playerFilterItems');
+  if (!el) return;
+  const sorted = Object.entries(SFK_PLAYERS).sort((a,b) => a[1].shirt - b[1].shirt);
+  el.innerHTML = sorted.map(([pid, p]) =>
+    `<label><input type="checkbox" class="player-filter" value="${pid}" checked> #${p.shirt} ${p.name}</label>`
+  ).join('');
+  // Label güncellemesi
+  const updateLabel = () => {
+    const all = el.querySelectorAll('input');
+    const checked = el.querySelectorAll('input:checked');
+    const span = document.querySelector('#statsPlayerBtn span');
+    if (span) span.textContent = checked.length === all.length ? 'Alla spelare' : checked.length === 0 ? 'Ingen vald' : `${checked.length} spelare`;
+  };
+  el.querySelectorAll('input').forEach(cb => cb.addEventListener('change', updateLabel));
+  // Dropdown init
+  const btn = document.getElementById('statsPlayerBtn');
+  const list = document.getElementById('statsPlayerList');
+  if (btn && list) {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); list.classList.toggle('open'); });
+    document.addEventListener('click', () => list.classList.remove('open'));
+    list.addEventListener('click', (e) => e.stopPropagation());
+  }
+}
+
 function setAllLeagues(checked) {
   document.querySelectorAll('.league-filter').forEach(cb => cb.checked = checked);
 }
@@ -1029,8 +1089,15 @@ function getSelectedLeagues() {
 
 function renderStatsTable(d, prefix) {
   window._lastStatsData = d;
-  const players = [...(d.players || [])];
+  let players = [...(d.players || [])];
   if (!players.length) return '<div class="empty-state">Ingen statistik hittades</div>';
+
+  // Oyuncu filtresi uygula
+  const selectedPlayerIds = getSelectedPlayers ? getSelectedPlayers() : [];
+  if (selectedPlayerIds.length > 0) {
+    players = players.filter(p => selectedPlayerIds.includes(p.playerId));
+  }
+  if (!players.length) return '<div class="empty-state">Ingen spelare vald</div>';
 
   // Sırala
   players.sort((a,b) => {
