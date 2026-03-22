@@ -169,10 +169,15 @@ module.exports = async (req, res) => {
     const auth = req.headers.authorization || '';
     const token = auth.replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Behörighet saknas' });
+    if (!payload || payload.role === 'oyuncu') return res.status(403).json({ error: 'Behörighet saknas' });
 
     const { username, password, role, full_name, player_id } = req.body || {};
     if (!username || !password || !role) return res.status(400).json({ error: 'Information saknas' });
+
+    // Tränare sadece oyuncu yaratabilir
+    if (payload.role === 'antrenor' && role !== 'oyuncu') {
+      return res.status(403).json({ error: 'Tränare kan bara skapa spelare' });
+    }
 
     const hash = hashPassword(password);
     const result = await supabaseRequest('POST', '/users', {
