@@ -528,9 +528,11 @@ function showApp() {
   const refreshBtn = document.getElementById('refreshBtn');
   if (refreshBtn) refreshBtn.style.display = u.role === 'admin' ? 'inline-block' : 'none';
 
-  document.getElementById('adminTo').value = new Date().toISOString().slice(0,10);
-  document.getElementById('statsTo').value = new Date().toISOString().slice(0,10);
-  document.getElementById('trTo').value = new Date().toISOString().slice(0,10);
+  const today = new Date().toISOString().slice(0,10);
+  ['adminTo','statsTo','trTo','oyuncuTo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = today;
+  });
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
   if (u.role === 'admin' || u.role === 'antrenor') {
@@ -1433,7 +1435,7 @@ async function loadOyuncuStats() {
   try {
     const from = document.getElementById('oyuncuFrom').value;
     const to = document.getElementById('oyuncuTo').value;
-    const type = document.getElementById('oyuncuType').value;
+    const type = document.getElementById('oyuncuType')?.value || 'hepsi';
     const params = new URLSearchParams({action:'mystats'});
     if (from) params.append('dateFrom', from);
     if (to) params.append('dateTo', to);
