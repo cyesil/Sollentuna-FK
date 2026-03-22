@@ -603,5 +603,62 @@ module.exports = async (req, res) => {
     }
   }
 
+  // SFK kadro listesi - oyuncular + staff
+  if (action === 'sfkroster') {
+    try {
+      const mfToken = await getMinfotbollToken();
+      const results = [];
+
+      // Her iki takımın oyuncularını çek
+      for (const teamId of [398871, 74782]) {
+        const teamLabel = teamId === 398871 ? 'P16' : 'P17';
+        const players = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=${teamId}`, mfToken);
+        if (Array.isArray(players)) {
+          players.forEach(p => {
+            results.push({
+              type: 'player',
+              memberId: p.MemberID,
+              playerId: p.PlayerID,
+              name: p.FullName || `${p.FirstName} ${p.LastName}`,
+              shirt: p.ShirtNumber,
+              team: teamLabel,
+              thumbnail: p.ThumbnailURL || null,
+            });
+          });
+        }
+      }
+
+      // Son maçlardan staff listesini çek
+      const matches = await supabaseGet('/matches?select=game_id&order=game_date.desc&limit=3');
+      const seenMembers = new Set();
+      if (Array.isArray(matches)) {
+        for (const match of matches) {
+          const lineups = await minfotbollGet(`/api/magazinegameviewapi/initgamelineups?GameID=${match.game_id}`, mfToken);
+          for (const roster of [lineups?.HomeTeamGameTeamRoster, lineups?.AwayTeamGameTeamRoster]) {
+            if (!roster?.TeamStaff) continue;
+            if (roster.TeamID !== 398871 && roster.TeamID !== 74782) continue;
+            roster.TeamStaff.forEach(s => {
+              if (seenMembers.has(s.MemberID)) return;
+              seenMembers.add(s.MemberID);
+              results.push({
+                type: 'staff',
+                memberId: s.MemberID,
+                playerId: null,
+                name: s.FullName,
+                role: s.TeamStaffRoleName,
+                team: roster.TeamID === 398871 ? 'P16' : 'P17',
+                thumbnail: s.ThumbnailURL || null,
+              });
+            });
+          }
+        }
+      }
+
+      return res.status(200).json(results.sort((a,b) => a.name.localeCompare(b.name, 'sv')));
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   res.status(400).json({ error: 'Ogiltig åtgärd' });
 };
