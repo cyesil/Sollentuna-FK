@@ -556,7 +556,19 @@ function showApp() {
   });
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
-  if (u.role === 'antrenor') { loadUsers(); populatePlayerSelect(); }
+  if (u.role === 'antrenor') {
+    loadUsers();
+    populatePlayerSelect();
+    // Tränare sadece Spelare yaratabileceği için diğer rolleri gizle
+    const newRole = document.getElementById('newRole');
+    if (newRole) {
+      [...newRole.options].forEach(opt => {
+        if (opt.value !== 'oyuncu') opt.style.display = 'none';
+      });
+      newRole.value = 'oyuncu';
+      togglePlayerSelect();
+    }
+  }
   if (u.role === 'admin' || u.role === 'antrenor') {
     loadLeagueFilters();
     initPlayerFilter();
