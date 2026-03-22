@@ -274,6 +274,7 @@
       <span class="header-title">SOLLENTUNA FK</span>
     </div>
     <div class="header-right">
+      <img id="headerAvatar" src="" style="display:none;width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);" onerror="this.style.display='none'">
       <span class="user-badge" id="userBadge"></span>
       <span class="role-badge" id="roleBadge"></span>
       <button class="btn-refresh" onclick="refreshToken()" title="Förnya MinFotboll token" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;" id="refreshBtn">🔄 Förnya token</button>
@@ -539,6 +540,24 @@ function showApp() {
   document.getElementById('userBadge').textContent = u.full_name || u.username;
   const rb = document.getElementById('roleBadge');
   rb.textContent = u.role === 'admin' ? 'Admin' : u.role === 'antrenor' ? 'Tränare' : 'Spelare';
+  // Avatar göster
+  const headerAvatar = document.getElementById('headerAvatar');
+  if (headerAvatar) {
+    if (u.avatar_url) {
+      headerAvatar.src = u.avatar_url;
+      headerAvatar.style.display = 'inline-block';
+    } else if (u.role === 'oyuncu' && u.player_id) {
+      // Oyuncu için MinFotboll'dan çek
+      fetch('/api/stats?action=mystats', {headers: authHeaders()})
+        .then(r => r.json())
+        .then(d => {
+          if (d.thumbnail) {
+            headerAvatar.src = d.thumbnail;
+            headerAvatar.style.display = 'inline-block';
+          }
+        }).catch(() => {});
+    }
+  }
   rb.className = 'role-badge role-' + u.role;
 
   // Admin ve Tränare aynı admin panelini görür
@@ -1288,7 +1307,7 @@ async function loadUsers() {
         <td>${u.player_id ? SFK_PLAYERS[u.player_id]?.name || u.player_id : '—'}</td>
         <td>
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
-            <button onclick="showEditUser(${u.id},'${u.username}','${u.full_name||''}','${u.role}',${u.player_id||'null'})" 
+            <button onclick="showEditUser(${u.id},'${u.username}','${u.full_name||''}','${u.role}',${u.player_id||'null'},${u.minfotboll_member_id||'null'})" 
               style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.25rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">
               ✏️ Redigera
             </button>
@@ -1322,6 +1341,10 @@ async function loadUsers() {
             <option value="">Välj spelare</option>
             ${Object.entries(SFK_PLAYERS).map(([id,p]) => `<option value="${id}">#${p.shirt} ${p.name}</option>`).join('')}
           </select></div>
+        <div><label style="font-size:0.75rem;color:var(--muted);">MinFotboll MemberID</label>
+          <input type="number" id="editMemberId" placeholder="t.ex. 746699" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.9rem;">
+          <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">Används för profilbild</div>
+        </div>
         <div style="display:flex;gap:0.5rem;">
           <button onclick="saveEditUser()" class="btn btn-success">💾 Spara</button>
           <button onclick="document.getElementById('editUserPanel').style.display='none'" class="btn btn-secondary">✕</button>
@@ -1343,12 +1366,13 @@ async function loadUsers() {
 let _editUserId = null;
 let _changePassUserId = null;
 
-function showEditUser(id, username, fullname, role, playerId) {
+function showEditUser(id, username, fullname, role, playerId, memberId) {
   _editUserId = id;
   document.getElementById('editUsername').value = username;
   document.getElementById('editFullname').value = fullname;
   document.getElementById('editRole').value = role;
   document.getElementById('editPlayerId').value = playerId || '';
+  document.getElementById('editMemberId').value = memberId || '';
   toggleEditPlayerSelect();
   document.getElementById('editUserPanel').style.display = 'block';
   document.getElementById('changePassPanel').style.display = 'none';
@@ -1366,11 +1390,12 @@ async function saveEditUser() {
   const full_name = document.getElementById('editFullname').value.trim();
   const role = document.getElementById('editRole').value;
   const player_id = role === 'oyuncu' ? parseInt(document.getElementById('editPlayerId').value) || null : null;
+  const minfotboll_member_id = parseInt(document.getElementById('editMemberId').value) || null;
   if (!username) { alert('Användarnamn krävs'); return; }
   try {
     const r = await fetch('/api/auth?action=edituser', {
       method: 'POST', headers: authHeaders(),
-      body: JSON.stringify({id: _editUserId, username, full_name, role, player_id})
+      body: JSON.stringify({id: _editUserId, username, full_name, role, player_id, minfotboll_member_id})
     });
     const d = await r.json();
     if (!r.ok) { alert(d.error); return; }
