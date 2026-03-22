@@ -591,10 +591,17 @@ function showApp() {
     const newRole = document.getElementById('newRole');
     if (newRole) {
       [...newRole.options].forEach(opt => {
-        if (opt.value !== 'oyuncu') opt.style.display = 'none';
+        opt.style.display = opt.value !== 'oyuncu' ? 'none' : '';
       });
       newRole.value = 'oyuncu';
       togglePlayerSelect();
+    }
+  }
+  if (u.role === 'admin') {
+    // Admin tüm rolleri görebilir
+    const newRole = document.getElementById('newRole');
+    if (newRole) {
+      [...newRole.options].forEach(opt => opt.style.display = '');
     }
   }
   if (u.role === 'admin' || u.role === 'antrenor') {
