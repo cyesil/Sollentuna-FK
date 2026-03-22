@@ -189,6 +189,14 @@ module.exports = async (req, res) => {
     const token = auth.replace('Bearer ', '');
     const payload = verifyToken(token);
     if (!payload) return res.status(401).json({ error: 'Geçersiz token' });
+    // DB'den güncel bilgileri çek (avatar_url dahil)
+    try {
+      const users = await supabaseGet(`/users?id=eq.${payload.id}&select=id,username,role,full_name,player_id,avatar_url,minfotboll_member_id`);
+      if (Array.isArray(users) && users.length > 0) {
+        const u = users[0];
+        return res.status(200).json({ user: { ...payload, avatar_url: u.avatar_url, minfotboll_member_id: u.minfotboll_member_id } });
+      }
+    } catch(e) {}
     return res.status(200).json({ user: payload });
   }
 
