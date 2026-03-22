@@ -166,7 +166,8 @@ module.exports = async (req, res) => {
   const token = auth.replace('Bearer ', '');
   const user = verifyToken(token);
   if (!user) return res.status(401).json({ error: 'Giriş yapın' });
-  if (user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Yetki gerekli' });
+  // savedmatches tüm roller için açık (lig listesi için)
+  if (action !== 'savedmatches' && user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Yetki gerekli' });
 
   const action = req.query.action;
 
@@ -591,6 +592,11 @@ module.exports = async (req, res) => {
   // Kayıtlı maçları listele
   if (action === 'savedmatches') {
     const matches = await supabaseGet('/matches?select=*&order=game_date.desc');
+    // Oyuncu sadece lig isimlerini görebilir
+    if (user.role === 'oyuncu') {
+      const leagues = [...new Set(matches.map(m => m.league_name).filter(Boolean))].sort();
+      return res.status(200).json(matches.map(m => ({ league_name: m.league_name })));
+    }
     return res.status(200).json(matches);
   }
 
