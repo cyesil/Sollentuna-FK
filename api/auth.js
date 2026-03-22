@@ -36,6 +36,28 @@ function supabaseRequest(method, path, body) {
   });
 }
 
+function supabaseGet(path) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(SUPABASE_URL);
+    const req = https.request({
+      host: url.host,
+      path: `/rest/v1${path}`,
+      method: 'GET',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { resolve(data); } });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password + JWT_SECRET).digest('hex');
 }
