@@ -199,7 +199,7 @@ module.exports = async (req, res) => {
     const payload = verifyToken(token);
     if (!payload || payload.role === 'oyuncu') return res.status(403).json({ error: 'Behörighet saknas' });
 
-    const { username, password, role, full_name, player_id } = req.body || {};
+    const { username, password, role, full_name, player_id, minfotboll_member_id, avatar_url } = req.body || {};
     if (!username || !password || !role) return res.status(400).json({ error: 'Information saknas' });
 
     // Tränare sadece oyuncu yaratabilir
@@ -209,7 +209,10 @@ module.exports = async (req, res) => {
 
     const hash = hashPassword(password);
     const result = await supabaseRequest('POST', '/users', {
-      username, password_hash: hash, role, full_name, player_id: player_id || null
+      username, password_hash: hash, role, full_name,
+      player_id: player_id || null,
+      minfotboll_member_id: minfotboll_member_id || null,
+      avatar_url: avatar_url || null,
     });
 
     return res.status(200).json({ success: true, user: result });
