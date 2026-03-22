@@ -190,6 +190,10 @@ module.exports = async (req, res) => {
     if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Yetki yok' });
 
     const users = await supabaseRequest('GET', '/users?select=id,username,role,full_name,player_id,created_at');
+    // Tränare sadece spelare rolündeki kullanıcıları görür
+    if (payload.role === 'antrenor') {
+      return res.status(200).json(Array.isArray(users) ? users.filter(u => u.role === 'oyuncu') : users);
+    }
     return res.status(200).json(users);
   }
 
