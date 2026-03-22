@@ -556,7 +556,7 @@ function showApp() {
   });
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
-  if (u.role === 'antrenor') { loadUsers(); }
+  if (u.role === 'antrenor') { loadUsers(); populatePlayerSelect(); }
   if (u.role === 'admin' || u.role === 'antrenor') {
     loadLeagueFilters();
     initPlayerFilter();
