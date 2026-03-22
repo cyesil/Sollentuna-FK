@@ -294,7 +294,6 @@
         <button class="tab active" onclick="adminTab('matches')">Matcher</button>
         <button class="tab" onclick="adminTab('stats')">Statistik</button>
         <button class="tab" id="usersTab" onclick="adminTab('users')" style="display:none;">Användare</button>
-        <button class="tab" onclick="adminTab('todo')">📋 Todo</button>
       </div>
 
       <!-- MAÇLAR TAB -->
@@ -568,8 +567,6 @@ function adminTab(tab) {
   document.getElementById('adminMatches').style.display = tab === 'matches' ? 'block' : 'none';
   document.getElementById('adminStats').style.display = tab === 'stats' ? 'block' : 'none';
   document.getElementById('adminUsers').style.display = tab === 'users' ? 'block' : 'none';
-  document.getElementById('adminTodo').style.display = tab === 'todo' ? 'block' : 'none';
-  if (tab === 'todo') loadTodos();
 }
 
 // ===================== FETCH MATCHES =====================
