@@ -277,9 +277,29 @@
       <span class="user-badge" id="userBadge"></span>
       <span class="role-badge" id="roleBadge"></span>
       <button class="btn-refresh" onclick="refreshToken()" title="Förnya MinFotboll token" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;" id="refreshBtn">🔄 Förnya token</button>
+      <button onclick="toggleInstellningar()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;">⚙️ Inställningar</button>
       <button class="btn-logout" onclick="doLogout()">Logga ut</button>
     </div>
   </header>
+
+  <!-- İnställningar paneli -->
+  <div id="instellningarPanel" style="display:none;position:fixed;top:60px;right:1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.2rem;z-index:1000;min-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+    <div style="font-weight:700;margin-bottom:1rem;font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;">⚙️ Inställningar</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem;border-bottom:1px solid var(--border);padding-bottom:0.5rem;">🔑 Byt lösenord</div>
+    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+      <input type="password" id="settCurrentPass" placeholder="Nuvarande lösenord"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.9rem;">
+      <input type="password" id="settNewPass" placeholder="Nytt lösenord"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.9rem;">
+      <input type="password" id="settConfirmPass" placeholder="Bekräfta nytt lösenord"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.9rem;">
+      <div id="settPassMsg" style="font-size:0.82rem;min-height:1rem;"></div>
+      <div style="display:flex;gap:0.5rem;">
+        <button onclick="saveSettPassword()" class="btn btn-success" style="flex:1;">💾 Spara</button>
+        <button onclick="document.getElementById('instellningarPanel').style.display='none'" class="btn btn-secondary">✕</button>
+      </div>
+    </div>
+  </div>
 
   <main>
     <div class="status-bar" id="statusBar">
@@ -536,6 +556,7 @@ function showApp() {
   });
 
   if (u.role === 'admin') { loadUsers(); populatePlayerSelect(); }
+  if (u.role === 'antrenor') { loadUsers(); }
   if (u.role === 'admin' || u.role === 'antrenor') {
     loadLeagueFilters();
     initPlayerFilter();
@@ -1488,6 +1509,49 @@ async function loadOyuncuLeagueFilters() {
       list.addEventListener('click', (e) => e.stopPropagation());
     }
   } catch(e) { console.error('loadOyuncuLeagueFilters error:', e); }
+}
+
+function toggleInstellningar() {
+  const panel = document.getElementById('instellningarPanel');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    document.getElementById('settCurrentPass').value = '';
+    document.getElementById('settNewPass').value = '';
+    document.getElementById('settConfirmPass').value = '';
+    document.getElementById('settPassMsg').textContent = '';
+  }
+  // Dışarı tıklayınca kapat
+  if (!isOpen) {
+    setTimeout(() => {
+      document.addEventListener('click', function closePanel(e) {
+        if (!panel.contains(e.target) && !e.target.closest('[onclick*="toggleInstellningar"]')) {
+          panel.style.display = 'none';
+          document.removeEventListener('click', closePanel);
+        }
+      });
+    }, 100);
+  }
+}
+
+async function saveSettPassword() {
+  const current = document.getElementById('settCurrentPass').value;
+  const newPass = document.getElementById('settNewPass').value;
+  const confirm = document.getElementById('settConfirmPass').value;
+  const msg = document.getElementById('settPassMsg');
+  if (!current || !newPass || !confirm) { msg.style.color='var(--red)'; msg.textContent='Fyll i alla fält.'; return; }
+  if (newPass !== confirm) { msg.style.color='var(--red)'; msg.textContent='Lösenorden matchar inte.'; return; }
+  if (newPass.length < 6) { msg.style.color='var(--red)'; msg.textContent='Minst 6 tecken krävs.'; return; }
+  try {
+    const r = await fetch('/api/auth?action=changeownpassword', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ currentPassword: current, newPassword: newPass })
+    });
+    const d = await r.json();
+    if (!r.ok) { msg.style.color='var(--red)'; msg.textContent=d.error||'Fel uppstod.'; }
+    else { msg.style.color='var(--green)'; msg.textContent='✓ Lösenordet har ändrats!'; setTimeout(()=>document.getElementById('instellningarPanel').style.display='none',2000); }
+  } catch(e) { msg.style.color='var(--red)'; msg.textContent='Fel: '+e.message; }
 }
 
 function showChangeOwnPassword() {
