@@ -1873,7 +1873,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-if (state.token && state.user) { showApp(); } else {
+if (state.token && state.user) {
+  // DB'den güncel kullanıcı bilgilerini çek (avatar_url vs.)
+  fetch('/api/auth?action=verify', {headers: {'Authorization': 'Bearer ' + state.token}})
+    .then(r => r.json())
+    .then(d => {
+      if (d.user) {
+        state.user = {...state.user, ...d.user};
+        localStorage.setItem('sfk_user', JSON.stringify(state.user));
+      }
+      showApp();
+    })
+    .catch(() => showApp());
+} else {
   document.getElementById('loginPage').style.display = 'flex';
 }
 </script>
