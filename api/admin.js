@@ -136,7 +136,7 @@ async function getMinfotbollToken() {
   const refreshToken = process.env.MINFOTBOLL_REFRESH_TOKEN;
   const accessToken = process.env.MINFOTBOLL_ACCESS_TOKEN;
   const result = await httpPost(MINFOTBOLL_API, '/api/jwtapi/refreshtoken', {accessToken, refreshToken});
-  if (!result.AccessToken) throw new Error('MinFotboll token alınamadı');
+  if (!result.AccessToken) throw new Error('MinFotboll-token kunde inte hämtas');
   return result.AccessToken;
 }
 
@@ -165,11 +165,11 @@ module.exports = async (req, res) => {
   const auth = req.headers.authorization || '';
   const token = auth.replace('Bearer ', '');
   const user = verifyToken(token);
-  if (!user) return res.status(401).json({ error: 'Giriş yapın' });
+  if (!user) return res.status(401).json({ error: 'Vänligen logga in' });
   const action = req.query.action;
 
   // savedmatches tüm roller için açık (lig listesi için)
-  if (action !== 'savedmatches' && user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Yetki gerekli' });
+  if (action !== 'savedmatches' && user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Behörighet krävs' });
 
   // Maçları çek (önizleme)
   if (action === 'fetchmatches') {
@@ -221,7 +221,7 @@ module.exports = async (req, res) => {
   // Maç detayı çek (oyuncular + olaylar)
   if (action === 'matchdetail') {
     const { gameId, teamId } = req.query;
-    if (!gameId) return res.status(400).json({ error: 'gameId gerekli' });
+    if (!gameId) return res.status(400).json({ error: 'gameId krävs' });
 
     const mfToken = await getMinfotbollToken();
     const tid = parseInt(teamId);
@@ -518,7 +518,7 @@ module.exports = async (req, res) => {
     const { gameId, gameDate, homeTeam, awayTeam, homeScore, awayScore,
             leagueName, gameType, players } = req.body || {};
 
-    if (!gameId || !players) return res.status(400).json({ error: 'Eksik bilgi' });
+    if (!gameId || !players) return res.status(400).json({ error: 'Information saknas' });
     const gameDuration = req.body.gameDuration || 90;
 
     // Maç zaten kayıtlı mı?
@@ -603,5 +603,5 @@ module.exports = async (req, res) => {
     }
   }
 
-  res.status(400).json({ error: 'Geçersiz action' });
+  res.status(400).json({ error: 'Ogiltig åtgärd' });
 };
