@@ -417,19 +417,20 @@
         <div class="filter-bar">
           <div><label>Från datum</label><input type="date" id="oyuncuFrom" value="2025-01-01"></div>
           <div><label>Till datum</label><input type="date" id="oyuncuTo"></div>
-          <div><button class="btn btn-primary" onclick="loadOyuncuStats()">📊 Visa statistik</button></div>
-        </div>
-        <div style="margin-bottom:1rem;">
-          <div class="ms-dropdown">
-            <button class="ms-dropdown-btn" id="oyuncuLeagueBtn"><span>Alla ligor</span></button>
-            <div class="ms-dropdown-list" id="oyuncuLeagueList">
-              <div class="ms-dropdown-actions">
-                <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>{c.checked=true;c.dispatchEvent(new Event('change'))})">Alla</button>
-                <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>{c.checked=false;c.dispatchEvent(new Event('change'))})">Ingen</button>
+          <div>
+            <label>Liga</label>
+            <div class="ms-dropdown">
+              <button class="ms-dropdown-btn" id="oyuncuLeagueBtn"><span>Alla ligor</span></button>
+              <div class="ms-dropdown-list" id="oyuncuLeagueList">
+                <div class="ms-dropdown-actions">
+                  <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>{c.checked=true;c.dispatchEvent(new Event('change'))})">Alla</button>
+                  <button onclick="document.querySelectorAll('.oyuncu-league-filter').forEach(c=>{c.checked=false;c.dispatchEvent(new Event('change'))})">Ingen</button>
+                </div>
+                <div id="oyuncuLeagueFilterItems"><!-- dinamik --></div>
               </div>
-              <div id="oyuncuLeagueFilterItems"><!-- dinamik --></div>
             </div>
           </div>
+          <div><button class="btn btn-primary" onclick="loadOyuncuStats()">📊 Visa statistik</button></div>
         </div>
         <div id="oyuncuStatsTable"><div class="empty-state">Ladda statistik</div></div>
       </div>
@@ -538,6 +539,9 @@ function showApp() {
   if (u.role === 'admin' || u.role === 'antrenor') {
     loadLeagueFilters();
     initPlayerFilter();
+  }
+  if (u.role === 'oyuncu') {
+    loadOyuncuLeagueFilters();
   }
   // Users tabı: admin ve tränare görsün
   const usersTab = document.getElementById('usersTab');
@@ -1428,6 +1432,34 @@ function oyuncuTab(tab) {
   document.getElementById('oyuncuTabMatches').classList.toggle('active', tab === 'matches');
   document.getElementById('oyuncuViewStats').style.display = tab === 'stats' ? 'block' : 'none';
   document.getElementById('oyuncuViewMatches').style.display = tab === 'matches' ? 'block' : 'none';
+}
+
+async function loadOyuncuLeagueFilters() {
+  try {
+    const r = await fetch('/api/admin?action=savedmatches', {headers: authHeaders()});
+    const matches = await r.json();
+    if (!Array.isArray(matches)) return;
+    const leagues = [...new Set(matches.map(m => m.league_name).filter(Boolean))].sort();
+    const el = document.getElementById('oyuncuLeagueFilterItems');
+    if (!el) return;
+    el.innerHTML = leagues.map(l =>
+      `<label><input type="checkbox" class="oyuncu-league-filter" value="${l}" checked> ${l}</label>`
+    ).join('');
+    el.querySelectorAll('input').forEach(cb => cb.addEventListener('change', () => {
+      const all = el.querySelectorAll('input');
+      const checked = el.querySelectorAll('input:checked');
+      const span = document.querySelector('#oyuncuLeagueBtn span');
+      if (span) span.textContent = checked.length === all.length ? 'Alla ligor' : checked.length === 0 ? 'Ingen vald' : `${checked.length} ligor valda`;
+    }));
+    // Dropdown init
+    const btn = document.getElementById('oyuncuLeagueBtn');
+    const list = document.getElementById('oyuncuLeagueList');
+    if (btn && list) {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); list.classList.toggle('open'); });
+      document.addEventListener('click', () => list.classList.remove('open'));
+      list.addEventListener('click', (e) => e.stopPropagation());
+    }
+  } catch(e) {}
 }
 
 async function loadOyuncuStats() {
