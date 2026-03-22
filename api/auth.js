@@ -137,18 +137,18 @@ module.exports = async (req, res) => {
   // Login
   if (action === 'login' && req.method === 'POST') {
     const { username, password } = req.body || {};
-    if (!username || !password) return res.status(400).json({ error: 'Eksik bilgi' });
+    if (!username || !password) return res.status(400).json({ error: 'Information saknas' });
 
     const hash = hashPassword(password);
     const users = await supabaseRequest('GET', `/users?username=eq.${encodeURIComponent(username)}&select=*`);
     
     if (!Array.isArray(users) || users.length === 0) {
-      return res.status(401).json({ error: 'Kullanıcı adı veya şifre hatalı' });
+      return res.status(401).json({ error: 'Felaktigt användarnamn eller lösenord' });
     }
     
     const user = users[0];
     if (user.password_hash !== hash) {
-      return res.status(401).json({ error: 'Kullanıcı adı veya şifre hatalı' });
+      return res.status(401).json({ error: 'Felaktigt användarnamn eller lösenord' });
     }
 
     const token = createToken(user);
@@ -169,10 +169,10 @@ module.exports = async (req, res) => {
     const auth = req.headers.authorization || '';
     const token = auth.replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Yetki yok' });
+    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Behörighet saknas' });
 
     const { username, password, role, full_name, player_id } = req.body || {};
-    if (!username || !password || !role) return res.status(400).json({ error: 'Eksik bilgi' });
+    if (!username || !password || !role) return res.status(400).json({ error: 'Information saknas' });
 
     const hash = hashPassword(password);
     const result = await supabaseRequest('POST', '/users', {
@@ -187,7 +187,7 @@ module.exports = async (req, res) => {
     const auth = req.headers.authorization || '';
     const token = auth.replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Yetki yok' });
+    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Behörighet saknas' });
 
     const users = await supabaseRequest('GET', '/users?select=id,username,role,full_name,player_id,created_at');
     // Tränare sadece spelare rolündeki kullanıcıları görür
@@ -212,9 +212,9 @@ module.exports = async (req, res) => {
   if (action === 'edituser' && req.method === 'POST') {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Yetki yok' });
+    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Behörighet saknas' });
     const { id, username, full_name, role, player_id } = req.body || {};
-    if (!id || !username) return res.status(400).json({ error: 'Eksik bilgi' });
+    if (!id || !username) return res.status(400).json({ error: 'Information saknas' });
     const result = await supabaseRequest('PATCH', `/users?id=eq.${id}`, {
       username, full_name, role, player_id: player_id || null
     });
@@ -225,9 +225,9 @@ module.exports = async (req, res) => {
   if (action === 'changepassword' && req.method === 'POST') {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Yetki yok' });
+    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Behörighet saknas' });
     const { id, password } = req.body || {};
-    if (!id || !password) return res.status(400).json({ error: 'Eksik bilgi' });
+    if (!id || !password) return res.status(400).json({ error: 'Information saknas' });
     // Tränare admin şifresini değiştiremez
     if (payload.role === 'antrenor') {
       const target = await supabaseGet(`/users?id=eq.${id}&select=role`);
@@ -242,7 +242,7 @@ module.exports = async (req, res) => {
   if (action === 'deleteuser' && req.method === 'POST') {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Yetki yok' });
+    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Behörighet saknas' });
     // Tränare admin kullanıcısını silemez
     if (payload.role === 'antrenor') {
       const { id } = req.body || {};
@@ -250,7 +250,7 @@ module.exports = async (req, res) => {
       if (Array.isArray(target) && target[0]?.role === 'admin') return res.status(403).json({ error: 'Admin silinemez' });
     }
     const { id } = req.body || {};
-    if (!id) return res.status(400).json({ error: 'ID gerekli' });
+    if (!id) return res.status(400).json({ error: 'ID krävs' });
     await supabaseRequest('DELETE', `/users?id=eq.${id}`, null);
     return res.status(200).json({ success: true });
   }
@@ -259,12 +259,12 @@ module.exports = async (req, res) => {
   if (action === 'changeownpassword' && req.method === 'POST') {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload) return res.status(401).json({ error: 'Giriş yapın' });
+    if (!payload) return res.status(401).json({ error: 'Vänligen logga in' });
     const { currentPassword, newPassword } = req.body || {};
-    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Eksik bilgi' });
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Information saknas' });
     // Mevcut şifreyi kontrol et
     const users = await supabaseGet(`/users?id=eq.${payload.id}&select=id,password_hash`);
-    if (!Array.isArray(users) || users.length === 0) return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    if (!Array.isArray(users) || users.length === 0) return res.status(404).json({ error: 'Användaren hittades inte' });
     const currentHash = hashPassword(currentPassword);
     if (users[0].password_hash !== currentHash) return res.status(400).json({ error: 'Nuvarande lösenord är felaktigt' });
     // Yeni şifreyi kaydet
@@ -273,5 +273,5 @@ module.exports = async (req, res) => {
     return res.status(200).json({ success: true });
   }
 
-  res.status(400).json({ error: 'Geçersiz istek' });
+  res.status(400).json({ error: 'Ogiltig förfrågan' });
 };
