@@ -541,7 +541,8 @@ function showApp() {
     initPlayerFilter();
   }
   if (u.role === 'oyuncu') {
-    loadOyuncuLeagueFilters();
+    // Sayfa açılınca lig listesini yükle
+    setTimeout(() => loadOyuncuLeagueFilters(), 500);
   }
   // Users tabı: admin ve tränare görsün
   const usersTab = document.getElementById('usersTab');
@@ -1463,6 +1464,11 @@ async function loadOyuncuLeagueFilters() {
 }
 
 async function loadOyuncuStats() {
+  // Lig listesi boşsa önce yükle
+  const ligEl = document.getElementById('oyuncuLeagueFilterItems');
+  if (ligEl && ligEl.children.length === 0) {
+    await loadOyuncuLeagueFilters();
+  }
   setStatus('Laddar statistik...');
   try {
     const from = document.getElementById('oyuncuFrom').value;
