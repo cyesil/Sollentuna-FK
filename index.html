@@ -1444,7 +1444,6 @@ async function loadOyuncuLeagueFilters() {
     const leagues = [...new Set(matches.map(m => m.league_name).filter(Boolean))].sort();
     const el = document.getElementById('oyuncuLeagueFilterItems');
     if (!el) return;
-    // Zaten doldurulmuşsa tekrar doldurma
     if (el.children.length > 0) return;
     el.innerHTML = leagues.map(l =>
       `<label><input type="checkbox" class="oyuncu-league-filter" value="${l}" checked> ${l}</label>`
@@ -1455,6 +1454,15 @@ async function loadOyuncuLeagueFilters() {
       const span = document.querySelector('#oyuncuLeagueBtn span');
       if (span) span.textContent = checked.length === all.length ? 'Alla ligor' : checked.length === 0 ? 'Ingen vald' : `${checked.length} ligor valda`;
     }));
+    // Dropdown'u aç/kapat
+    const btn = document.getElementById('oyuncuLeagueBtn');
+    const list = document.getElementById('oyuncuLeagueList');
+    if (btn && list && !btn._initialized) {
+      btn._initialized = true;
+      btn.addEventListener('click', (e) => { e.stopPropagation(); list.classList.toggle('open'); });
+      document.addEventListener('click', () => list.classList.remove('open'));
+      list.addEventListener('click', (e) => e.stopPropagation());
+    }
   } catch(e) { console.error('loadOyuncuLeagueFilters error:', e); }
 }
 
