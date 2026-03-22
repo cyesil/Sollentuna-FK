@@ -566,7 +566,7 @@ function showApp() {
   document.getElementById('viewOyuncu').style.display = u.role === 'oyuncu' ? 'block' : 'none';
   // Refresh token butonu sadece admin'e görünsün
   const refreshBtn = document.getElementById('refreshBtn');
-  if (refreshBtn) refreshBtn.style.display = u.role === 'admin' ? 'inline-block' : 'none';
+  if (refreshBtn) refreshBtn.style.display = (u.role === 'admin' || u.role === 'antrenor') ? 'inline-block' : 'none';
 
   const today = new Date().toISOString().slice(0,10);
   ['adminTo','statsTo','trTo','oyuncuTo','oyuncuFrom'].forEach(id => {
