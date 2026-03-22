@@ -387,6 +387,15 @@
       <!-- KULLANICILAR TAB -->
       <div id="adminUsers" style="display:none;">
         <div class="section-title">Lägg till användare</div>
+        <!-- MinFotboll kişi arama -->
+        <div style="margin-bottom:1rem;position:relative;">
+          <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;">🔍 Sök person i MinFotboll</label>
+          <input type="text" id="sfkPersonSearch" placeholder="Skriv namn..." autocomplete="off"
+            oninput="searchSfkPerson(this.value)"
+            style="width:320px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.8rem;border-radius:6px;font-size:0.9rem;">
+          <span style="font-size:0.75rem;color:var(--muted);margin-left:0.5rem;">→ välj för att autofylla formuläret</span>
+          <div id="sfkPersonResults" style="display:none;position:absolute;top:110%;left:0;background:var(--surface);border:1px solid var(--accent);border-radius:8px;z-index:100;min-width:380px;max-height:280px;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,0.4);"></div>
+        </div>
         <div class="user-form">
           <div><label style="font-size:0.75rem;color:var(--muted);">Användarnamn</label><input type="text" id="newUsername" placeholder="användarnamn"></div>
           <div><label style="font-size:0.75rem;color:var(--muted);">Lösenord</label><input type="password" id="newPassword" placeholder="lösenord"></div>
@@ -1279,15 +1288,100 @@ async function addUser() {
     const r = await fetch('/api/auth?action=adduser', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({username, password, full_name, role, player_id})
+      body: JSON.stringify({
+        username, password, full_name, role, player_id,
+        minfotboll_member_id: window._selectedSfkPerson?.memberId || null,
+        avatar_url: (window._selectedSfkPerson?.thumbnail && !window._selectedSfkPerson.thumbnail.includes('default')) ? window._selectedSfkPerson.thumbnail : null,
+      })
     });
     const d = await r.json();
     if (!r.ok) { alert(d.error); return; }
     document.getElementById('newUsername').value = '';
     document.getElementById('newPassword').value = '';
+    document.getElementById('sfkPersonSearch').value = '';
+    window._selectedSfkPerson = null;
     document.getElementById('newFullname').value = '';
     loadUsers();
   } catch(e) { alert('Fel: ' + e.message); }
+}
+
+// SFK roster cache
+let _sfkRoster = null;
+
+async function loadSfkRoster() {
+  if (_sfkRoster) return _sfkRoster;
+  try {
+    const r = await fetch('/api/admin?action=sfkroster', {headers: authHeaders()});
+    _sfkRoster = await r.json();
+    return _sfkRoster;
+  } catch(e) { return []; }
+}
+
+let _searchTimeout = null;
+async function searchSfkPerson(query) {
+  const resultsEl = document.getElementById('sfkPersonResults');
+  if (!resultsEl) return;
+  if (!query || query.length < 2) { resultsEl.style.display = 'none'; return; }
+
+  clearTimeout(_searchTimeout);
+  _searchTimeout = setTimeout(async () => {
+    const roster = await loadSfkRoster();
+    if (!Array.isArray(roster)) return;
+    const q = query.toLowerCase();
+    const matches = roster.filter(p => p.name?.toLowerCase().includes(q)).slice(0, 10);
+
+    if (!matches.length) { resultsEl.style.display = 'none'; return; }
+
+    resultsEl.innerHTML = matches.map(p => `
+      <div onclick="selectSfkPerson(${JSON.stringify(p).replace(/"/g,'&quot;')})"
+        style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--border);"
+        onmouseover="this.style.background='rgba(0,212,255,0.08)'" onmouseout="this.style.background=''">
+        ${p.thumbnail && !p.thumbnail.includes('default') 
+          ? `<img src="${p.thumbnail}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'">`
+          : `<div style="width:36px;height:36px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;">👤</div>`}
+        <div>
+          <div style="font-weight:600;font-size:0.9rem;">${p.name}</div>
+          <div style="font-size:0.75rem;color:var(--muted);">
+            ${p.type === 'player' ? `#${p.shirt} · Spelare · ${p.team}` : `${p.role||'Ledare'} · ${p.team}`}
+          </div>
+        </div>
+      </div>
+    `).join('');
+    resultsEl.style.display = 'block';
+
+    // Dışarı tıklayınca kapat
+    document.addEventListener('click', function closeResults(e) {
+      if (!resultsEl.contains(e.target) && e.target.id !== 'sfkPersonSearch') {
+        resultsEl.style.display = 'none';
+        document.removeEventListener('click', closeResults);
+      }
+    });
+  }, 200);
+}
+
+function selectSfkPerson(person) {
+  // Formu doldur
+  const fullname = document.getElementById('newFullname');
+  const role = document.getElementById('newRole');
+
+  if (fullname) fullname.value = person.name;
+  if (role) {
+    role.value = person.type === 'player' ? 'oyuncu' : 'antrenor';
+    togglePlayerSelect();
+  }
+
+  // PlayerID seç
+  if (person.type === 'player' && person.playerId) {
+    const playerSelect = document.getElementById('newPlayerId');
+    if (playerSelect) playerSelect.value = person.playerId;
+  }
+
+  // MemberID ve thumbnail state'e kaydet
+  window._selectedSfkPerson = person;
+
+  // Arama kutusunu temizle
+  document.getElementById('sfkPersonSearch').value = person.name;
+  document.getElementById('sfkPersonResults').style.display = 'none';
 }
 
 async function loadUsers() {
