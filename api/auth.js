@@ -187,7 +187,7 @@ module.exports = async (req, res) => {
     const auth = req.headers.authorization || '';
     const token = auth.replace('Bearer ', '');
     const payload = verifyToken(token);
-    if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Yetki yok' });
+    if (!payload || (payload.role !== 'admin' && payload.role !== 'antrenor')) return res.status(403).json({ error: 'Yetki yok' });
 
     const users = await supabaseRequest('GET', '/users?select=id,username,role,full_name,player_id,created_at');
     return res.status(200).json(users);
