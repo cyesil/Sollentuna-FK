@@ -166,10 +166,10 @@ module.exports = async (req, res) => {
   const token = auth.replace('Bearer ', '');
   const user = verifyToken(token);
   if (!user) return res.status(401).json({ error: 'Giriş yapın' });
+  const action = req.query.action;
+
   // savedmatches tüm roller için açık (lig listesi için)
   if (action !== 'savedmatches' && user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Yetki gerekli' });
-
-  const action = req.query.action;
 
   // Maçları çek (önizleme)
   if (action === 'fetchmatches') {
