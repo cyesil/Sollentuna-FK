@@ -1590,6 +1590,9 @@ function renderMyStats(d) {
       <div class="stat-card"><div class="stat-val">${d.assists||0}</div><div class="stat-lbl">Assist</div></div>
       <div class="stat-card"><div class="stat-val" style="color:var(--yellow)">${d.yellowCards||0}</div><div class="stat-lbl">Gult</div></div>
       <div class="stat-card"><div class="stat-val" style="color:var(--red)">${d.redCards||0}</div><div class="stat-lbl">Rött</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--muted)">${d.minutesPlayed > 0 && d.games > 0 ? Math.round(d.minutesPlayed/d.games)+"'" : '—'}</div><div class="stat-lbl">Min/Match</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--muted)">${d.goals > 0 ? (Math.round(d.goals/d.games*100)/100) : '—'}</div><div class="stat-lbl">Mål/Match</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--muted)">${d.goals > 0 && d.minutesPlayed > 0 ? Math.round(d.minutesPlayed/d.goals)+"'" : '—'}</div><div class="stat-lbl">Min/Mål</div></div>
     </div>
     ${d.matchDetails && d.matchDetails.length > 0 ? `
     <div class="table-wrap"><table>
