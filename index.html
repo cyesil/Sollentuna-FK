@@ -668,9 +668,42 @@ async function fetchMatches() {
 
     state.savedMatchIds = new Set(Array.isArray(saved) ? saved.map(m => m.game_id) : []);
 
+    // MinFotboll'da olmayan ama DB'de olan maçları bul (manuel eklenenler)
+    const fetchedIds = new Set(matches.map(m => m.gameId));
+    const manualMatches = Array.isArray(saved) ? saved.filter(m => !fetchedIds.has(m.game_id)) : [];
+
+    // Manuel maçları fetchmatches formatına çevir
+    const sfkLogo = 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Sollentuna_FK_logo_%282022%29.svg/960px-Sollentuna_FK_logo_%282022%29.svg.png';
+    const manualFormatted = manualMatches.map(m => {
+      const isHome = m.home_team?.includes('Sollentuna');
+      const opponentName = isHome ? m.away_team : m.home_team;
+      // Aynı rakiple önceki maçtan logo bul
+      const prevMatch = matches.find(pm => 
+        pm.homeTeam === opponentName || pm.awayTeam === opponentName
+      );
+      const opponentLogo = prevMatch ? (prevMatch.homeTeam === opponentName ? prevMatch.homeLogo : prevMatch.awayLogo) : null;
+      return {
+        gameId: m.game_id,
+        gameDate: m.game_date,
+        homeTeam: m.home_team,
+        awayTeam: m.away_team,
+        homeScore: m.home_score,
+        awayScore: m.away_score,
+        leagueName: m.league_name,
+        gameType: m.game_type,
+        homeTeamId: isHome ? 398871 : 0,
+        homeLogo: isHome ? sfkLogo : opponentLogo,
+        awayLogo: isHome ? opponentLogo : sfkLogo,
+        isManual: true,
+      };
+    });
+
+    // Tüm maçları birleştir ve tarihe göre sırala
+    const allMatches = [...matches, ...manualFormatted].sort((a,b) => new Date(b.gameDate) - new Date(a.gameDate));
+
     setStatus('', false);
-    renderMatchList(matches);
-    document.getElementById('matchCountBadge').textContent = '(' + matches.length + ' matcher)';
+    renderMatchList(allMatches);
+    document.getElementById('matchCountBadge').textContent = '(' + allMatches.length + ' matcher)';
   } catch(e) {
     setError('Fel: ' + e.message);
     setStatus('', false);
