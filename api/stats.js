@@ -290,5 +290,66 @@ module.exports = async (req, res) => {
     return res.status(200).json(summary);
   }
 
+  // Belirli oyuncu için CV verisi (admin + antrenör)
+  if (action === 'playercv') {
+    if (user.role === 'oyuncu') return res.status(403).json({ error: 'Yetki yok' });
+    const playerId = parseInt(req.query.playerId);
+    if (!playerId || !SFK_PLAYERS[playerId]) return res.status(400).json({ error: 'Ogiltigt spelar-ID' });
+
+    const statsRaw = await supabaseGet(`/player_stats?player_id=eq.${playerId}&select=*,matches(*)&order=matches(game_date).desc`);
+    if (!Array.isArray(statsRaw)) return res.status(200).json({ error: 'Ingen data' });
+
+    // Thumbnail
+    const thumbnailRow = await supabaseGet(`/player_stats?player_id=eq.${playerId}&select=thumbnail&limit=1`);
+    let thumbnail = Array.isArray(thumbnailRow) && thumbnailRow[0]?.thumbnail || null;
+    if (!thumbnail) {
+      try {
+        const mfToken = await getMinfotbollToken();
+        const roster = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=398871`, mfToken);
+        if (Array.isArray(roster)) {
+          const p = roster.find(p => p.PlayerID === playerId);
+          if (p?.ThumbnailURL) thumbnail = p.ThumbnailURL;
+        }
+      } catch(e) {}
+    }
+
+    // Toplam istatistikler
+    const totals = { games:0, starterGames:0, minutesPlayed:0, goals:0, assists:0, yellowCards:0, redCards:0 };
+    const seasonMap = {};
+
+    statsRaw.forEach(s => {
+      const year = s.matches?.game_date ? new Date(s.matches.game_date).getFullYear() : 'Okänt';
+      if (!seasonMap[year]) seasonMap[year] = { season: year, league: '', games:0, goals:0, assists:0, minutesPlayed:0, leagueNames: new Set() };
+      if (s.played) {
+        totals.games++;
+        if (s.is_starter) totals.starterGames++;
+        totals.minutesPlayed += s.minutes_played || 0;
+        seasonMap[year].games++;
+        seasonMap[year].minutesPlayed += s.minutes_played || 0;
+        if (s.matches?.league_name) seasonMap[year].leagueNames.add(s.matches.league_name);
+      }
+      totals.goals += s.goals || 0;
+      totals.assists += s.assists || 0;
+      totals.yellowCards += s.yellow_cards || 0;
+      totals.redCards += s.red_cards || 0;
+      seasonMap[year].goals += s.goals || 0;
+      seasonMap[year].assists += s.assists || 0;
+    });
+
+    const seasons = Object.values(seasonMap)
+      .map(s => ({ ...s, league: [...s.leagueNames].join(', ') || 'SFK' }))
+      .sort((a,b) => b.season - a.season);
+
+    return res.status(200).json({
+      name: SFK_PLAYERS[playerId].name,
+      shirt: SFK_PLAYERS[playerId].shirt,
+      thumbnail,
+      playerId,
+      totals,
+      seasons,
+      videos: []
+    });
+  }
+
   res.status(400).json({ error: 'Ogiltig åtgärd' });
 };
