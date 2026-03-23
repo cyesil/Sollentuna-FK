@@ -220,6 +220,7 @@
     .stat-item { text-align: center; background: var(--surface2); border-radius: 8px; padding: 1rem; }
     .stat-val { font-family: 'Barlow Condensed', sans-serif; font-size: 2.5rem; font-weight: 900; }
     .stat-lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card { text-align: center; background: var(--surface2); border-radius: 8px; padding: 0.9rem; border: 1px solid var(--border); }
 
     /* ADMIN USERS */
     .user-form { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 0.75rem; align-items: end; }
@@ -233,6 +234,104 @@
       .filter-bar { flex-direction: column; }
       .user-form { grid-template-columns: 1fr; }
       header { padding: 0 1rem; }
+    }
+
+    /* CV STYLES */
+    .cv-wrapper {
+      max-width: 820px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .cv-header {
+      background: linear-gradient(135deg, #0d1b35 0%, #0a1628 100%);
+      border-bottom: 3px solid var(--accent);
+      padding: 2.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .cv-avatar {
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid var(--accent);
+      flex-shrink: 0;
+    }
+    .cv-avatar-placeholder {
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 4px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3rem; flex-shrink: 0;
+    }
+    .cv-name { font-family: 'Barlow Condensed', sans-serif; font-size: 2.4rem; font-weight: 900; color: var(--text); line-height: 1; }
+    .cv-meta { color: var(--muted); font-size: 1rem; margin-top: 0.3rem; }
+    .cv-club { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+    .cv-club img { height: 28px; }
+    .cv-club span { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: var(--accent); font-size: 1.1rem; }
+    .cv-section { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); }
+    .cv-section:last-child { border-bottom: none; }
+    .cv-section-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .cv-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.75rem; }
+    .cv-kpi {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 0.9rem 0.75rem;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    .cv-kpi-val { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 900; line-height: 1; }
+    .cv-kpi-lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
+    .cv-season-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+    .cv-season-lbl { font-size: 0.82rem; min-width: 140px; color: var(--text); }
+    .cv-season-track { flex: 1; background: var(--surface2); border-radius: 6px; height: 22px; overflow: hidden; position: relative; }
+    .cv-season-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #000; min-width: 30px; transition: width 0.4s ease; }
+    .cv-season-nums { font-size: 0.78rem; color: var(--muted); min-width: 80px; text-align: right; }
+    .cv-video-link {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--accent); border-radius: 8px;
+      padding: 0.5rem 1rem; font-size: 0.88rem;
+      text-decoration: none; margin: 0.25rem 0.25rem 0.25rem 0;
+      transition: border-color 0.15s;
+    }
+    .cv-video-link:hover { border-color: var(--accent); }
+    .cv-footer {
+      padding: 1rem 2rem;
+      background: var(--surface2);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.78rem; color: var(--muted);
+    }
+
+    /* Print styles */
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      header, .tabs, .filter-bar, .status-bar, .error-box,
+      #instellningarPanel, .btn-logout, #refreshBtn,
+      [onclick*="toggleInstellningar"], .cv-footer button,
+      #cvPrintBtn, .btn.btn-secondary { display: none !important; }
+      main { padding: 0 !important; max-width: 100% !important; }
+      .cv-wrapper { border: none !important; border-radius: 0 !important; max-width: 100% !important; }
+      .cv-header { background: #f0f4ff !important; border-bottom: 3px solid #0066cc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .cv-name { color: #0a1628 !important; }
+      .cv-meta, .cv-season-lbl { color: #444 !important; }
+      .cv-kpi { background: #f8f9fa !important; border-color: #dee2e6 !important; }
+      .cv-kpi-val { color: #0066cc !important; }
+      .cv-section-title { color: #0066cc !important; }
+      .cv-season-track { background: #e9ecef !important; }
+      :root { --surface: #fff; --surface2: #f8f9fa; --border: #dee2e6; --text: #000; --muted: #666; }
     }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -315,6 +414,7 @@
         <button class="tab active" onclick="adminTab('matches')">Matcher</button>
         <button class="tab" onclick="adminTab('stats')">Statistik</button>
         <button class="tab" id="usersTab" onclick="adminTab('users')" style="display:none;">Användare</button>
+        <button class="tab" onclick="adminTab('cv')">📄 CV</button>
       </div>
 
       <!-- MAÇLAR TAB -->
@@ -384,6 +484,23 @@
         <div id="statsTable"><div class="empty-state">Ladda statistik</div></div>
       </div>
 
+      <!-- CV TAB -->
+      <div id="adminCv" style="display:none;">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+          <div>
+            <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.5px;">Välj spelare</label>
+            <select id="cvPlayerSelect" onchange="loadCvForPlayer(this.value)"
+              style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.9rem;border-radius:8px;font-size:0.95rem;min-width:220px;">
+              <option value="">— Välj spelare —</option>
+            </select>
+          </div>
+          <div style="margin-top:1.4rem;">
+            <button onclick="printCv()" class="btn btn-secondary" id="cvPrintBtn" style="display:none;">🖨️ Skriv ut / Spara PDF</button>
+          </div>
+        </div>
+        <div id="adminCvContent"><div class="empty-state">Välj en spelare för att visa CV</div></div>
+      </div>
+
       <!-- KULLANICILAR TAB -->
       <div id="adminUsers" style="display:none;">
         <div class="section-title">Lägg till användare</div>
@@ -442,6 +559,10 @@
 
     <!-- OYUNCU VIEW -->
     <div id="viewOyuncu" style="display:none;">
+      <div class="tabs">
+        <button class="tab active" id="oyuncuTabStats" onclick="oyuncuTab('stats')">Statistik</button>
+        <button class="tab" id="oyuncuTabCv" onclick="oyuncuTab('cv')">📄 CV</button>
+      </div>
       <!-- Statistik -->
       <div id="oyuncuViewStats">
         <div class="filter-bar">
@@ -463,6 +584,14 @@
           <div><button class="btn btn-primary" onclick="loadOyuncuStats()">📊 Visa statistik</button></div>
         </div>
         <div id="oyuncuStatsTable"><div class="empty-state">Ladda statistik</div></div>
+      </div>
+
+      <!-- CV -->
+      <div id="oyuncuViewCv" style="display:none;">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+          <button onclick="printCv()" class="btn btn-secondary">🖨️ Skriv ut / Spara PDF</button>
+        </div>
+        <div id="oyuncuCvContent"><div class="empty-state">Laddar CV...</div></div>
       </div>
 
     </div>
@@ -637,12 +766,15 @@ function setError(msg) {
 
 // ===================== ADMIN TABS =====================
 function adminTab(tab) {
-  document.querySelectorAll('#viewAdmin .tab').forEach((t,i) => {
-    t.classList.toggle('active', ['matches','stats','users'][i] === tab);
+  const tabs = ['matches','stats','users','cv'];
+  document.querySelectorAll('#viewAdmin .tab').forEach((t, i) => {
+    t.classList.toggle('active', tabs[i] === tab);
   });
   document.getElementById('adminMatches').style.display = tab === 'matches' ? 'block' : 'none';
   document.getElementById('adminStats').style.display = tab === 'stats' ? 'block' : 'none';
   document.getElementById('adminUsers').style.display = tab === 'users' ? 'block' : 'none';
+  document.getElementById('adminCv').style.display = tab === 'cv' ? 'block' : 'none';
+  if (tab === 'cv') populateCvPlayerSelect();
 }
 
 // ===================== FETCH MATCHES =====================
@@ -1650,9 +1782,10 @@ function renderMyStats(d) {
 
 function oyuncuTab(tab) {
   document.getElementById('oyuncuTabStats').classList.toggle('active', tab === 'stats');
-  document.getElementById('oyuncuTabMatches').classList.toggle('active', tab === 'matches');
+  document.getElementById('oyuncuTabCv').classList.toggle('active', tab === 'cv');
   document.getElementById('oyuncuViewStats').style.display = tab === 'stats' ? 'block' : 'none';
-  document.getElementById('oyuncuViewMatches').style.display = tab === 'matches' ? 'block' : 'none';
+  document.getElementById('oyuncuViewCv').style.display = tab === 'cv' ? 'block' : 'none';
+  if (tab === 'cv') loadOyuncuCv();
 }
 
 async function loadOyuncuLeagueFilters() {
@@ -1858,6 +1991,181 @@ async function loadOyuncuMatches() {
     setError('Fel: ' + e.message);
     setStatus('', false);
   }
+}
+
+// ===================== CV FONKSİYONLARI =====================
+
+function populateCvPlayerSelect() {
+  const sel = document.getElementById('cvPlayerSelect');
+  if (!sel || sel.options.length > 1) return;
+  const sorted = Object.entries(SFK_PLAYERS).sort((a,b) => a[1].shirt - b[1].shirt);
+  sorted.forEach(([id, p]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = `#${p.shirt} ${p.name}`;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadCvForPlayer(playerId) {
+  if (!playerId) return;
+  const content = document.getElementById('adminCvContent');
+  const printBtn = document.getElementById('cvPrintBtn');
+  content.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Laddar CV...</div>';
+  try {
+    const params = new URLSearchParams({action: 'playercv', playerId});
+    const r = await fetch('/api/stats?' + params, {headers: authHeaders()});
+    const d = await r.json();
+    content.innerHTML = renderCv(d);
+    if (printBtn) printBtn.style.display = 'inline-block';
+    // Grafik animasyonu
+    setTimeout(() => document.querySelectorAll('.cv-season-fill').forEach(el => {
+      el.style.width = el.dataset.w;
+    }), 50);
+  } catch(e) {
+    content.innerHTML = `<div class="empty-state">Fel vid laddning: ${e.message}</div>`;
+  }
+}
+
+async function loadOyuncuCv() {
+  const content = document.getElementById('oyuncuCvContent');
+  if (content.dataset.loaded) return;
+  content.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Laddar CV...</div>';
+  try {
+    const r = await fetch('/api/stats?action=mystats', {headers: authHeaders()});
+    const d = await r.json();
+    // mystats'ı cv formatına çevir
+    const cvData = {
+      name: d.name, shirt: d.shirt, thumbnail: d.thumbnail,
+      playerId: state.user.player_id,
+      seasons: buildSeasonsFromMatches(d.matchDetails || []),
+      totals: {
+        games: d.games, starterGames: d.starterGames || 0,
+        minutesPlayed: d.minutesPlayed || 0,
+        goals: d.goals, assists: d.assists,
+        yellowCards: d.yellowCards, redCards: d.redCards
+      },
+      videos: []
+    };
+    content.innerHTML = renderCv(cvData);
+    content.dataset.loaded = '1';
+    setTimeout(() => document.querySelectorAll('.cv-season-fill').forEach(el => {
+      el.style.width = el.dataset.w;
+    }), 50);
+  } catch(e) {
+    content.innerHTML = `<div class="empty-state">Fel: ${e.message}</div>`;
+  }
+}
+
+function buildSeasonsFromMatches(matches) {
+  const seasons = {};
+  (matches || []).forEach(m => {
+    const year = m.gameDate ? new Date(m.gameDate).getFullYear() : 'Okänt';
+    if (!seasons[year]) seasons[year] = {games:0, goals:0, assists:0, minutesPlayed:0, leagueNames: new Set()};
+    seasons[year].games++;
+    seasons[year].goals += m.goals || 0;
+    seasons[year].assists += m.assists || 0;
+    seasons[year].minutesPlayed += m.minutesPlayed || 0;
+    if (m.leagueName) seasons[year].leagueNames.add(m.leagueName);
+  });
+  return Object.entries(seasons).sort((a,b) => b[0]-a[0]).map(([year, s]) => ({
+    season: year,
+    league: [...s.leagueNames].join(', ') || 'Sollentuna FK',
+    games: s.games, goals: s.goals, assists: s.assists,
+    minutesPlayed: s.minutesPlayed
+  }));
+}
+
+function renderCv(d) {
+  if (!d || d.error) return '<div class="empty-state">Ingen data hittades</div>';
+
+  const totals = d.totals || d;
+  const seasons = d.seasons || [];
+  const videos = d.videos || [];
+  const sfkLogo = 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Sollentuna_FK_logo_%282022%29.svg/960px-Sollentuna_FK_logo_%282022%29.svg.png';
+
+  // Sezon grafiği - max gol değeri
+  const maxGoals = Math.max(...seasons.map(s => s.goals || 0), 1);
+
+  const seasonBars = seasons.length ? seasons.map(s => {
+    const pct = Math.max(Math.round((s.goals / maxGoals) * 100), 4);
+    return `
+    <div class="cv-season-bar">
+      <div class="cv-season-lbl">
+        <strong>${s.season}</strong>
+        <span style="color:var(--muted);font-size:0.74rem;margin-left:0.4rem;">${s.league || 'SFK'}</span>
+      </div>
+      <div class="cv-season-track">
+        <div class="cv-season-fill" data-w="${pct}%" style="width:0%;background:var(--accent);">
+          ${s.goals > 0 ? `${s.goals} mål` : ''}
+        </div>
+      </div>
+      <div class="cv-season-nums">${s.games} M · ${s.goals}G · ${s.assists}A · ${s.minutesPlayed}'</div>
+    </div>`;
+  }).join('') : '<div style="color:var(--muted);font-size:0.9rem;">Ingen säsongsdata</div>';
+
+  const videosHtml = videos.length ? videos.map(v =>
+    `<a href="${v.url}" target="_blank" rel="noopener" class="cv-video-link">
+      ▶ ${v.label || 'Video'}
+    </a>`
+  ).join('') : `<div style="color:var(--muted);font-size:0.88rem;">Inga videolänkar registrerade ännu.<br><span style="font-size:0.78rem;">Videoklipp kan hämtas från MinFotboll.</span></div>`;
+
+  const goalsPerGame = totals.games > 0 ? (totals.goals / totals.games).toFixed(2) : '—';
+  const minPerGoal = totals.goals > 0 ? Math.round((totals.minutesPlayed || 0) / totals.goals) : '—';
+
+  return `
+  <div class="cv-wrapper" id="cvPrintArea">
+    <div class="cv-header">
+      ${d.thumbnail && !d.thumbnail.includes('default')
+        ? `<img src="${d.thumbnail}" class="cv-avatar" onerror="this.style.display='none'">`
+        : `<div class="cv-avatar-placeholder">👤</div>`}
+      <div style="flex:1;">
+        <div class="cv-name">${d.name || '—'}</div>
+        <div class="cv-meta">#${d.shirt} · Anfallare · Sollentuna FK P16</div>
+        <div class="cv-club">
+          <img src="${sfkLogo}" onerror="this.style.display='none'">
+          <span>SOLLENTUNA FK</span>
+        </div>
+      </div>
+      <div style="text-align:right;color:var(--muted);font-size:0.8rem;">
+        <div>📅 ${new Date().toLocaleDateString('sv-SE', {year:'numeric',month:'long'})}</div>
+      </div>
+    </div>
+
+    <div class="cv-section">
+      <div class="cv-section-title">📊 Karriärstatistik</div>
+      <div class="cv-kpi-grid">
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--text)">${totals.games || 0}</div><div class="cv-kpi-lbl">Trupp</div></div>
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--text)">${totals.starterGames || 0}</div><div class="cv-kpi-lbl">Start 11</div></div>
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--accent)">${totals.minutesPlayed || 0}'</div><div class="cv-kpi-lbl">Tot Minuter</div></div>
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--green)">${totals.goals || 0}</div><div class="cv-kpi-lbl">Mål</div></div>
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--accent)">${totals.assists || 0}</div><div class="cv-kpi-lbl">Assist</div></div>
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--yellow)">${totals.yellowCards || 0}</div><div class="cv-kpi-lbl">Gult kort</div></div>
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--red)">${totals.redCards || 0}</div><div class="cv-kpi-lbl">Rött kort</div></div>
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--muted);font-size:1.4rem">${goalsPerGame}</div><div class="cv-kpi-lbl">Mål/Match</div></div>
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--muted);font-size:1.4rem">${minPerGoal === '—' ? '—' : minPerGoal + "'"}</div><div class="cv-kpi-lbl">Min/Mål</div></div>
+      </div>
+    </div>
+
+    <div class="cv-section">
+      <div class="cv-section-title">📈 Säsongsöversikt (Mål)</div>
+      ${seasonBars}
+    </div>
+
+    <div class="cv-section">
+      <div class="cv-section-title">🎥 Videohöjdpunkter</div>
+      ${videosHtml}
+    </div>
+
+    <div class="cv-footer">
+      <div>Sollentuna FK · Spelarstatistik</div>
+      <div>${new Date().toLocaleDateString('sv-SE')}</div>
+    </div>
+  </div>`;
+}
+
+function printCv() {
+  window.print();
 }
 
 // ===================== INIT =====================
