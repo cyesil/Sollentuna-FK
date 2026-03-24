@@ -372,133 +372,97 @@ module.exports = async (req, res) => {
     });
   }
 
-  // Oyuncu video highlights (otomatik MinFotboll'dan)
+  // Highlight'ları DB'ye kaydet (admin/antrenör, MinFotboll DOM'undan)
+  if (action === 'savehighlights') {
+    if (user.role === 'oyuncu') return res.status(403).json({ error: 'Yetki yok' });
+    if (req.method !== 'POST') return res.status(405).json({ error: 'POST gerekli' });
+
+    let body = '';
+    await new Promise(resolve => { req.on('data', c => body += c); req.on('end', resolve); });
+    const { playerId, highlights } = JSON.parse(body);
+
+    if (!playerId || !Array.isArray(highlights)) return res.status(400).json({ error: 'Eksik veri' });
+
+    let saved = 0, skipped = 0;
+    for (const h of highlights) {
+      if (!h.highlightId || !h.videoUrl) continue;
+      // UPSERT - highlight_id unique
+      const existing = await supabaseGet(`/player_highlights?highlight_id=eq.${h.highlightId}&select=id`);
+      if (Array.isArray(existing) && existing.length > 0) { skipped++; continue; }
+
+      const url = new URL(SUPABASE_URL);
+      await new Promise((resolve, reject) => {
+        const bodyStr = JSON.stringify({
+          player_id: playerId,
+          game_id: h.gameId,
+          highlight_id: h.highlightId,
+          video_url: h.videoUrl,
+          thumbnail_url: h.thumbnailUrl || null,
+          info_text: h.infoText || null,
+          game_time: h.gameTime || null,
+        });
+        const req2 = require('https').request({
+          host: url.host, path: '/rest/v1/player_highlights',
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json', 'Prefer': 'return=minimal',
+            'Content-Length': Buffer.byteLength(bodyStr)
+          }
+        }, res2 => { res2.on('data', () => {}); res2.on('end', resolve); });
+        req2.on('error', reject);
+        req2.write(bodyStr);
+        req2.end();
+      });
+      saved++;
+    }
+    return res.status(200).json({ success: true, saved, skipped });
+  }
+
+  // Oyuncu video highlights - DB'den
   if (action === 'playervideos') {
     const playerId = parseInt(req.query.playerId);
     if (!playerId) return res.status(400).json({ error: 'playerId krävs' });
 
-    try {
-      const mfToken = await getMinfotbollToken();
+    // DB'den oyuncunun highlight'larını çek, maç bilgisiyle birleştir
+    const highlights = await supabaseGet(
+      `/player_highlights?player_id=eq.${playerId}&order=game_time.desc&select=*`
+    );
 
-      // 1. Oyuncunun TeamPlayerID'sini bul
-      const teamId = 398871; // P16
-      const roster = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=${teamId}`, mfToken);
-      let teamPlayerID = null;
-      if (Array.isArray(roster)) {
-        const player = roster.find(p => p.PlayerID === playerId);
-        if (player) teamPlayerID = player.TeamPlayerID || player.MemberID || null;
-      }
-
-      if (!teamPlayerID) {
-        return res.status(200).json({ videos: [], note: 'TeamPlayerID hittades inte' });
-      }
-
-      // 2. Highlights çek - birkaç olası endpoint dene
-      let videos = [];
-
-      // Deneme 1: highlights endpoint
-      try {
-        const highlights = await minfotbollGet(`/api/teamplayerapi/gethighlights?TeamPlayerID=${teamPlayerID}`, mfToken);
-        if (Array.isArray(highlights) && highlights.length > 0) {
-          videos = highlights.map(h => ({
-            label: h.Title || h.MatchName || h.GameName || 'Höjdpunkt',
-            url: h.URL || h.VideoURL || h.Link || h.ExternalURL || null,
-            date: h.GameDate || h.Date || null,
-            gameId: h.GameID || null,
-          })).filter(v => v.url);
-        }
-      } catch(e) {}
-
-      // Deneme 2: player media
-      if (!videos.length) {
-        try {
-          const media = await minfotbollGet(`/api/playerapi/getplayermedia?PlayerId=${playerId}`, mfToken);
-          if (Array.isArray(media) && media.length > 0) {
-            videos = media.map(m => ({
-              label: m.Title || m.MatchName || 'Video',
-              url: m.URL || m.VideoURL || m.MediaURL || null,
-              date: m.Date || null,
-            })).filter(v => v.url);
-          }
-        } catch(e) {}
-      }
-
-      // Deneme 3: teamplayer highlights
-      if (!videos.length) {
-        try {
-          const h2 = await minfotbollGet(`/api/teamplayerapi/highlights?id=${teamPlayerID}`, mfToken);
-          if (Array.isArray(h2) && h2.length > 0) {
-            videos = h2.map(h => ({
-              label: h.Title || h.MatchName || 'Höjdpunkt',
-              url: h.URL || h.VideoURL || h.Link || null,
-              date: h.GameDate || h.Date || null,
-            })).filter(v => v.url);
-          }
-        } catch(e) {}
-      }
-
-      // Maç bazlı video/highlight arama
-      // Oyuncunun oynadığı maçları DB'den çek
-      const playerMatches = await supabaseGet(
-        `/player_stats?player_id=eq.${playerId}&select=match_id,matches(game_id,game_date,home_team,away_team)&order=matches(game_date).desc&limit=20`
-      );
-
-      const debugInfo = { teamPlayerID, playerId, matchCount: Array.isArray(playerMatches) ? playerMatches.length : 0, matchResults: [] };
-
-      if (Array.isArray(playerMatches)) {
-        for (const ps of playerMatches.slice(0, 5)) { // ilk 5 maçı dene
-          const gameId = ps.matches?.game_id;
-          if (!gameId) continue;
-          try {
-            // Her maçın blurb'larını çek - EREventInfo içinde video URL olabilir
-            const blurbs = await minfotbollGet(`/api/followgameapi/initlivetimelineblurbs?GameID=${gameId}`, mfToken);
-            const blurbArr = Array.isArray(blurbs) ? blurbs : (blurbs?.Blurbs || []);
-            
-            // Oyuncuya ait blurb'ları filtrele
-            const playerBlurbs = blurbArr.filter(b => 
-              b.PlayerID === playerId || b.Player1ID === playerId || b.Player2ID === playerId
-            );
-
-            // Video URL olan blurb'ları bul
-            const videoBlurbs = blurbArr.filter(b => 
-              b.EREventInfo?.VideoURL || b.VideoURL || b.EREventInfo?.ExternalVideoURL
-            );
-
-            debugInfo.matchResults.push({
-              gameId,
-              date: ps.matches?.game_date,
-              match: (ps.matches?.home_team || '') + ' vs ' + (ps.matches?.away_team || ''),
-              totalBlurbs: blurbArr.length,
-              playerBlurbs: playerBlurbs.length,
-              videoBlurbs: videoBlurbs.length,
-              sampleBlurb: blurbArr[0] ? Object.keys(blurbArr[0]) : [],
-              sampleVideoBlurb: videoBlurbs[0] || null,
-              samplePlayerBlurb: playerBlurbs[0] || null,
-            });
-
-            // Video bulunanları ekle
-            videoBlurbs.forEach(b => {
-              const url = b.EREventInfo?.VideoURL || b.VideoURL || b.EREventInfo?.ExternalVideoURL;
-              if (url) {
-                videos.push({
-                  label: b.EREventInfo?.Title || b.BlurbType || 'Höjdpunkt',
-                  url,
-                  date: ps.matches?.game_date,
-                  gameId,
-                });
-              }
-            });
-          } catch(e) {
-            debugInfo.matchResults.push({ gameId, error: e.message });
-          }
-        }
-      }
-
-      return res.status(200).json({ videos, teamPlayerID, debug: debugInfo });
-    } catch(e) {
-      return res.status(500).json({ error: e.message });
+    if (!Array.isArray(highlights) || highlights.length === 0) {
+      return res.status(200).json({ videos: [], count: 0 });
     }
+
+    // Maç bilgilerini DB'den çek (game_id eşleşmesi)
+    const gameIds = [...new Set(highlights.map(h => h.game_id))];
+    const matches = await supabaseGet(
+      `/matches?game_id=in.(${gameIds.join(',')})&select=game_id,home_team,away_team,home_score,away_score,game_date,league_name`
+    );
+    const matchMap = {};
+    if (Array.isArray(matches)) matches.forEach(m => { matchMap[m.game_id] = m; });
+
+    const videos = highlights.map(h => {
+      const match = matchMap[h.game_id] || {};
+      const date = h.game_time ? new Date(h.game_time).toLocaleDateString('sv-SE', {day:'2-digit', month:'short', year:'numeric'}) : '';
+      const matchName = match.home_team && match.away_team
+        ? `${match.home_team} vs ${match.away_team} (${match.home_score}-${match.away_score})`
+        : `Maç ${h.game_id}`;
+      // m3u8 yerine MinFotboll highlight sayfası linki — PDF'de tıklanabilir
+      const minfotbollUrl = `https://minfotboll.svenskfotboll.se/#/game/${h.game_id}/highlights`;
+      return {
+        label: `${h.info_text || 'Höjdpunkt'} · ${matchName}`,
+        url: minfotbollUrl,
+        streamUrl: h.video_url,
+        thumbnailUrl: h.thumbnail_url,
+        date: h.game_time,
+        dateStr: date,
+        gameId: h.game_id,
+        infoText: h.info_text,
+        leagueName: match.league_name || '',
+      };
+    });
+
+    return res.status(200).json({ videos, count: videos.length });
   }
 
   res.status(400).json({ error: 'Ogiltig åtgärd' });
-};
