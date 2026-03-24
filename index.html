@@ -2252,19 +2252,27 @@ function renderCv(d) {
 
   var videosHtml;
   if (videos.length) {
-    videosHtml = '<div style="display:flex;flex-direction:column;gap:0.5rem;">'
+    videosHtml = '<div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem;">' + videos.length + ' höjdpunkter registrerade</div>'
+      + '<div style="display:flex;flex-direction:column;gap:0.5rem;">'
       + videos.map(function(v) {
-          var label = v.label || 'Höjdpunkt';
-          var dateStr = v.date ? ' <span style="color:var(--muted);font-size:0.75rem;">· ' + new Date(v.date).toLocaleDateString('sv-SE', {day:'2-digit',month:'short',year:'numeric'}) + '</span>' : '';
-          return '<a href="' + v.url + '" target="_blank" rel="noopener" class="cv-video-link" style="display:flex;align-items:center;gap:0.6rem;">'
-            + '<span style="font-size:1rem;">▶</span>'
-            + '<span style="flex:1;">' + label + dateStr + '</span>'
-            + '<span style="font-size:0.72rem;color:var(--muted);word-break:break-all;">' + v.url + '</span>'
+          var infoType = (v.infoText || '').toLowerCase().includes('assist') ? '🎯' : '⚽';
+          var leagueBadge = v.leagueName ? '<span style="font-size:0.7rem;background:rgba(0,212,255,0.1);color:var(--accent);border-radius:3px;padding:1px 5px;margin-left:0.3rem;">' + v.leagueName + '</span>' : '';
+          var dateStr = v.dateStr ? '<span style="color:var(--muted);font-size:0.75rem;margin-left:0.3rem;">' + v.dateStr + '</span>' : '';
+          return '<a href="' + v.url + '" target="_blank" rel="noopener" class="cv-video-link" style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.9rem;">'
+            + (v.thumbnailUrl ? '<img src="' + v.thumbnailUrl + '" style="width:56px;height:40px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'">' : '<span style="font-size:1.2rem;flex-shrink:0;">' + infoType + '</span>')
+            + '<div style="flex:1;min-width:0;">'
+              + '<div style="font-weight:600;font-size:0.88rem;">' + (v.infoText || 'Höjdpunkt') + leagueBadge + dateStr + '</div>'
+              + '<div style="color:var(--muted);font-size:0.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (v.label || '') + '</div>'
+            + '</div>'
+            + '<span style="font-size:0.75rem;color:var(--accent);flex-shrink:0;">▶ Se klipp</span>'
             + '</a>';
         }).join('')
       + '</div>';
   } else {
-    videosHtml = '<div style="color:var(--muted);font-size:0.88rem;">Inga videolänkar hittades i MinFotboll.<br><span style="font-size:0.78rem;">Videoklipp registreras automatiskt när de finns tillgängliga.</span></div>';
+    videosHtml = '<div style="color:var(--muted);font-size:0.88rem;">Inga höjdpunkter sparade ännu.</div>'
+      + (state.user && (state.user.role === 'admin' || state.user.role === 'antrenor')
+        ? '<div style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);">Gå till MinFotboll → Spelarens höjdpunkter → kör saveHighlightsFromDOM() i konsolen</div>'
+        : '');
   }
 
   // Maç geçmişi
@@ -2377,6 +2385,40 @@ function renderCv(d) {
 function printCv() {
   window.print();
 }
+
+// MinFotboll DOM'undan highlight'ları Supabase'e kaydet
+// MinFotboll sayfasında Console'da çalıştır: saveHighlightsFromDOM(606521)
+async function saveHighlightsFromDOM(playerId) {
+  const highlights = [];
+  if (typeof ko === 'undefined') { console.error('Bu fonksiyon MinFotboll sayfasında çalıştırılmalı!'); return; }
+  document.querySelectorAll('[data-bind]').forEach(el => {
+    try {
+      const ctx = ko.dataFor(el);
+      if (ctx && ctx.Highlight && ctx.Highlight.VideoURL) {
+        highlights.push({
+          gameId: ctx.Highlight.GameID,
+          videoUrl: ctx.Highlight.VideoURL,
+          thumbnailUrl: ctx.Highlight.ThumbnailURL || null,
+          infoText: ctx.InfoText || null,
+          gameTime: ctx.GameTime || null,
+          highlightId: ctx.Highlight.HighlightID,
+        });
+      }
+    } catch(e) {}
+  });
+  const unique = highlights.filter((h, i, arr) => arr.findIndex(x => x.highlightId === h.highlightId) === i);
+  console.log('Bulunan highlight sayısı:', unique.length);
+  if (!unique.length) { console.error('Highlight bulunamadı!'); return; }
+
+  const r = await fetch('https://sollentuna-fk.vercel.app/api/stats?action=savehighlights', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('sfk_token') },
+    body: JSON.stringify({ playerId, highlights: unique })
+  });
+  const d = await r.json();
+  console.log('Sonuç:', d);
+}
+window.saveHighlightsFromDOM = saveHighlightsFromDOM;
 
 // ===================== INIT =====================
 async function refreshToken() {
