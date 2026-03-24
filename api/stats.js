@@ -437,25 +437,60 @@ module.exports = async (req, res) => {
         } catch(e) {}
       }
 
-      // Debug: hangi endpoint'ler ne döndürdü
-      const debugInfo = { teamPlayerID, playerId, endpoints: [] };
+      // Maç bazlı video/highlight arama
+      // Oyuncunun oynadığı maçları DB'den çek
+      const playerMatches = await supabaseGet(
+        `/player_stats?player_id=eq.${playerId}&select=match_id,matches(game_id,game_date,home_team,away_team)&order=matches(game_date).desc&limit=20`
+      );
 
-      // Tüm olası endpoint'leri dene ve RAW sonuçları döndür
-      const endpointsToTry = [
-        `/api/teamplayerapi/gethighlights?TeamPlayerID=${teamPlayerID}`,
-        `/api/playerapi/getplayermedia?PlayerId=${playerId}`,
-        `/api/teamplayerapi/highlights?id=${teamPlayerID}`,
-        `/api/teamplayerapi/getteamplayer?TeamPlayerID=${teamPlayerID}`,
-        `/api/playerapi/getplayer?PlayerId=${playerId}`,
-        `/api/magazinegameviewapi/getplayerhighlights?PlayerId=${playerId}`,
-      ];
+      const debugInfo = { teamPlayerID, playerId, matchCount: Array.isArray(playerMatches) ? playerMatches.length : 0, matchResults: [] };
 
-      for (const ep of endpointsToTry) {
-        try {
-          const raw = await minfotbollGet(ep, mfToken);
-          debugInfo.endpoints.push({ ep, type: typeof raw, isArray: Array.isArray(raw), length: Array.isArray(raw) ? raw.length : null, sample: Array.isArray(raw) ? raw[0] : (typeof raw === 'object' ? Object.keys(raw||{}).slice(0,10) : raw) });
-        } catch(e) {
-          debugInfo.endpoints.push({ ep, error: e.message });
+      if (Array.isArray(playerMatches)) {
+        for (const ps of playerMatches.slice(0, 5)) { // ilk 5 maçı dene
+          const gameId = ps.matches?.game_id;
+          if (!gameId) continue;
+          try {
+            // Her maçın blurb'larını çek - EREventInfo içinde video URL olabilir
+            const blurbs = await minfotbollGet(`/api/followgameapi/initlivetimelineblurbs?GameID=${gameId}`, mfToken);
+            const blurbArr = Array.isArray(blurbs) ? blurbs : (blurbs?.Blurbs || []);
+            
+            // Oyuncuya ait blurb'ları filtrele
+            const playerBlurbs = blurbArr.filter(b => 
+              b.PlayerID === playerId || b.Player1ID === playerId || b.Player2ID === playerId
+            );
+
+            // Video URL olan blurb'ları bul
+            const videoBlurbs = blurbArr.filter(b => 
+              b.EREventInfo?.VideoURL || b.VideoURL || b.EREventInfo?.ExternalVideoURL
+            );
+
+            debugInfo.matchResults.push({
+              gameId,
+              date: ps.matches?.game_date,
+              match: (ps.matches?.home_team || '') + ' vs ' + (ps.matches?.away_team || ''),
+              totalBlurbs: blurbArr.length,
+              playerBlurbs: playerBlurbs.length,
+              videoBlurbs: videoBlurbs.length,
+              sampleBlurb: blurbArr[0] ? Object.keys(blurbArr[0]) : [],
+              sampleVideoBlurb: videoBlurbs[0] || null,
+              samplePlayerBlurb: playerBlurbs[0] || null,
+            });
+
+            // Video bulunanları ekle
+            videoBlurbs.forEach(b => {
+              const url = b.EREventInfo?.VideoURL || b.VideoURL || b.EREventInfo?.ExternalVideoURL;
+              if (url) {
+                videos.push({
+                  label: b.EREventInfo?.Title || b.BlurbType || 'Höjdpunkt',
+                  url,
+                  date: ps.matches?.game_date,
+                  gameId,
+                });
+              }
+            });
+          } catch(e) {
+            debugInfo.matchResults.push({ gameId, error: e.message });
+          }
         }
       }
 
