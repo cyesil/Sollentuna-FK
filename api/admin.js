@@ -604,6 +604,114 @@ module.exports = async (req, res) => {
   }
 
   // SFK kadro listesi - oyuncular + staff
+  // Tüm oyuncuların highlights'larını MinFotboll'dan çekip Supabase'e kaydet
+  if (action === 'fetchallhighlights') {
+    if (user.role === 'oyuncu') return res.status(403).json({ error: 'Yetki yok' });
+    try {
+      const mfToken = await getMinfotbollToken();
+
+      // TeamPlayerID haritası (MinFotboll takım sayfasından alındı)
+      const TEAM_PLAYER_IDS = [
+        {playerId:595628, teamPlayerId:658076, name:'Valter Ekehov'},
+        {playerId:571652, teamPlayerId:658077, name:'Gabriel Mocsary'},
+        {playerId:595639, teamPlayerId:658079, name:'Hugo Meyer'},
+        {playerId:571659, teamPlayerId:658082, name:'Emil Wallberg'},
+        {playerId:558820, teamPlayerId:675446, name:'Frank Lundh'},
+        {playerId:576573, teamPlayerId:675448, name:'Albin Nordin'},
+        {playerId:606521, teamPlayerId:768333, name:'Aksel Yesil'},
+        {playerId:572299, teamPlayerId:768334, name:'Alf Markusson'},
+        {playerId:562656, teamPlayerId:768335, name:'Alexander Hansen'},
+        {playerId:700147, teamPlayerId:768336, name:'Charlie Nordenson'},
+        {playerId:595633, teamPlayerId:768338, name:'Cian Hogan'},
+        {playerId:571649, teamPlayerId:768339, name:'Filip Kjellgren'},
+        {playerId:583483, teamPlayerId:768340, name:'Gabriel Saadi'},
+        {playerId:572006, teamPlayerId:768342, name:'Gus Stefansson'},
+        {playerId:700142, teamPlayerId:768346, name:'Leo Olausson'},
+        {playerId:597435, teamPlayerId:768347, name:'Linus Olofsson'},
+        {playerId:571068, teamPlayerId:768348, name:'Viggo Sejnäs'},
+        {playerId:589844, teamPlayerId:768349, name:'Vincent Ekström Lundin'},
+        {playerId:573259, teamPlayerId:768618, name:'Love Nytén'},
+        {playerId:572290, teamPlayerId:773709, name:'Badou Badjan'},
+        {playerId:659792, teamPlayerId:773710, name:'Jeyson Sissah'},
+        {playerId:65947,  teamPlayerId:786262, name:'Leonel Mikhail'},
+      ];
+
+      const results = [];
+      let totalSaved = 0;
+
+      for (const player of TEAM_PLAYER_IDS) {
+        try {
+          // initplayerprofile'dan highlights çek
+          const profile = await minfotbollGet(
+            `/api/teamplayerapi/initplayerprofile?TeamPlayerID=${player.teamPlayerId}&GamePlayerID=0`,
+            mfToken
+          );
+
+          // Profile içinde Highlights'ları recursive ara
+          const highlights = [];
+          const searchHighlights = (obj, depth=0) => {
+            if (!obj || depth > 6) return;
+            if (Array.isArray(obj)) {
+              obj.forEach(item => {
+                if (item && item.Highlight && item.Highlight.VideoURL) {
+                  highlights.push({
+                    gameId: item.Highlight.GameID,
+                    videoUrl: item.Highlight.VideoURL,
+                    thumbnailUrl: item.Highlight.ThumbnailURL || null,
+                    infoText: item.InfoText || null,
+                    gameTime: item.GameTime || null,
+                    highlightId: item.Highlight.HighlightID,
+                  });
+                }
+                if (typeof item === 'object') searchHighlights(item, depth+1);
+              });
+            } else if (typeof obj === 'object') {
+              Object.values(obj).forEach(v => searchHighlights(v, depth+1));
+            }
+          };
+          searchHighlights(profile);
+
+          // Supabase'e kaydet
+          let saved = 0;
+          const url = new URL(SUPABASE_URL);
+          for (const h of highlights) {
+            if (!h.highlightId || !h.videoUrl) continue;
+            const existing = await supabaseGet(`/player_highlights?highlight_id=eq.${h.highlightId}&select=id`);
+            if (Array.isArray(existing) && existing.length > 0) continue;
+            await new Promise((resolve, reject) => {
+              const bodyStr = JSON.stringify({
+                player_id: player.playerId, game_id: h.gameId,
+                highlight_id: h.highlightId, video_url: h.videoUrl,
+                thumbnail_url: h.thumbnailUrl, info_text: h.infoText,
+                game_time: h.gameTime,
+              });
+              const req2 = require('https').request({
+                host: url.host, path: '/rest/v1/player_highlights', method: 'POST',
+                headers: {
+                  'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+                  'Content-Type': 'application/json', 'Prefer': 'return=minimal',
+                  'Content-Length': Buffer.byteLength(bodyStr)
+                }
+              }, res2 => { res2.on('data', ()=>{}); res2.on('end', resolve); });
+              req2.on('error', reject);
+              req2.write(bodyStr);
+              req2.end();
+            });
+            saved++;
+          }
+          totalSaved += saved;
+          results.push({ name: player.name, playerId: player.playerId, found: highlights.length, saved });
+        } catch(e) {
+          results.push({ name: player.name, playerId: player.playerId, error: e.message });
+        }
+      }
+
+      return res.status(200).json({ totalSaved, playerCount: TEAM_PLAYER_IDS.length, results });
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   if (action === 'sfkroster') {
     try {
       const mfToken = await getMinfotbollToken();
@@ -619,6 +727,7 @@ module.exports = async (req, res) => {
               type: 'player',
               memberId: p.MemberID,
               playerId: p.PlayerID,
+              teamPlayerId: p.TeamPlayerID || null,
               name: p.FullName || `${p.FirstName} ${p.LastName}`,
               shirt: p.ShirtNumber,
               team: teamLabel,
