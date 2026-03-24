@@ -384,40 +384,44 @@ module.exports = async (req, res) => {
 
     if (!playerId || !Array.isArray(highlights)) return res.status(400).json({ error: 'Eksik veri' });
 
-    let saved = 0, skipped = 0;
-    for (const h of highlights) {
-      if (!h.highlightId || !h.videoUrl) continue;
-      // UPSERT - highlight_id unique
-      const existing = await supabaseGet(`/player_highlights?highlight_id=eq.${h.highlightId}&select=id`);
-      if (Array.isArray(existing) && existing.length > 0) { skipped++; continue; }
+    // Mevcut highlight_id + player_id kombinasyonlarını tek sorguda al
+    const validHighlights = highlights.filter(h => h.highlightId && h.videoUrl);
+    if (!validHighlights.length) return res.status(200).json({ success: true, saved: 0, skipped: 0 });
 
-      const url = new URL(SUPABASE_URL);
-      await new Promise((resolve, reject) => {
-        const bodyStr = JSON.stringify({
-          player_id: playerId,
-          game_id: h.gameId,
-          highlight_id: h.highlightId,
-          video_url: h.videoUrl,
-          thumbnail_url: h.thumbnailUrl || null,
-          info_text: h.infoText || null,
-          game_time: h.gameTime || null,
-        });
-        const req2 = require('https').request({
-          host: url.host, path: '/rest/v1/player_highlights',
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json', 'Prefer': 'return=minimal',
-            'Content-Length': Buffer.byteLength(bodyStr)
-          }
-        }, res2 => { res2.on('data', () => {}); res2.on('end', resolve); });
-        req2.on('error', reject);
-        req2.write(bodyStr);
-        req2.end();
-      });
-      saved++;
-    }
-    return res.status(200).json({ success: true, saved, skipped });
+    const ids = validHighlights.map(h => h.highlightId).join(',');
+    const existing = await supabaseGet(`/player_highlights?highlight_id=in.(${ids})&player_id=eq.${playerId}&select=highlight_id`);
+    const existingIds = new Set(Array.isArray(existing) ? existing.map(e => e.highlight_id) : []);
+
+    const newHighlights = validHighlights.filter(h => !existingIds.has(h.highlightId));
+    const skipped = validHighlights.length - newHighlights.length;
+
+    if (!newHighlights.length) return res.status(200).json({ success: true, saved: 0, skipped });
+
+    // Toplu insert
+    const url = new URL(SUPABASE_URL);
+    const rows = newHighlights.map(h => ({
+      player_id: playerId, game_id: h.gameId, highlight_id: h.highlightId,
+      video_url: h.videoUrl, thumbnail_url: h.thumbnailUrl || null,
+      info_text: h.infoText || null, game_time: h.gameTime || null,
+    }));
+
+    await new Promise((resolve, reject) => {
+      const bodyStr = JSON.stringify(rows);
+      const req2 = require('https').request({
+        host: url.host, path: '/rest/v1/player_highlights',
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json', 'Prefer': 'return=minimal',
+          'Content-Length': Buffer.byteLength(bodyStr)
+        }
+      }, res2 => { res2.on('data', ()=>{}); res2.on('end', resolve); });
+      req2.on('error', reject);
+      req2.write(bodyStr);
+      req2.end();
+    });
+
+    return res.status(200).json({ success: true, saved: newHighlights.length, skipped });
   }
 
   // Oyuncu video highlights - DB'den
