@@ -108,6 +108,7 @@ async function getMinfotbollToken() {
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -447,12 +448,9 @@ module.exports = async (req, res) => {
       const matchName = match.home_team && match.away_team
         ? `${match.home_team} vs ${match.away_team} (${match.home_score}-${match.away_score})`
         : `Maç ${h.game_id}`;
-      // m3u8 yerine MinFotboll highlight sayfası linki — PDF'de tıklanabilir
-      const minfotbollUrl = `https://minfotboll.svenskfotboll.se/#/game/${h.game_id}/highlights`;
       return {
         label: `${h.info_text || 'Höjdpunkt'} · ${matchName}`,
-        url: minfotbollUrl,
-        streamUrl: h.video_url,
+        url: h.video_url,
         thumbnailUrl: h.thumbnail_url,
         date: h.game_time,
         dateStr: date,
