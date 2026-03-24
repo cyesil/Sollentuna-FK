@@ -437,11 +437,29 @@ module.exports = async (req, res) => {
         } catch(e) {}
       }
 
-      return res.status(200).json({ 
-        videos, 
-        teamPlayerID,
-        debug: videos.length === 0 ? 'Inga videor hittades via API' : null
-      });
+      // Debug: hangi endpoint'ler ne döndürdü
+      const debugInfo = { teamPlayerID, playerId, endpoints: [] };
+
+      // Tüm olası endpoint'leri dene ve RAW sonuçları döndür
+      const endpointsToTry = [
+        `/api/teamplayerapi/gethighlights?TeamPlayerID=${teamPlayerID}`,
+        `/api/playerapi/getplayermedia?PlayerId=${playerId}`,
+        `/api/teamplayerapi/highlights?id=${teamPlayerID}`,
+        `/api/teamplayerapi/getteamplayer?TeamPlayerID=${teamPlayerID}`,
+        `/api/playerapi/getplayer?PlayerId=${playerId}`,
+        `/api/magazinegameviewapi/getplayerhighlights?PlayerId=${playerId}`,
+      ];
+
+      for (const ep of endpointsToTry) {
+        try {
+          const raw = await minfotbollGet(ep, mfToken);
+          debugInfo.endpoints.push({ ep, type: typeof raw, isArray: Array.isArray(raw), length: Array.isArray(raw) ? raw.length : null, sample: Array.isArray(raw) ? raw[0] : (typeof raw === 'object' ? Object.keys(raw||{}).slice(0,10) : raw) });
+        } catch(e) {
+          debugInfo.endpoints.push({ ep, error: e.message });
+        }
+      }
+
+      return res.status(200).json({ videos, teamPlayerID, debug: debugInfo });
     } catch(e) {
       return res.status(500).json({ error: e.message });
     }
