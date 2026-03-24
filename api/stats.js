@@ -466,3 +466,4 @@ module.exports = async (req, res) => {
   }
 
   res.status(400).json({ error: 'Ogiltig åtgärd' });
+};
