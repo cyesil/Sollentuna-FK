@@ -671,6 +671,18 @@ module.exports = async (req, res) => {
           };
           searchHighlights(profile);
 
+          // Debug: Aksel için profile içeriğini logla
+          if (player.playerId === 606521 && highlights.length === 0) {
+            const profileStr = JSON.stringify(profile);
+            return res.status(200).json({ 
+              debug: true, 
+              profileType: typeof profile,
+              profileLength: Array.isArray(profile) ? profile.length : 'not array',
+              profileKeys: typeof profile === 'object' && !Array.isArray(profile) ? Object.keys(profile||{}) : null,
+              profileSample: profileStr.substring(0, 2000)
+            });
+          }
+
           // Supabase'e kaydet
           let saved = 0;
           const url = new URL(SUPABASE_URL);
