@@ -372,5 +372,80 @@ module.exports = async (req, res) => {
     });
   }
 
+  // Oyuncu video highlights (otomatik MinFotboll'dan)
+  if (action === 'playervideos') {
+    const playerId = parseInt(req.query.playerId);
+    if (!playerId) return res.status(400).json({ error: 'playerId krävs' });
+
+    try {
+      const mfToken = await getMinfotbollToken();
+
+      // 1. Oyuncunun TeamPlayerID'sini bul
+      const teamId = 398871; // P16
+      const roster = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=${teamId}`, mfToken);
+      let teamPlayerID = null;
+      if (Array.isArray(roster)) {
+        const player = roster.find(p => p.PlayerID === playerId);
+        if (player) teamPlayerID = player.TeamPlayerID || player.MemberID || null;
+      }
+
+      if (!teamPlayerID) {
+        return res.status(200).json({ videos: [], note: 'TeamPlayerID hittades inte' });
+      }
+
+      // 2. Highlights çek - birkaç olası endpoint dene
+      let videos = [];
+
+      // Deneme 1: highlights endpoint
+      try {
+        const highlights = await minfotbollGet(`/api/teamplayerapi/gethighlights?TeamPlayerID=${teamPlayerID}`, mfToken);
+        if (Array.isArray(highlights) && highlights.length > 0) {
+          videos = highlights.map(h => ({
+            label: h.Title || h.MatchName || h.GameName || 'Höjdpunkt',
+            url: h.URL || h.VideoURL || h.Link || h.ExternalURL || null,
+            date: h.GameDate || h.Date || null,
+            gameId: h.GameID || null,
+          })).filter(v => v.url);
+        }
+      } catch(e) {}
+
+      // Deneme 2: player media
+      if (!videos.length) {
+        try {
+          const media = await minfotbollGet(`/api/playerapi/getplayermedia?PlayerId=${playerId}`, mfToken);
+          if (Array.isArray(media) && media.length > 0) {
+            videos = media.map(m => ({
+              label: m.Title || m.MatchName || 'Video',
+              url: m.URL || m.VideoURL || m.MediaURL || null,
+              date: m.Date || null,
+            })).filter(v => v.url);
+          }
+        } catch(e) {}
+      }
+
+      // Deneme 3: teamplayer highlights
+      if (!videos.length) {
+        try {
+          const h2 = await minfotbollGet(`/api/teamplayerapi/highlights?id=${teamPlayerID}`, mfToken);
+          if (Array.isArray(h2) && h2.length > 0) {
+            videos = h2.map(h => ({
+              label: h.Title || h.MatchName || 'Höjdpunkt',
+              url: h.URL || h.VideoURL || h.Link || null,
+              date: h.GameDate || h.Date || null,
+            })).filter(v => v.url);
+          }
+        } catch(e) {}
+      }
+
+      return res.status(200).json({ 
+        videos, 
+        teamPlayerID,
+        debug: videos.length === 0 ? 'Inga videor hittades via API' : null
+      });
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   res.status(400).json({ error: 'Ogiltig åtgärd' });
 };
