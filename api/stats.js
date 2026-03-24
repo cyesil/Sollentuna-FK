@@ -340,6 +340,26 @@ module.exports = async (req, res) => {
       .map(s => ({ ...s, league: [...s.leagueNames].join(', ') || 'SFK' }))
       .sort((a,b) => b.season - a.season);
 
+    // Maç detayları
+    const matchDetails = statsRaw
+      .filter(s => s.played)
+      .map(s => ({
+        gameDate: s.matches?.game_date,
+        homeTeam: s.matches?.home_team,
+        awayTeam: s.matches?.away_team,
+        homeScore: s.matches?.home_score,
+        awayScore: s.matches?.away_score,
+        leagueName: s.matches?.league_name,
+        gameType: s.matches?.game_type,
+        isStarter: s.is_starter,
+        minutesPlayed: s.minutes_played || 0,
+        goals: s.goals || 0,
+        assists: s.assists || 0,
+        yellowCards: s.yellow_cards || 0,
+        redCards: s.red_cards || 0,
+      }))
+      .sort((a, b) => new Date(b.gameDate) - new Date(a.gameDate));
+
     return res.status(200).json({
       name: SFK_PLAYERS[playerId].name,
       shirt: SFK_PLAYERS[playerId].shirt,
@@ -347,6 +367,7 @@ module.exports = async (req, res) => {
       playerId,
       totals,
       seasons,
+      matchDetails,
       videos: []
     });
   }
