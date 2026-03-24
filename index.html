@@ -378,9 +378,40 @@
       <span class="role-badge" id="roleBadge"></span>
       <button class="btn-refresh" onclick="refreshToken()" title="Förnya MinFotboll token" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;" id="refreshBtn">🔄 Förnya token</button>
       <button onclick="toggleInstellningar()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;">⚙️ Inställningar</button>
+      <button id="githubPushBtn" onclick="toggleGithubPanel()" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;">🚀 Deploy</button>
       <button class="btn-logout" onclick="doLogout()">Logga ut</button>
     </div>
   </header>
+
+  <!-- GitHub Deploy Paneli -->
+  <div id="githubPanel" style="display:none;position:fixed;top:70px;right:1rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.4rem;z-index:1000;min-width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+    <div style="font-weight:700;margin-bottom:1rem;font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;display:flex;justify-content:space-between;align-items:center;">
+      🚀 Deploy till GitHub
+      <button onclick="document.getElementById('githubPanel').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem;">Pushar till <strong style="color:var(--accent)">cyesil/Sollentuna-FK</strong> → Vercel deployas automatiskt</div>
+    <div style="margin-bottom:1rem;">
+      <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;">🔑 GitHub Token (sparas lokalt)</label>
+      <div style="display:flex;gap:0.5rem;">
+        <input type="password" id="ghTokenInput" placeholder="ghp_..." 
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.6rem;border-radius:6px;font-size:0.85rem;"
+          oninput="localStorage.setItem('sfk_gh_token', this.value)">
+        <span id="ghTokenStatus" style="font-size:0.8rem;align-self:center;"></span>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.85rem;">
+      <div style="display:flex;align-items:center;gap:0.5rem;color:var(--green);font-weight:600;">
+        <span>📄</span> index.html
+        <span style="margin-left:auto;color:var(--muted);font-weight:400;">~2s</span>
+      </div>
+      <div style="color:var(--muted);font-size:0.75rem;margin-top:0.25rem;">Aktuell sida pushas direkt från webbläsaren</div>
+    </div>
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;padding:0.5rem;background:rgba(0,212,255,0.05);border-radius:6px;border:1px solid rgba(0,212,255,0.1);">
+      💡 API-filer (stats.js, admin.js etc.) behöver pushas manuellt via PowerShell om de ändrats.
+    </div>
+    <div id="deployMsg" style="font-size:0.82rem;min-height:1.2rem;margin-bottom:0.75rem;"></div>
+    <button onclick="doDeploy()" id="deployRunBtn" class="btn btn-primary" style="width:100%;font-size:1rem;">🚀 Push index.html → GitHub</button>
+  </div>
 
   <!-- İnställningar paneli -->
   <div id="instellningarPanel" style="display:none;position:fixed;top:60px;right:1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.2rem;z-index:1000;min-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
@@ -745,6 +776,9 @@ function showApp() {
   // Users tabı: admin ve tränare görsün
   const usersTab = document.getElementById('usersTab');
   if (usersTab) usersTab.style.display = (u.role === 'admin' || u.role === 'antrenor') ? 'inline-block' : 'none';
+  // Deploy butonu sadece admin
+  const ghBtn = document.getElementById('githubPushBtn');
+  if (ghBtn) ghBtn.style.display = u.role === 'admin' ? 'inline-block' : 'none';
   // Oyuncu için tarih alanlarını doldur
   if (u.role === 'oyuncu') {
     const today = new Date().toISOString().slice(0,10);
@@ -1818,6 +1852,109 @@ async function loadOyuncuLeagueFilters() {
   } catch(e) { console.error('loadOyuncuLeagueFilters error:', e); }
 }
 
+// ===================== GITHUB DEPLOY =====================
+const GITHUB_TOKEN = localStorage.getItem('sfk_gh_token') || '';
+const GITHUB_OWNER = 'cyesil';
+const GITHUB_REPO = 'Sollentuna-FK';
+const GITHUB_BRANCH = 'main';
+
+function toggleGithubPanel() {
+  const panel = document.getElementById('githubPanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    document.getElementById('deployMsg').textContent = '';
+    const savedToken = localStorage.getItem('sfk_gh_token') || '';
+    const tokenInput = document.getElementById('ghTokenInput');
+    if (tokenInput) tokenInput.value = savedToken;
+    const statusEl = document.getElementById('ghTokenStatus');
+    if (statusEl) statusEl.textContent = savedToken ? '✓ Token kaydedildi' : '⚠️ Token gerekli';
+    if (statusEl) statusEl.style.color = savedToken ? 'var(--green)' : 'var(--yellow)';
+    // Dışarı tıklayınca kapat
+    setTimeout(() => {
+      document.addEventListener('click', function closePanel(e) {
+        if (!panel.contains(e.target) && !e.target.closest('#githubPushBtn')) {
+          panel.style.display = 'none';
+          document.removeEventListener('click', closePanel);
+        }
+      });
+    }, 100);
+  }
+}
+
+async function githubGetSha(filePath) {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}?ref=${GITHUB_BRANCH}`, {
+      headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.sha || null;
+  } catch(e) { return null; }
+}
+
+async function githubPushFile(filePath, content) {
+  const b64 = btoa(unescape(encodeURIComponent(content)));
+  const sha = await githubGetSha(filePath);
+  const body = { message: `Update ${filePath}`, content: b64, branch: GITHUB_BRANCH };
+  if (sha) body.sha = sha;
+  const r = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `token ${GITHUB_TOKEN}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) {
+    const err = await r.json();
+    throw new Error(err.message || r.status);
+  }
+  return true;
+}
+
+async function fetchFileContent(apiPath) {
+  const r = await fetch(apiPath, { headers: authHeaders() });
+  return await r.text();
+}
+
+async function doDeploy() {
+  const btn = document.getElementById('deployRunBtn');
+  const msg = document.getElementById('deployMsg');
+  btn.disabled = true;
+  btn.textContent = '⏳ Pushar...';
+  msg.style.color = 'var(--muted)';
+  msg.textContent = '';
+
+  const currentToken = localStorage.getItem('sfk_gh_token') || '';
+  if (!currentToken || !currentToken.startsWith('ghp_')) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = '⚠️ Ange ett giltigt GitHub Token först!';
+    btn.disabled = false;
+    btn.textContent = '🚀 Push index.html → GitHub';
+    return;
+  }
+  try {
+    msg.style.color = 'var(--muted)';
+    msg.textContent = 'Hämtar senaste SHA...';
+    const fileContent = document.documentElement.outerHTML;
+    msg.textContent = 'Pushar index.html...';
+    await githubPushFile('index.html', fileContent);
+    msg.style.color = 'var(--green)';
+    msg.textContent = '✓ index.html pushat! Vercel deployas om ~30 sek.';
+    btn.textContent = '✓ Klart!';
+    setTimeout(() => {
+      document.getElementById('githubPanel').style.display = 'none';
+      btn.textContent = '🚀 Push index.html → GitHub';
+    }, 3000);
+  } catch(e) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = '✗ Fel: ' + e.message;
+    btn.textContent = '🚀 Push index.html → GitHub';
+  }
+}
+
 function toggleInstellningar() {
   const panel = document.getElementById('instellningarPanel');
   if (!panel) return;
@@ -2039,6 +2176,7 @@ async function loadOyuncuCv() {
       name: d.name, shirt: d.shirt, thumbnail: d.thumbnail,
       playerId: state.user.player_id,
       seasons: buildSeasonsFromMatches(d.matchDetails || []),
+      matchDetails: d.matchDetails || [],
       totals: {
         games: d.games, starterGames: d.starterGames || 0,
         minutesPlayed: d.minutesPlayed || 0,
@@ -2110,6 +2248,54 @@ function renderCv(d) {
     </a>`
   ).join('') : `<div style="color:var(--muted);font-size:0.88rem;">Inga videolänkar registrerade ännu.<br><span style="font-size:0.78rem;">Videoklipp kan hämtas från MinFotboll.</span></div>`;
 
+  // Maç geçmişi
+  const matchDetails = d.matchDetails || [];
+  function buildMatchRows(matches) {
+    return matches.map(function(m) {
+      var date = new Date(m.gameDate).toLocaleDateString('sv-SE', {day:'2-digit', month:'short', year:'numeric'});
+      var result = m.homeScore + ' - ' + m.awayScore;
+      var typeClass = m.gameType ? 'type-' + m.gameType : 'type-lig';
+      var starter = m.isStarter
+        ? '<span style="font-size:0.72rem;background:rgba(0,230,118,0.15);color:var(--green);border-radius:4px;padding:1px 6px;">Start</span>'
+        : '<span style="font-size:0.72rem;background:rgba(107,114,128,0.1);color:var(--muted);border-radius:4px;padding:1px 6px;">Inhopp</span>';
+      var minCell = m.minutesPlayed > 0 ? '<span class="badge">' + m.minutesPlayed + "'</span>" : '<span class="badge badge-zero">—</span>';
+      var goalCell = m.goals > 0 ? '<span class="badge badge-green">' + m.goals + '</span>' : '—';
+      var astCell = m.assists > 0 ? '<span class="badge">' + m.assists + '</span>' : '—';
+      var ycCell = m.yellowCards > 0 ? '<span class="badge badge-yellow">' + m.yellowCards + '</span>' : '—';
+      var rcCell = m.redCards > 0 ? '<span class="badge badge-red">' + m.redCards + '</span>' : '—';
+      return '<tr>'
+        + '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + date + '</td>'
+        + '<td style="font-size:0.85rem;">'
+          + '<span style="font-weight:600;">' + m.homeTeam + '</span>'
+          + '<span style="color:var(--muted);margin:0 0.3rem;">vs</span>'
+          + '<span>' + m.awayTeam + '</span>'
+          + '<span style="margin-left:0.4rem;font-weight:700;color:var(--accent);">' + result + '</span>'
+        + '</td>'
+        + '<td><span class="match-type-badge ' + typeClass + '" style="font-size:0.72rem;">' + (m.leagueName || '—') + '</span></td>'
+        + '<td style="text-align:center;">' + starter + '</td>'
+        + '<td style="text-align:center;">' + minCell + '</td>'
+        + '<td style="text-align:center;">' + goalCell + '</td>'
+        + '<td style="text-align:center;">' + astCell + '</td>'
+        + '<td style="text-align:center;">' + ycCell + '</td>'
+        + '<td style="text-align:center;">' + rcCell + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+  var matchHistoryHtml = matchDetails.length
+    ? '<div class="table-wrap"><table>'
+      + '<thead><tr>'
+      + '<th>Datum</th><th>Match</th><th>Liga</th>'
+      + '<th style="text-align:center;">Roll</th>'
+      + '<th style="text-align:center;">Min</th>'
+      + '<th style="text-align:center;color:var(--green)">Mål</th>'
+      + '<th style="text-align:center;color:var(--accent)">Ast</th>'
+      + '<th style="text-align:center;color:var(--yellow)">🟨</th>'
+      + '<th style="text-align:center;color:var(--red)">🟥</th>'
+      + '</tr></thead>'
+      + '<tbody>' + buildMatchRows(matchDetails) + '</tbody>'
+      + '</table></div>'
+    : '<div style="color:var(--muted);font-size:0.9rem;padding:0.5rem 0;">Inga matcher registrerade.</div>';
+
   const goalsPerGame = totals.games > 0 ? (totals.goals / totals.games).toFixed(2) : '—';
   const minPerGoal = totals.goals > 0 ? Math.round((totals.minutesPlayed || 0) / totals.goals) : '—';
 
@@ -2150,6 +2336,11 @@ function renderCv(d) {
     <div class="cv-section">
       <div class="cv-section-title">📈 Säsongsöversikt (Mål)</div>
       ${seasonBars}
+    </div>
+
+    <div class="cv-section">
+      <div class="cv-section-title">⚽ Matchhistorik</div>
+      ${matchHistoryHtml}
     </div>
 
     <div class="cv-section">
