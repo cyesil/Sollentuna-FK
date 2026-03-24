@@ -2264,7 +2264,10 @@ function renderCv(d) {
               + '<div style="font-weight:600;font-size:0.88rem;">' + (v.infoText || 'Höjdpunkt') + leagueBadge + dateStr + '</div>'
               + '<div style="color:var(--muted);font-size:0.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (v.label || '') + '</div>'
             + '</div>'
-            + '<span style="font-size:0.75rem;color:var(--accent);flex-shrink:0;">▶ Se klipp</span>'
+            + '<div style="display:flex;flex-direction:column;gap:0.2rem;flex-shrink:0;">'
+              + '<span style="font-size:0.72rem;color:var(--accent);">▶ Öppna</span>'
+              + '<span style="font-size:0.68rem;color:var(--muted);">m3u8</span>'
+            + '</div>'
             + '</a>';
         }).join('')
       + '</div>';
