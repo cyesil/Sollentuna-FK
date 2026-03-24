@@ -2150,17 +2150,21 @@ async function loadCvForPlayer(playerId) {
   const printBtn = document.getElementById('cvPrintBtn');
   content.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Laddar CV...</div>';
   try {
-    const params = new URLSearchParams({action: 'playercv', playerId});
-    const r = await fetch('/api/stats?' + params, {headers: authHeaders()});
-    const d = await r.json();
+    // CV verisi ve videolar paralel çek
+    const [cvRes, vidRes] = await Promise.all([
+      fetch('/api/stats?' + new URLSearchParams({action:'playercv', playerId}), {headers: authHeaders()}),
+      fetch('/api/stats?' + new URLSearchParams({action:'playervideos', playerId}), {headers: authHeaders()})
+    ]);
+    const d = await cvRes.json();
+    const vd = await vidRes.json();
+    d.videos = (vd.videos || []);
     content.innerHTML = renderCv(d);
     if (printBtn) printBtn.style.display = 'inline-block';
-    // Grafik animasyonu
     setTimeout(() => document.querySelectorAll('.cv-season-fill').forEach(el => {
       el.style.width = el.dataset.w;
     }), 50);
   } catch(e) {
-    content.innerHTML = `<div class="empty-state">Fel vid laddning: ${e.message}</div>`;
+    content.innerHTML = '<div class="empty-state">Fel vid laddning: ' + e.message + '</div>';
   }
 }
 
@@ -2169,12 +2173,16 @@ async function loadOyuncuCv() {
   if (content.dataset.loaded) return;
   content.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Laddar CV...</div>';
   try {
-    const r = await fetch('/api/stats?action=mystats', {headers: authHeaders()});
-    const d = await r.json();
-    // mystats'ı cv formatına çevir
+    const playerId = state.user.player_id;
+    const [statsRes, vidRes] = await Promise.all([
+      fetch('/api/stats?action=mystats', {headers: authHeaders()}),
+      playerId ? fetch('/api/stats?' + new URLSearchParams({action:'playervideos', playerId}), {headers: authHeaders()}) : Promise.resolve(null)
+    ]);
+    const d = await statsRes.json();
+    const vd = vidRes ? await vidRes.json() : {videos:[]};
     const cvData = {
       name: d.name, shirt: d.shirt, thumbnail: d.thumbnail,
-      playerId: state.user.player_id,
+      playerId,
       seasons: buildSeasonsFromMatches(d.matchDetails || []),
       matchDetails: d.matchDetails || [],
       totals: {
@@ -2183,7 +2191,7 @@ async function loadOyuncuCv() {
         goals: d.goals, assists: d.assists,
         yellowCards: d.yellowCards, redCards: d.redCards
       },
-      videos: []
+      videos: vd.videos || []
     };
     content.innerHTML = renderCv(cvData);
     content.dataset.loaded = '1';
@@ -2191,7 +2199,7 @@ async function loadOyuncuCv() {
       el.style.width = el.dataset.w;
     }), 50);
   } catch(e) {
-    content.innerHTML = `<div class="empty-state">Fel: ${e.message}</div>`;
+    content.innerHTML = '<div class="empty-state">Fel: ' + e.message + '</div>';
   }
 }
 
@@ -2242,11 +2250,22 @@ function renderCv(d) {
     </div>`;
   }).join('') : '<div style="color:var(--muted);font-size:0.9rem;">Ingen säsongsdata</div>';
 
-  const videosHtml = videos.length ? videos.map(v =>
-    `<a href="${v.url}" target="_blank" rel="noopener" class="cv-video-link">
-      ▶ ${v.label || 'Video'}
-    </a>`
-  ).join('') : `<div style="color:var(--muted);font-size:0.88rem;">Inga videolänkar registrerade ännu.<br><span style="font-size:0.78rem;">Videoklipp kan hämtas från MinFotboll.</span></div>`;
+  var videosHtml;
+  if (videos.length) {
+    videosHtml = '<div style="display:flex;flex-direction:column;gap:0.5rem;">'
+      + videos.map(function(v) {
+          var label = v.label || 'Höjdpunkt';
+          var dateStr = v.date ? ' <span style="color:var(--muted);font-size:0.75rem;">· ' + new Date(v.date).toLocaleDateString('sv-SE', {day:'2-digit',month:'short',year:'numeric'}) + '</span>' : '';
+          return '<a href="' + v.url + '" target="_blank" rel="noopener" class="cv-video-link" style="display:flex;align-items:center;gap:0.6rem;">'
+            + '<span style="font-size:1rem;">▶</span>'
+            + '<span style="flex:1;">' + label + dateStr + '</span>'
+            + '<span style="font-size:0.72rem;color:var(--muted);word-break:break-all;">' + v.url + '</span>'
+            + '</a>';
+        }).join('')
+      + '</div>';
+  } else {
+    videosHtml = '<div style="color:var(--muted);font-size:0.88rem;">Inga videolänkar hittades i MinFotboll.<br><span style="font-size:0.78rem;">Videoklipp registreras automatiskt när de finns tillgängliga.</span></div>';
+  }
 
   // Maç geçmişi
   const matchDetails = d.matchDetails || [];
