@@ -557,17 +557,57 @@
       <!-- KULLANICILAR TAB -->
       <!-- OMKLÄDNINGSRUM TAB -->
       <div id="adminOmkladningsrum" style="display:none;">
-        <div style="display:flex;align-items:flex-end;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+        <div class="filter-bar">
           <div>
-            <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.5px;">Från datum</label>
-            <input type="date" id="omkFrom" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;">
+            <label>Från datum</label>
+            <input type="date" id="omkFrom">
           </div>
           <div>
-            <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.5px;">Till datum</label>
-            <input type="date" id="omkTo" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;">
+            <label>Till datum</label>
+            <input type="date" id="omkTo">
           </div>
-          <button class="btn btn-primary" onclick="loadOmkladningsrum()">🏟️ Hämta matcher</button>
-          <button class="btn btn-secondary" onclick="printOmk()">🖨️ Skriv ut / PDF</button>
+          <div>
+            <label>Arena</label>
+            <select id="omkArena" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;min-width:200px;">
+              <option value="">Alla arenor</option>
+              <optgroup label="Norrvikens Omklädningsrum">
+                <option value="21808">Norrvikens IP 1</option>
+                <option value="21815">Norrvikens IP 2 Hall</option>
+                <option value="20977">Sollentuna Fotbollshall</option>
+              </optgroup>
+              <optgroup label="Edsbergs Omklädningsrum">
+                <option value="20586">Edsbergs Sportfält</option>
+                <option value="20588">Edsbergs Sportfält 2</option>
+                <option value="20591">Edsbergs Sportfält 3</option>
+              </optgroup>
+            </select>
+          </div>
+          <div>
+            <label>Lag</label>
+            <select id="omkTeam" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;">
+              <option value="">Alla lag</option>
+              <option value="P16">P16</option>
+              <option value="P17">P17</option>
+            </select>
+          </div>
+          <div>
+            <label>Matchtyp</label>
+            <select id="omkType" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;">
+              <option value="">Alla typer</option>
+              <option value="lig">Seriematcher</option>
+              <option value="kupa">Cupmatcher</option>
+              <option value="hazirlik">Träningsmatcher</option>
+            </select>
+          </div>
+          <div>
+            <label>Sök lag</label>
+            <input type="text" id="omkSearch" placeholder="Lagnamn..." oninput="filterOmk()"
+              style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;width:160px;">
+          </div>
+          <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+            <button class="btn btn-primary" onclick="loadOmkladningsrum()">🏟️ Hämta matcher</button>
+            <button class="btn btn-secondary" onclick="printOmk()">🖨️ PDF</button>
+          </div>
         </div>
         <div id="omkladningsrumContent"><div class="empty-state">Välj datumintervall och hämta matcher</div></div>
       </div>
@@ -1927,11 +1967,11 @@ let _roomAssignments = {};
 
 function initOmkladningsrum() {
   const today = new Date().toISOString().slice(0,10);
-  const nextWeek = new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10);
+  const nextMonth = new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,10);
   const fromEl = document.getElementById('omkFrom');
   const toEl = document.getElementById('omkTo');
   if (fromEl && !fromEl.value) fromEl.value = today;
-  if (toEl && !toEl.value) toEl.value = nextWeek;
+  if (toEl && !toEl.value) toEl.value = nextMonth;
 }
 
 function getRoomsForArena(arenaId) {
@@ -2000,9 +2040,41 @@ async function loadOmkladningsrum() {
       return;
     }
 
+    // Tüm maçları window'da sakla (filtre için)
+    window._omkAllGames = d.games;
+    window._omkRooms = _roomAssignments;
+    renderOmkladningsrum(d.games, _roomAssignments, from, to);
+  } catch(e) {
+    omkContent.innerHTML = '<div class="empty-state">Fel: ' + e.message + '</div>';
+  }
+}
+
+
+
+function filterOmk() {
+  if (!window._omkAllGames) return;
+  const search = (document.getElementById('omkSearch').value || '').toLowerCase();
+  const arenaFilter = document.getElementById('omkArena').value;
+  const teamFilter = document.getElementById('omkTeam').value;
+  const typeFilter = document.getElementById('omkType').value;
+  const from = document.getElementById('omkFrom').value;
+  const to = document.getElementById('omkTo').value;
+
+  const filtered = window._omkAllGames.filter(function(g) {
+    if (arenaFilter && g.arenaId.toString() !== arenaFilter) return false;
+    if (teamFilter && !g.homeTeam.includes(teamFilter) && !g.awayTeam.includes(teamFilter)) return false;
+    if (typeFilter && g.gameType !== typeFilter) return false;
+    if (search && !g.homeTeam.toLowerCase().includes(search) && !g.awayTeam.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  renderOmkladningsrum(filtered, window._omkRooms, from, to);
+}
+
+function renderOmkladningsrum(games, roomAssignments, from, to) {
+  const omkContent = document.getElementById('omkladningsrumContent');
     // Norrviken ve Edsbergs gruplarına ayır
-    const norrviken = d.games.filter(g => NORRVIKEN_ARENAS.includes(g.arenaId));
-    const edsbergs  = d.games.filter(g => EDSBERGS_ARENAS.includes(g.arenaId));
+    const norrviken = games.filter(g => NORRVIKEN_ARENAS.includes(g.arenaId));
+    const edsbergs  = games.filter(g => EDSBERGS_ARENAS.includes(g.arenaId));
 
     function buildGroup(title, games) {
       if (!games.length) return '';
@@ -2036,7 +2108,7 @@ async function loadOmkladningsrum() {
           var awayStyle = isSFK_away ? 'font-weight:700;color:var(--accent)' : '';
           var typeClass = g.gameType === 'lig' ? 'type-lig' : g.gameType === 'kupa' ? 'type-kupa' : 'type-hazirlik';
           var rooms = getRoomsForArena(g.arenaId);
-          var saved = _roomAssignments[g.gameId] || {};
+          var saved = roomAssignments[g.gameId] || {};
           var homeDropdown = buildRoomDropdown(g.gameId, 'home', saved.homeRoom, rooms);
           var awayDropdown = buildRoomDropdown(g.gameId, 'away', saved.awayRoom, rooms);
 
@@ -2058,15 +2130,14 @@ async function loadOmkladningsrum() {
     }
 
     var totalHtml = '<div style="margin-bottom:1rem;color:var(--muted);font-size:0.85rem;">'
-      + d.count + ' matcher hittades · ' + from + ' → ' + to
+      + games.length + ' matcher · ' + from + ' → ' + to
       + '</div>';
     totalHtml += buildGroup('Norrvikens Omklädningsrum', norrviken);
     totalHtml += buildGroup('Edsbergs Omklädningsrum', edsbergs);
+    if (!norrviken.length && !edsbergs.length) {
+      totalHtml += '<div class="empty-state">Inga matcher matchar sökkriterierna</div>';
+    }
     omkContent.innerHTML = totalHtml;
-
-  } catch(e) {
-    omkContent.innerHTML = '<div class="empty-state">Fel: ' + e.message + '</div>';
-  }
 }
 
 function printOmk() {
