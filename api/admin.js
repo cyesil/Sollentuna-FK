@@ -745,37 +745,71 @@ module.exports = async (req, res) => {
     }
   }
 
-  // DEBUG: MinFotboll endpoint testi — hangi endpoint arena maçlarını döndürüyor?
+  // DEBUG: Gerçek bir maçın arena bilgisini ve çevre endpoint'leri incele
   if (action === 'debugarena') {
-    const arenaId = req.query.arenaId || '21808';
     const from = req.query.from || '2026-04-01';
     const to   = req.query.to   || '2026-06-30';
     try {
       const mfToken = await getMinfotbollToken();
       const results = {};
-      const endpoints = [
-        `/api/calendarapi/getfacilitycalendarevents?facilityId=${arenaId}&fromDate=${from}&toDate=${to}`,
-        `/api/gameresultapi/searchgames?facilityId=${arenaId}&fromDate=${from}&toDate=${to}`,
-        `/api/arenaapi/getgamesbyarena?arenaId=${arenaId}&fromDate=${from}&toDate=${to}`,
-        `/api/gameapi/getgamesbyarena?arenaId=${arenaId}&fromDate=${from}&toDate=${to}`,
-        `/api/gameresultapi/searchgames?arenaId=${arenaId}&fromDate=${from}&toDate=${to}`,
-        `/api/calendarapi/getfacilitycalendarevents?arenaId=${arenaId}&fromDate=${from}&toDate=${to}`,
+
+      // Adım 1: Bilinen bir ligden gerçek maçları çek
+      // P16 2026 liginden maç al
+      const leagueGames = await minfotbollGet(
+        `/api/leagueapi/getleaguegames?leagueId=129362`, mfToken
+      );
+      const sample = Array.isArray(leagueGames) ? leagueGames.slice(0, 3) : [];
+      results['league_sample'] = sample.map(g => ({
+        GameID: g.GameID,
+        GameTime: g.GameTime,
+        Home: g.HomeTeamDisplayName,
+        Away: g.AwayTeamDisplayName,
+        StatusID: g.GameStatusID,
+      }));
+
+      // Adım 2: İlk maçın overview'unu çek — arena bilgisi
+      if (sample.length > 0) {
+        const gameId = sample[0].GameID;
+        const overview = await minfotbollGet(
+          `/api/magazinegameviewapi/initgameoverview?GameID=${gameId}`, mfToken
+        );
+        results['overview_arena'] = overview?.Arena || 'No Arena field';
+        results['overview_keys'] = overview ? Object.keys(overview) : [];
+
+        // Adım 3: getgameheaderinfo — arena var mı?
+        const header = await minfotbollGet(
+          `/api/gameapi/getgameheaderinfo?id=${gameId}`, mfToken
+        );
+        results['header_keys'] = header ? Object.keys(header) : [];
+        results['header_arena'] = header?.Arena || header?.ArenaID || header?.Facility || 'none';
+        results['header_sample'] = header;
+      }
+
+      // Adım 4: Farklı tarih formatlarıyla dene
+      const arenaId = '21808';
+      const formatTests = [
+        `/api/leagueapi/getleaguegamesbyfacility?facilityId=${arenaId}&fromDate=${from}&toDate=${to}`,
+        `/api/leagueapi/getgamesbyfacility?facilityId=${arenaId}&fromDate=${from}&toDate=${to}`,
+        `/api/gameresultapi/getresults?facilityId=${arenaId}&fromDate=${from}&toDate=${to}`,
+        `/api/gameresultapi/getresults?ArenaID=${arenaId}&DateFrom=${from}&DateTo=${to}`,
+        `/api/gameapi/getgames?facilityId=${arenaId}&fromDate=${from}&toDate=${to}`,
+        `/api/matchapi/getmatchesbyfacility?facilityId=${arenaId}&fromDate=${from}&toDate=${to}`,
       ];
-      for (const ep of endpoints) {
+      for (const ep of formatTests) {
         try {
           const r = await minfotbollGet(ep, mfToken);
           const isArr = Array.isArray(r);
-          results[ep] = {
-            ok: true,
-            isArray: isArr,
-            length: isArr ? r.length : (r && typeof r === 'object' ? Object.keys(r).length : -1),
-            keys: isArr && r[0] ? Object.keys(r[0]).slice(0, 8) : (r && typeof r === 'object' ? Object.keys(r).slice(0, 8) : typeof r),
-            sample: isArr && r[0] ? r[0] : r,
-          };
+          const len = isArr ? r.length : (r && typeof r === 'object' ? Object.keys(r).length : -1);
+          if (len > 0) {
+            results[ep] = { HIT: true, isArray: isArr, length: len, sample: isArr ? r[0] : r };
+          } else {
+            results[ep] = { empty: true, type: typeof r };
+          }
         } catch(e) {
-          results[ep] = { ok: false, error: e.message };
+          results[ep] = { error: e.message };
         }
       }
+
       return res.status(200).json(results);
     } catch(e) {
       return res.status(500).json({ error: e.message });
