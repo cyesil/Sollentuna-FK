@@ -603,7 +603,6 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Arena/Venue bilgisi
   // Arena/Venue bilgisi - maçtan arena ID'si al
   if (action === 'venueinfo') {
     const gameId = req.query.gameId;
@@ -623,12 +622,26 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Arena bazlı maç listesi
+  // Omklädningsrum - tüm SFK arenalarındaki maçlar, tarih aralığına göre
   if (action === 'arenagames') {
-    const { arenaId, dateFrom, dateTo } = req.query;
-    if (!arenaId) return res.status(400).json({ error: 'arenaId kravs' });
+    const { dateFrom, dateTo } = req.query;
+
+    // SFK arenası ID'leri
+    const SFK_ARENAS = {
+      21808: 'Norrvikens IP 1',
+      21815: 'Norrvikens IP 2 Hall',
+      20977: 'Sollentuna Fotbollshall',
+      20586: 'Edsbergs Sportfält',
+      20588: 'Edsbergs Sportfält 2',
+      20591: 'Edsbergs Sportfält 3',
+    };
+
     try {
       const mfToken = await getMinfotbollToken();
+      const from = dateFrom ? new Date(dateFrom) : null;
+      const to = dateTo ? new Date(dateTo + 'T23:59:59') : null;
+
+      // Tüm liglerin maçlarını çek
       const allGames = [];
       for (const league of LEAGUES) {
         try {
@@ -637,39 +650,56 @@ module.exports = async (req, res) => {
             mfToken
           );
           if (Array.isArray(games)) {
-            games.forEach(g => allGames.push({...g, leagueLabel: league.label, gameType: league.type}));
+            games.forEach(g => allGames.push({...g, leagueLabel: league.label, gameType: league.type, teamId: league.team}));
           }
         } catch(e) {}
       }
-      const from = dateFrom ? new Date(dateFrom) : null;
-      const to = dateTo ? new Date(dateTo + 'T23:59:59') : null;
-      const filtered = [];
-      for (const g of allGames) {
-        const gameDate = new Date(g.GameDate || g.Date || g.StartTime);
-        if (from && gameDate < from) continue;
-        if (to && gameDate > to) continue;
-        try {
-          const overview = await minfotbollGet(
-            `/api/magazinegameviewapi/initgameoverview?GameID=${g.GameID}`, mfToken
-          );
-          const arena = overview?.Arena || {};
-          if (arena.ArenaID && arena.ArenaID.toString() === arenaId.toString()) {
-            filtered.push({
-              gameId: g.GameID,
-              gameDate: g.GameDate || g.Date || g.StartTime,
-              homeTeam: g.HomeTeamName || g.HomeTeam,
-              awayTeam: g.AwayTeamName || g.AwayTeam,
-              homeScore: g.HomeGoals ?? g.HomeScore ?? null,
-              awayScore: g.AwayGoals ?? g.AwayScore ?? null,
-              arenaId: arena.ArenaID,
-              arenaName: arena.ArenaName,
-              leagueName: g.leagueLabel,
-              gameType: g.gameType,
-            });
-          }
-        } catch(e) {}
+
+      // Tarih filtresi uygula
+      const dateFiltered = allGames.filter(g => {
+        const gameDate = new Date(g.GameDate || g.StartTime);
+        if (from && gameDate < from) return false;
+        if (to && gameDate > to) return false;
+        return true;
+      });
+
+      // Her maç için arena bilgisini çek (paralel, max 10)
+      const results = [];
+      const batchSize = 10;
+      for (let i = 0; i < dateFiltered.length; i += batchSize) {
+        const batch = dateFiltered.slice(i, i + batchSize);
+        const batchResults = await Promise.all(batch.map(async g => {
+          try {
+            const overview = await minfotbollGet(
+              `/api/magazinegameviewapi/initgameoverview?GameID=${g.GameID}`,
+              mfToken
+            );
+            const arena = overview?.Arena || {};
+            if (arena.ArenaID && SFK_ARENAS[arena.ArenaID]) {
+              return {
+                gameId: g.GameID,
+                gameDate: g.GameDate || g.StartTime,
+                homeTeam: g.HomeTeamName || g.HomeTeam,
+                awayTeam: g.AwayTeamName || g.AwayTeam,
+                homeScore: g.HomeGoals ?? null,
+                awayScore: g.AwayGoals ?? null,
+                arenaId: arena.ArenaID,
+                arenaName: SFK_ARENAS[arena.ArenaID],
+                leagueName: g.leagueLabel,
+                gameType: g.gameType,
+                teamId: g.teamId,
+              };
+            }
+            return null;
+          } catch(e) { return null; }
+        }));
+        results.push(...batchResults.filter(Boolean));
       }
-      return res.status(200).json({ arenaId, count: filtered.length, games: filtered });
+
+      // Arena ve tarihe göre sırala
+      results.sort((a,b) => new Date(a.gameDate) - new Date(b.gameDate));
+
+      return res.status(200).json({ count: results.length, games: results });
     } catch(e) {
       return res.status(500).json({ error: e.message });
     }
