@@ -236,6 +236,27 @@
       header { padding: 0 1rem; }
     }
 
+    /* OMKLÄDNINGSRUM STYLES */
+    .omk-group { margin-bottom: 2rem; }
+    .omk-group-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.3rem; font-weight: 900;
+      color: var(--text); margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--accent);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    @media print {
+      #adminOmkladningsrum .btn,
+      #adminOmkladningsrum .filter-bar,
+      .tabs, header, .status-bar, .error-box,
+      #instellningarPanel, #githubPanel { display: none !important; }
+      select { border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; }
+      .omk-group-title { color: #000 !important; border-bottom-color: #0066cc !important; }
+      .table-wrap { border: 1px solid #ccc !important; }
+      th { background: #f0f0f0 !important; color: #000 !important; }
+    }
+
     /* CV STYLES */
     .cv-wrapper {
       max-width: 820px;
@@ -546,6 +567,7 @@
             <input type="date" id="omkTo" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;">
           </div>
           <button class="btn btn-primary" onclick="loadOmkladningsrum()">🏟️ Hämta matcher</button>
+          <button class="btn btn-secondary" onclick="printOmk()">🖨️ Skriv ut / PDF</button>
         </div>
         <div id="omkladningsrumContent"><div class="empty-state">Välj datumintervall och hämta matcher</div></div>
       </div>
@@ -1884,6 +1906,25 @@ const SFK_ARENAS = {
   20591: 'Edsbergs Sportfält 3',
 };
 
+const NORRVIKEN_ARENAS = [21808, 21815, 20977];
+const EDSBERGS_ARENAS  = [20586, 20588, 20591];
+
+const NORRVIKEN_ROOMS = [
+  'Norrviken Omklädningsrum 1','Norrviken Omklädningsrum 2','Norrviken Omklädningsrum 3',
+  'Norrviken Omklädningsrum 4','Norrviken Omklädningsrum 5','Norrviken Omklädningsrum 6',
+  'Norrviken Omklädningsrum 7','Norrviken Omklädningsrum 8','Norrviken Omklädningsrum 9',
+  'Norrviken Omklädningsrum 10'
+];
+const EDSBERGS_ROOMS = [
+  'Edsbergs Omklädningsrum 1','Edsbergs Omklädningsrum 2','Edsbergs Omklädningsrum 3',
+  'Edsbergs Omklädningsrum 4','Edsbergs Omklädningsrum 5','Edsbergs Omklädningsrum 6',
+  'Edsbergs Omklädningsrum 7','Edsbergs Omklädningsrum 8','Edsbergs Omklädningsrum 9',
+  'Edsbergs Omklädningsrum 10','Edsbergs Omklädningsrum Barrakken 1','Edsbergs Omklädningsrum Barrakken 2'
+];
+
+// Kaydedilmiş oda atamaları cache
+let _roomAssignments = {};
+
 function initOmkladningsrum() {
   const today = new Date().toISOString().slice(0,10);
   const nextWeek = new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10);
@@ -1893,73 +1934,143 @@ function initOmkladningsrum() {
   if (toEl && !toEl.value) toEl.value = nextWeek;
 }
 
+function getRoomsForArena(arenaId) {
+  return NORRVIKEN_ARENAS.includes(arenaId) ? NORRVIKEN_ROOMS : EDSBERGS_ROOMS;
+}
+
+function buildRoomDropdown(gameId, team, currentVal, rooms) {
+  var id = 'room_' + gameId + '_' + team;
+  var opts = '<option value="">— Välj omklädningsrum —</option>';
+  rooms.forEach(function(r) {
+    opts += '<option value="' + r + '"' + (currentVal === r ? ' selected' : '') + '>' + r + '</option>';
+  });
+  return '<select id="' + id + '" onchange="saveRoomAssignment(' + gameId + ')" '
+    + 'style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.6rem;border-radius:6px;font-size:0.82rem;width:100%;">'
+    + opts + '</select>';
+}
+
+async function saveRoomAssignment(gameId) {
+  const homeEl = document.getElementById('room_' + gameId + '_home');
+  const awayEl = document.getElementById('room_' + gameId + '_away');
+  const homeRoom = homeEl ? homeEl.value : null;
+  const awayRoom = awayEl ? awayEl.value : null;
+  _roomAssignments[gameId] = { homeRoom, awayRoom };
+
+  // Görsel feedback
+  const row = document.getElementById('omk_row_' + gameId);
+  if (row) {
+    row.style.background = 'rgba(0,230,118,0.05)';
+    setTimeout(() => { if(row) row.style.background = ''; }, 1500);
+  }
+
+  try {
+    await fetch('/api/admin?action=saveroom', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ gameId, homeRoom, awayRoom })
+    });
+  } catch(e) {}
+}
+
 async function loadOmkladningsrum() {
   const from = document.getElementById('omkFrom').value;
   const to = document.getElementById('omkTo').value;
-  const content = document.getElementById('omkladningsrumContent');
-  if (!from || !to) { content.innerHTML = '<div class="empty-state">Välj datumintervall</div>'; return; }
+  const omkContent = document.getElementById('omkladningsrumContent');
+  if (!from || !to) { omkContent.innerHTML = '<div class="empty-state">Välj datumintervall</div>'; return; }
 
-  content.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Hämtar matcher från MinFotboll...</div>';
+  omkContent.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Hämtar matcher från MinFotboll...</div>';
 
   try {
-    const params = new URLSearchParams({action:'arenagames', dateFrom:from, dateTo:to});
-    const r = await fetch('/api/admin?' + params, {headers: authHeaders()});
-    const d = await r.json();
+    // Maçlar ve kayıtlı oda atamaları paralel çek
+    const [gamesRes, roomsRes] = await Promise.all([
+      fetch('/api/admin?' + new URLSearchParams({action:'arenagames', dateFrom:from, dateTo:to}), {headers: authHeaders()}),
+      fetch('/api/admin?action=getrooms', {headers: authHeaders()})
+    ]);
+    const d = await gamesRes.json();
+    const rooms = await roomsRes.json();
+
+    // Oda atamalarını cache'e yükle
+    _roomAssignments = {};
+    if (Array.isArray(rooms)) {
+      rooms.forEach(function(r) { _roomAssignments[r.game_id] = {homeRoom: r.home_room, awayRoom: r.away_room}; });
+    }
 
     if (!d.games || !d.games.length) {
-      content.innerHTML = '<div class="empty-state">Inga matcher hittades för valt datumintervall</div>';
+      omkContent.innerHTML = '<div class="empty-state">Inga matcher hittades för valt datumintervall</div>';
       return;
     }
 
-    // Arena bazında grupla
-    const byArena = {};
-    d.games.forEach(g => {
-      const key = g.arenaId;
-      if (!byArena[key]) byArena[key] = {name: g.arenaName, games: []};
-      byArena[key].games.push(g);
-    });
+    // Norrviken ve Edsbergs gruplarına ayır
+    const norrviken = d.games.filter(g => NORRVIKEN_ARENAS.includes(g.arenaId));
+    const edsbergs  = d.games.filter(g => EDSBERGS_ARENAS.includes(g.arenaId));
 
-    const arenaOrder = [21808, 21815, 20977, 20586, 20588, 20591];
-    let html = '<div style="margin-bottom:0.75rem;color:var(--muted);font-size:0.85rem;">' + d.count + ' matcher hittades · ' + from + ' → ' + to + '</div>';
+    function buildGroup(title, games) {
+      if (!games.length) return '';
+      var html = '<div class="omk-group">';
+      html += '<div class="omk-group-title">🏟️ ' + title + ' <span style="color:var(--muted);font-size:0.85rem;font-weight:400;">(' + games.length + ' matcher)</span></div>';
 
-    arenaOrder.forEach(arenaId => {
-      const arena = byArena[arenaId];
-      if (!arena) return;
-      html += '<div style="margin-bottom:1.5rem;">';
-      html += '<div style="font-family:Barlow Condensed,sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;">';
-      html += '🏟️ ' + arena.name + ' <span style="color:var(--muted);font-size:0.85rem;font-weight:400;">(' + arena.games.length + ' matcher)</span>';
-      html += '</div>';
-      html += '<div class="table-wrap"><table><thead><tr>';
-      html += '<th>Datum</th><th>Tid</th><th>Hemmalag</th><th>Bortalag</th><th>Liga</th><th>Resultat</th>';
-      html += '</tr></thead><tbody>';
-
-      arena.games.forEach(g => {
-        const dt = new Date(g.gameDate);
-        const dateStr = dt.toLocaleDateString('sv-SE', {weekday:'short', day:'2-digit', month:'short'});
-        const timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit', minute:'2-digit'});
-        const isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
-        const isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
-        const homeStyle = isSFK_home ? 'font-weight:700;color:var(--accent)' : '';
-        const awayStyle = isSFK_away ? 'font-weight:700;color:var(--accent)' : '';
-        const typeClass = g.gameType === 'lig' ? 'type-lig' : g.gameType === 'kupa' ? 'type-kupa' : 'type-hazirlik';
-        const score = (g.homeScore !== null && g.awayScore !== null) ? g.homeScore + ' - ' + g.awayScore : '<span style="color:var(--muted)">—</span>';
-        html += '<tr>';
-        html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
-        html += '<td style="font-weight:600;">' + timeStr + '</td>';
-        html += '<td style="' + homeStyle + '">' + (g.homeTeam || '—') + '</td>';
-        html += '<td style="' + awayStyle + '">' + (g.awayTeam || '—') + '</td>';
-        html += '<td><span class="match-type-badge ' + typeClass + '">' + (g.leagueName || '—') + '</span></td>';
-        html += '<td style="font-weight:700;">' + score + '</td>';
-        html += '</tr>';
+      // Arena altgrupları
+      var byArena = {};
+      games.forEach(function(g) {
+        if (!byArena[g.arenaId]) byArena[g.arenaId] = {name: g.arenaName, games: []};
+        byArena[g.arenaId].games.push(g);
       });
 
-      html += '</tbody></table></div></div>';
-    });
+      Object.values(byArena).forEach(function(arena) {
+        html += '<div style="margin-bottom:1.25rem;">';
+        html += '<div style="font-size:0.85rem;color:var(--muted);font-weight:600;margin-bottom:0.5rem;padding-left:0.25rem;">📍 ' + arena.name + '</div>';
+        html += '<div class="table-wrap"><table><thead><tr>';
+        html += '<th style="width:100px">Datum</th><th style="width:55px">Tid</th>';
+        html += '<th>Hemmalag</th><th style="width:180px">Hemma omklädningsrum</th>';
+        html += '<th>Bortalag</th><th style="width:180px">Borta omklädningsrum</th>';
+        html += '<th style="width:70px">Liga</th>';
+        html += '</tr></thead><tbody>';
 
-    content.innerHTML = html;
+        arena.games.forEach(function(g) {
+          var dt = new Date(g.gameDate);
+          var dateStr = dt.toLocaleDateString('sv-SE', {weekday:'short', day:'2-digit', month:'short'});
+          var timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit', minute:'2-digit'});
+          var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
+          var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
+          var homeStyle = isSFK_home ? 'font-weight:700;color:var(--accent)' : '';
+          var awayStyle = isSFK_away ? 'font-weight:700;color:var(--accent)' : '';
+          var typeClass = g.gameType === 'lig' ? 'type-lig' : g.gameType === 'kupa' ? 'type-kupa' : 'type-hazirlik';
+          var rooms = getRoomsForArena(g.arenaId);
+          var saved = _roomAssignments[g.gameId] || {};
+          var homeDropdown = buildRoomDropdown(g.gameId, 'home', saved.homeRoom, rooms);
+          var awayDropdown = buildRoomDropdown(g.gameId, 'away', saved.awayRoom, rooms);
+
+          html += '<tr id="omk_row_' + g.gameId + '" style="transition:background 0.4s;">';
+          html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
+          html += '<td style="font-weight:600;">' + timeStr + '</td>';
+          html += '<td style="' + homeStyle + '">' + (g.homeTeam || '—') + '</td>';
+          html += '<td>' + homeDropdown + '</td>';
+          html += '<td style="' + awayStyle + '">' + (g.awayTeam || '—') + '</td>';
+          html += '<td>' + awayDropdown + '</td>';
+          html += '<td><span class="match-type-badge ' + typeClass + '">' + (g.leagueName || '—') + '</span></td>';
+          html += '</tr>';
+        });
+
+        html += '</tbody></table></div></div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    var totalHtml = '<div style="margin-bottom:1rem;color:var(--muted);font-size:0.85rem;">'
+      + d.count + ' matcher hittades · ' + from + ' → ' + to
+      + '</div>';
+    totalHtml += buildGroup('Norrvikens Omklädningsrum', norrviken);
+    totalHtml += buildGroup('Edsbergs Omklädningsrum', edsbergs);
+    omkContent.innerHTML = totalHtml;
+
   } catch(e) {
-    content.innerHTML = '<div class="empty-state">Fel: ' + e.message + '</div>';
+    omkContent.innerHTML = '<div class="empty-state">Fel: ' + e.message + '</div>';
   }
+}
+
+function printOmk() {
+  window.print();
 }
 
 // ===================== GITHUB DEPLOY =====================
