@@ -603,6 +603,51 @@ module.exports = async (req, res) => {
     }
   }
 
+  // Soyunma odası atamasını kaydet
+  if (action === 'saveroom') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'POST gerekli' });
+    let body = '';
+    await new Promise(resolve => { req.on('data', c => body += c); req.on('end', resolve); });
+    const { gameId, homeRoom, awayRoom } = JSON.parse(body);
+    if (!gameId) return res.status(400).json({ error: 'gameId krävs' });
+
+    // Upsert - game_id unique
+    const existing = await supabaseGet(`/room_assignments?game_id=eq.${gameId}&select=id`);
+    const url = new URL(SUPABASE_URL);
+    const rowData = { game_id: gameId, home_room: homeRoom || null, away_room: awayRoom || null };
+
+    if (Array.isArray(existing) && existing.length > 0) {
+      // Update
+      await new Promise((resolve, reject) => {
+        const bodyStr = JSON.stringify(rowData);
+        const req2 = require('https').request({
+          host: url.host, path: `/rest/v1/room_assignments?game_id=eq.${gameId}`,
+          method: 'PATCH',
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal', 'Content-Length': Buffer.byteLength(bodyStr) }
+        }, res2 => { res2.on('data',()=>{}); res2.on('end', resolve); });
+        req2.on('error', reject); req2.write(bodyStr); req2.end();
+      });
+    } else {
+      // Insert
+      await new Promise((resolve, reject) => {
+        const bodyStr = JSON.stringify(rowData);
+        const req2 = require('https').request({
+          host: url.host, path: `/rest/v1/room_assignments`,
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal', 'Content-Length': Buffer.byteLength(bodyStr) }
+        }, res2 => { res2.on('data',()=>{}); res2.on('end', resolve); });
+        req2.on('error', reject); req2.write(bodyStr); req2.end();
+      });
+    }
+    return res.status(200).json({ success: true });
+  }
+
+  // Soyunma odası atamalarını getir
+  if (action === 'getrooms') {
+    const rooms = await supabaseGet('/room_assignments?select=*');
+    return res.status(200).json(Array.isArray(rooms) ? rooms : []);
+  }
+
   // Arena/Venue bilgisi - maçtan arena ID'si al
   if (action === 'venueinfo') {
     const gameId = req.query.gameId;
@@ -641,23 +686,35 @@ module.exports = async (req, res) => {
       const from = dateFrom ? new Date(dateFrom) : null;
       const to = dateTo ? new Date(dateTo + 'T23:59:59') : null;
 
-      // Tüm liglerin maçlarını çek
+      // Tüm liglerin maçlarını çek - leagueapi kullan (fetchmatches ile aynı)
       const allGames = [];
+      const seen = new Set();
       for (const league of LEAGUES) {
         try {
           const games = await minfotbollGet(
-            `/api/teamapi/getgamesforteam?TeamID=${league.team}&LeagueID=${league.id}`,
+            `/api/leagueapi/getleaguegames?leagueId=${league.id}`,
             mfToken
           );
           if (Array.isArray(games)) {
-            games.forEach(g => allGames.push({...g, leagueLabel: league.label, gameType: league.type, teamId: league.team}));
+            games.forEach(g => {
+              if (seen.has(g.GameID)) return;
+              // Sadece SFK'nın oynadığı maçlar
+              if (g.HomeTeamID !== league.team && g.AwayTeamID !== league.team) return;
+              seen.add(g.GameID);
+              allGames.push({
+                ...g,
+                leagueLabel: league.label,
+                gameType: league.type,
+                teamId: league.team
+              });
+            });
           }
         } catch(e) {}
       }
 
       // Tarih filtresi uygula
       const dateFiltered = allGames.filter(g => {
-        const gameDate = new Date(g.GameDate || g.StartTime);
+        const gameDate = new Date(g.GameTime || g.GameDate || g.StartTime);
         if (from && gameDate < from) return false;
         if (to && gameDate > to) return false;
         return true;
@@ -678,11 +735,11 @@ module.exports = async (req, res) => {
             if (arena.ArenaID && SFK_ARENAS[arena.ArenaID]) {
               return {
                 gameId: g.GameID,
-                gameDate: g.GameDate || g.StartTime,
-                homeTeam: g.HomeTeamName || g.HomeTeam,
-                awayTeam: g.AwayTeamName || g.AwayTeam,
-                homeScore: g.HomeGoals ?? null,
-                awayScore: g.AwayGoals ?? null,
+                gameDate: g.GameTime || g.GameDate || g.StartTime,
+                homeTeam: g.HomeTeamDisplayName || g.HomeTeamName || g.HomeTeam,
+                awayTeam: g.AwayTeamDisplayName || g.AwayTeamName || g.AwayTeam,
+                homeScore: g.HomeTeamScore ?? g.HomeGoals ?? null,
+                awayScore: g.AwayTeamScore ?? g.AwayGoals ?? null,
                 arenaId: arena.ArenaID,
                 arenaName: SFK_ARENAS[arena.ArenaID],
                 leagueName: g.leagueLabel,
