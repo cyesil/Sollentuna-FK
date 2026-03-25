@@ -604,17 +604,72 @@ module.exports = async (req, res) => {
   }
 
   // Arena/Venue bilgisi
+  // Arena/Venue bilgisi - maçtan arena ID'si al
   if (action === 'venueinfo') {
     const gameId = req.query.gameId;
     if (!gameId) return res.status(400).json({ error: 'gameId kravs' });
     try {
       const mfToken = await getMinfotbollToken();
       const overview = await minfotbollGet(`/api/magazinegameviewapi/initgameoverview?GameID=${gameId}`, mfToken);
+      const arena = overview?.Arena || {};
       return res.status(200).json({
-        raw: overview,
-        venueId: overview?.VenueID || overview?.ArenaID || overview?.Venue?.ID || null,
-        venueName: overview?.VenueName || overview?.ArenaName || overview?.Venue?.Name || null,
+        arenaId: arena.ArenaID || null,
+        arenaName: arena.ArenaName || null,
+        latitude: arena.Latitude || null,
+        longitude: arena.Longitude || null,
       });
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // Arena bazlı maç listesi
+  if (action === 'arenagames') {
+    const { arenaId, dateFrom, dateTo } = req.query;
+    if (!arenaId) return res.status(400).json({ error: 'arenaId kravs' });
+    try {
+      const mfToken = await getMinfotbollToken();
+      const allGames = [];
+      for (const league of LEAGUES) {
+        try {
+          const games = await minfotbollGet(
+            `/api/teamapi/getgamesforteam?TeamID=${league.team}&LeagueID=${league.id}`,
+            mfToken
+          );
+          if (Array.isArray(games)) {
+            games.forEach(g => allGames.push({...g, leagueLabel: league.label, gameType: league.type}));
+          }
+        } catch(e) {}
+      }
+      const from = dateFrom ? new Date(dateFrom) : null;
+      const to = dateTo ? new Date(dateTo + 'T23:59:59') : null;
+      const filtered = [];
+      for (const g of allGames) {
+        const gameDate = new Date(g.GameDate || g.Date || g.StartTime);
+        if (from && gameDate < from) continue;
+        if (to && gameDate > to) continue;
+        try {
+          const overview = await minfotbollGet(
+            `/api/magazinegameviewapi/initgameoverview?GameID=${g.GameID}`, mfToken
+          );
+          const arena = overview?.Arena || {};
+          if (arena.ArenaID && arena.ArenaID.toString() === arenaId.toString()) {
+            filtered.push({
+              gameId: g.GameID,
+              gameDate: g.GameDate || g.Date || g.StartTime,
+              homeTeam: g.HomeTeamName || g.HomeTeam,
+              awayTeam: g.AwayTeamName || g.AwayTeam,
+              homeScore: g.HomeGoals ?? g.HomeScore ?? null,
+              awayScore: g.AwayGoals ?? g.AwayScore ?? null,
+              arenaId: arena.ArenaID,
+              arenaName: arena.ArenaName,
+              leagueName: g.leagueLabel,
+              gameType: g.gameType,
+            });
+          }
+        } catch(e) {}
+      }
+      return res.status(200).json({ arenaId, count: filtered.length, games: filtered });
     } catch(e) {
       return res.status(500).json({ error: e.message });
     }
