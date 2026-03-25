@@ -446,6 +446,7 @@
         <button class="tab" onclick="adminTab('stats')">Statistik</button>
         <button class="tab" id="usersTab" onclick="adminTab('users')" style="display:none;">Användare</button>
         <button class="tab" onclick="adminTab('cv')">📄 CV</button>
+        <button class="tab" id="omkladningsrumTab" onclick="adminTab('omkladningsrum')" style="display:none;">🏟️ Omklädningsrum</button>
       </div>
 
       <!-- MAÇLAR TAB -->
@@ -533,6 +534,22 @@
       </div>
 
       <!-- KULLANICILAR TAB -->
+      <!-- OMKLÄDNINGSRUM TAB -->
+      <div id="adminOmkladningsrum" style="display:none;">
+        <div style="display:flex;align-items:flex-end;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+          <div>
+            <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.5px;">Från datum</label>
+            <input type="date" id="omkFrom" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.5px;">Till datum</label>
+            <input type="date" id="omkTo" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;">
+          </div>
+          <button class="btn btn-primary" onclick="loadOmkladningsrum()">🏟️ Hämta matcher</button>
+        </div>
+        <div id="omkladningsrumContent"><div class="empty-state">Välj datumintervall och hämta matcher</div></div>
+      </div>
+
       <div id="adminUsers" style="display:none;">
         <div class="section-title">Lägg till användare</div>
         <!-- MinFotboll kişi arama -->
@@ -776,6 +793,9 @@ function showApp() {
   // Users tabı: admin ve tränare görsün
   const usersTab = document.getElementById('usersTab');
   if (usersTab) usersTab.style.display = (u.role === 'admin' || u.role === 'antrenor') ? 'inline-block' : 'none';
+  // Omklädningsrum tabı: sadece admin
+  const omkTab = document.getElementById('omkladningsrumTab');
+  if (omkTab) omkTab.style.display = u.role === 'admin' ? 'inline-block' : 'none';
   // Deploy butonu sadece admin
   const ghBtn = document.getElementById('githubPushBtn');
   if (ghBtn) ghBtn.style.display = u.role === 'admin' ? 'inline-block' : 'none';
@@ -800,7 +820,7 @@ function setError(msg) {
 
 // ===================== ADMIN TABS =====================
 function adminTab(tab) {
-  const tabs = ['matches','stats','users','cv'];
+  const tabs = ['matches','stats','users','cv','omkladningsrum'];
   document.querySelectorAll('#viewAdmin .tab').forEach((t, i) => {
     t.classList.toggle('active', tabs[i] === tab);
   });
@@ -808,7 +828,9 @@ function adminTab(tab) {
   document.getElementById('adminStats').style.display = tab === 'stats' ? 'block' : 'none';
   document.getElementById('adminUsers').style.display = tab === 'users' ? 'block' : 'none';
   document.getElementById('adminCv').style.display = tab === 'cv' ? 'block' : 'none';
+  document.getElementById('adminOmkladningsrum').style.display = tab === 'omkladningsrum' ? 'block' : 'none';
   if (tab === 'cv') populateCvPlayerSelect();
+  if (tab === 'omkladningsrum') initOmkladningsrum();
 }
 
 // ===================== FETCH MATCHES =====================
@@ -1850,6 +1872,94 @@ async function loadOyuncuLeagueFilters() {
       list.addEventListener('click', (e) => e.stopPropagation());
     }
   } catch(e) { console.error('loadOyuncuLeagueFilters error:', e); }
+}
+
+// ===================== OMKLÄDNINGSRUM =====================
+const SFK_ARENAS = {
+  21808: 'Norrvikens IP 1',
+  21815: 'Norrvikens IP 2 Hall',
+  20977: 'Sollentuna Fotbollshall',
+  20586: 'Edsbergs Sportfält',
+  20588: 'Edsbergs Sportfält 2',
+  20591: 'Edsbergs Sportfält 3',
+};
+
+function initOmkladningsrum() {
+  const today = new Date().toISOString().slice(0,10);
+  const nextWeek = new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10);
+  const fromEl = document.getElementById('omkFrom');
+  const toEl = document.getElementById('omkTo');
+  if (fromEl && !fromEl.value) fromEl.value = today;
+  if (toEl && !toEl.value) toEl.value = nextWeek;
+}
+
+async function loadOmkladningsrum() {
+  const from = document.getElementById('omkFrom').value;
+  const to = document.getElementById('omkTo').value;
+  const content = document.getElementById('omkladningsrumContent');
+  if (!from || !to) { content.innerHTML = '<div class="empty-state">Välj datumintervall</div>'; return; }
+
+  content.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Hämtar matcher från MinFotboll...</div>';
+
+  try {
+    const params = new URLSearchParams({action:'arenagames', dateFrom:from, dateTo:to});
+    const r = await fetch('/api/admin?' + params, {headers: authHeaders()});
+    const d = await r.json();
+
+    if (!d.games || !d.games.length) {
+      content.innerHTML = '<div class="empty-state">Inga matcher hittades för valt datumintervall</div>';
+      return;
+    }
+
+    // Arena bazında grupla
+    const byArena = {};
+    d.games.forEach(g => {
+      const key = g.arenaId;
+      if (!byArena[key]) byArena[key] = {name: g.arenaName, games: []};
+      byArena[key].games.push(g);
+    });
+
+    const arenaOrder = [21808, 21815, 20977, 20586, 20588, 20591];
+    let html = '<div style="margin-bottom:0.75rem;color:var(--muted);font-size:0.85rem;">' + d.count + ' matcher hittades · ' + from + ' → ' + to + '</div>';
+
+    arenaOrder.forEach(arenaId => {
+      const arena = byArena[arenaId];
+      if (!arena) return;
+      html += '<div style="margin-bottom:1.5rem;">';
+      html += '<div style="font-family:Barlow Condensed,sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;">';
+      html += '🏟️ ' + arena.name + ' <span style="color:var(--muted);font-size:0.85rem;font-weight:400;">(' + arena.games.length + ' matcher)</span>';
+      html += '</div>';
+      html += '<div class="table-wrap"><table><thead><tr>';
+      html += '<th>Datum</th><th>Tid</th><th>Hemmalag</th><th>Bortalag</th><th>Liga</th><th>Resultat</th>';
+      html += '</tr></thead><tbody>';
+
+      arena.games.forEach(g => {
+        const dt = new Date(g.gameDate);
+        const dateStr = dt.toLocaleDateString('sv-SE', {weekday:'short', day:'2-digit', month:'short'});
+        const timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit', minute:'2-digit'});
+        const isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
+        const isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
+        const homeStyle = isSFK_home ? 'font-weight:700;color:var(--accent)' : '';
+        const awayStyle = isSFK_away ? 'font-weight:700;color:var(--accent)' : '';
+        const typeClass = g.gameType === 'lig' ? 'type-lig' : g.gameType === 'kupa' ? 'type-kupa' : 'type-hazirlik';
+        const score = (g.homeScore !== null && g.awayScore !== null) ? g.homeScore + ' - ' + g.awayScore : '<span style="color:var(--muted)">—</span>';
+        html += '<tr>';
+        html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
+        html += '<td style="font-weight:600;">' + timeStr + '</td>';
+        html += '<td style="' + homeStyle + '">' + (g.homeTeam || '—') + '</td>';
+        html += '<td style="' + awayStyle + '">' + (g.awayTeam || '—') + '</td>';
+        html += '<td><span class="match-type-badge ' + typeClass + '">' + (g.leagueName || '—') + '</span></td>';
+        html += '<td style="font-weight:700;">' + score + '</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table></div></div>';
+    });
+
+    content.innerHTML = html;
+  } catch(e) {
+    content.innerHTML = '<div class="empty-state">Fel: ' + e.message + '</div>';
+  }
 }
 
 // ===================== GITHUB DEPLOY =====================
