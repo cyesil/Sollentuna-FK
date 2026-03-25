@@ -671,7 +671,6 @@ module.exports = async (req, res) => {
   if (action === 'arenagames') {
     const { dateFrom, dateTo, arenaId: reqArenaId } = req.query;
 
-    // SFK arenası ID'leri
     const SFK_ARENAS = {
       21808: 'Norrvikens IP 1',
       21815: 'Norrvikens IP 2 Hall',
@@ -681,10 +680,210 @@ module.exports = async (req, res) => {
       20591: 'Edsbergs Sportfält 3',
     };
 
-    // Hangi arenaları sorgulayacağız
+    const FOGIS_API_KEY = '22a66c836d2f49a3bb4820131eb5d1a4';
+    const FOGIS_HOST    = 'forening-api.svenskfotboll.se';
+
+    function fogisApiGet(path) {
+      return new Promise((resolve, reject) => {
+        const fullPath = path.startsWith('/') ? path : '/' + path;
+        const req2 = require('https').request({
+          host: FOGIS_HOST,
+          path: fullPath,
+          method: 'GET',
+          headers: {
+            'ApiKey': FOGIS_API_KEY,
+            'Accept': 'application/json',
+            'User-Agent': 'SFK-App/1.0'
+          }
+        }, (response) => {
+          let data = '';
+          response.on('data', chunk => data += chunk);
+          response.on('end', () => {
+            try { resolve(JSON.parse(data)); } catch(e) { resolve(null); }
+          });
+        });
+        req2.on('error', reject);
+        req2.setTimeout(20000, () => { req2.destroy(); reject(new Error('timeout')); });
+        req2.end();
+      });
+    }
+
     const arenasToQuery = reqArenaId
       ? { [reqArenaId]: SFK_ARENAS[reqArenaId] || 'Arena ' + reqArenaId }
       : SFK_ARENAS;
+
+    const from = dateFrom || new Date().toISOString().slice(0, 10);
+    const to   = dateTo   || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    try {
+      const allGames = [];
+      const seen = new Set();
+
+      // FOGIS Förening API — her arena için maçları çek
+      // Endpoint: /club/matches?facilityId=XXX&from=YYYY-MM-DD&to=YYYY-MM-DD
+      const arenaEntries = Object.entries(arenasToQuery);
+
+      await Promise.all(arenaEntries.map(async ([arenaIdStr, arenaName]) => {
+        const arenaIdNum = parseInt(arenaIdStr);
+
+        // Denenecek endpoint kombinasyonları
+        const endpoints = [
+          `/matches?facilityId=${arenaIdNum}&from=${from}&to=${to}`,
+          `/club/matches?facilityId=${arenaIdNum}&from=${from}&to=${to}`,
+          `/matchresults?facilityId=${arenaIdNum}&fromDate=${from}&toDate=${to}`,
+          `/club/matchresults?facilityId=${arenaIdNum}&fromDate=${from}&toDate=${to}`,
+          `/games?arenaId=${arenaIdNum}&dateFrom=${from}&dateTo=${to}`,
+          `/club/games?arenaId=${arenaIdNum}&dateFrom=${from}&dateTo=${to}`,
+        ];
+
+        let games = null;
+        for (const ep of endpoints) {
+          try {
+            const result = await fogisApiGet(ep);
+            if (Array.isArray(result) && result.length > 0) { games = result; break; }
+            if (result && Array.isArray(result.matches) && result.matches.length > 0) { games = result.matches; break; }
+            if (result && Array.isArray(result.games) && result.games.length > 0) { games = result.games; break; }
+          } catch(e) {}
+        }
+
+        // FOGIS çalıştıysa ekle
+        if (Array.isArray(games)) {
+          games.forEach(g => {
+            const gameId = g.matchId || g.id || g.GameId || g.gameId || g.MatchId;
+            if (!gameId || seen.has(gameId)) return;
+            seen.add(gameId);
+            const homeTeam = g.homeTeamName || (g.homeTeam && (g.homeTeam.teamName || g.homeTeam.name)) || g.HomeTeamName || '—';
+            const awayTeam = g.awayTeamName || (g.awayTeam && (g.awayTeam.teamName || g.awayTeam.name)) || g.AwayTeamName || '—';
+            const league   = g.competitionName || g.leagueName || g.seriesName || g.CompetitionName || '—';
+            allGames.push({
+              gameId, gameDate: g.startTime || g.matchDate || g.date || g.GameTime,
+              homeTeam, awayTeam,
+              homeScore: g.homeGoals ?? g.HomeGoals ?? null,
+              awayScore: g.awayGoals ?? g.AwayGoals ?? null,
+              arenaId: arenaIdNum, arenaName,
+              leagueName: league, gameType: getGameType(league),
+            });
+          });
+        }
+      }));
+
+      // FOGIS çalışmadıysa — MinFotboll'dan tüm SFK takımlarının maçlarını çek + arena filtresi
+      if (allGames.length === 0) {
+        const mfToken = await getMinfotbollToken();
+        const fromDate = new Date(from);
+        const toDate   = new Date(to + 'T23:59:59');
+
+        // takim.txt'deki tüm takım ID'lerini kapsayan geniş liste
+        // Aktif sezon 2026 + 2025 takımları dahil
+        const ALL_SFK_TEAM_IDS = [
+          245984, 151108, 303423, 233248, 212391, 318812, 303424, 342453,
+          287010, 318035, 263767, 291602, 278298,
+          // 2025
+          345555, 345556, 345557, 345559, 345560, 345561, 345562, 345563,
+          345565, 345566, 345567, 345568, 345569, 345570, 345571, 345575,
+          345578, 345580, 345586, 345594, 345595, 345596, 345598, 345600,
+          345602, 345603, 345604, 345605, 345606, 345609, 345610, 345612,
+          345615, 345617, 345627, 345628, 345629, 345639, 345640, 345641,
+          348052, 348053, 348055, 348056, 348057, 348059, 348061, 348062, 348063,
+          // 2026
+          353493, 354394, 354393, 354497, 354499, 354502, 354504, 354507,
+          354516, 354519, 354524, 354528, 354532, 354533, 354535, 354538,
+          354540, 354557, 354746, 354747, 354748, 354751, 354753, 354756,
+          354759, 354766, 354767, 354771, 354775, 354776, 354778, 354784,
+          354785, 354788, 354790, 354792, 354795, 354796, 354797, 354803,
+          354804, 354805, 354808, 354809, 354810, 354811, 354812, 354813,
+          354863, 354877, 354885, 354886, 354887, 354889, 354890, 354894,
+          354898, 354899, 354906, 354908, 354910, 354914, 354920, 354922,
+          354923, 354926, 354930, 354934, 354937, 354940, 354943, 354957,
+          354960, 354961, 354963, 354967, 354970, 354972, 354982, 354984,
+          354986, 354991, 354996,
+          366073, 366074, 366498, 366637, 366640, 366643, 366644, 366645,
+          366646, 366647, 366648, 366916, 366917,
+          367665, 367666, 367669, 367670, 367672, 367673, 367676, 367677,
+          367678, 367679, 367680, 367685, 367687, 367694, 367695, 367697,
+          367700, 367703, 367704, 367708, 367709, 367713, 367717, 367722,
+          367726, 367727, 367728, 367730, 367731, 367733,
+          371423, 371424, 371427, 371428, 371432, 371433,
+          372401, 374769, 374800,
+          376963, 376964, 376965, 376970, 376973, 376975, 376976,
+          376983, 376984, 376985, 376986, 376988,
+          377009, 377012, 377013, 377015, 377023, 377026, 377029,
+          377035, 377047, 377050, 377054, 377080, 377085, 377087, 377088,
+          377089, 377090, 377091, 377093, 377095, 377097, 377099, 377101,
+          377103, 377104, 377105, 377107, 377108, 377109, 377111, 377113,
+          377114, 377115, 377116, 377118, 377119, 377120, 377121, 377122,
+          377123, 377124, 377125, 377126, 377127, 377131, 377133, 377134,
+          377139, 377140, 377143, 377152, 377153, 377158, 377160, 377165,
+          377166, 377167, 377173, 377174, 377176, 377177, 377178, 377180,
+          377181, 377182, 377188, 377191, 377193, 377194, 377196, 377203,
+          377205,
+        ];
+
+        // Her takım için maçları çek — getgamesbyteam veya benzer endpoint
+        const pendingGames = [];
+        const teamSeen = new Set();
+
+        // Batch olarak çek (5'erli gruplar)
+        for (let i = 0; i < ALL_SFK_TEAM_IDS.length; i += 5) {
+          const batch = ALL_SFK_TEAM_IDS.slice(i, i + 5);
+          const results = await Promise.allSettled(batch.map(teamId =>
+            minfotbollGet(
+              `/api/calendarapi/getteamcalendarevents?teamId=${teamId}&fromDate=${from}&toDate=${to}`,
+              mfToken
+            ).catch(() => [])
+          ));
+          results.forEach(r => {
+            if (r.status !== 'fulfilled') return;
+            const val = r.value;
+            const events = Array.isArray(val) ? val : (val?.Events || val?.events || []);
+            events.forEach(g => {
+              const gameId = g.GameID || g.gameId || g.EventID;
+              if (!gameId || teamSeen.has(gameId)) return;
+              const gameDate = new Date(g.GameTime || g.StartDate || g.Date || g.StartTime);
+              if (gameDate < fromDate || gameDate > toDate) return;
+              teamSeen.add(gameId);
+              pendingGames.push(g);
+            });
+          });
+        }
+
+        // Arena bilgisi için her maçı kontrol et (paralel, 6'lı batch)
+        for (let i = 0; i < pendingGames.length; i += 6) {
+          const batch = pendingGames.slice(i, i + 6);
+          const checked = await Promise.allSettled(batch.map(async g => {
+            const gameId = g.GameID || g.gameId || g.EventID;
+            if (!gameId || seen.has(gameId)) return null;
+            try {
+              const overview = await minfotbollGet(
+                `/api/magazinegameviewapi/initgameoverview?GameID=${gameId}`, mfToken
+              );
+              const arenaId = overview?.Arena?.ArenaID;
+              if (!arenaId || !SFK_ARENAS[arenaId]) return null;
+              if (!Object.keys(arenasToQuery).includes(arenaId.toString())) return null;
+              seen.add(gameId);
+              const league = overview?.Competition?.CompetitionName || g.LeagueName || '—';
+              return {
+                gameId,
+                gameDate: g.GameTime || g.StartDate || g.Date,
+                homeTeam: overview?.HomeTeam?.TeamName || g.HomeTeamName || '—',
+                awayTeam: overview?.AwayTeam?.TeamName || g.AwayTeamName || '—',
+                homeScore: overview?.HomeTeamGoals ?? null,
+                awayScore: overview?.AwayTeamGoals ?? null,
+                arenaId, arenaName: SFK_ARENAS[arenaId],
+                leagueName: league, gameType: getGameType(league),
+              };
+            } catch(e) { return null; }
+          }));
+          checked.forEach(r => { if (r.status === 'fulfilled' && r.value) allGames.push(r.value); });
+        }
+      }
+
+      allGames.sort((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
+      return res.status(200).json({ count: allGames.length, games: allGames });
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
 
     // FOGIS public API - arena bazlı maç çekme
     function fogisGet(path) {
@@ -890,6 +1089,65 @@ module.exports = async (req, res) => {
     } catch(e) {
       return res.status(500).json({ error: e.message });
     }
+  }
+
+  // DEBUG: MinFotboll endpoint testi
+  if (action === 'debugarena') {
+    const testArenaId = req.query.arenaId || '21808';
+    const from = req.query.from || new Date().toISOString().slice(0,10);
+    const to = req.query.to || new Date(Date.now() + 60*24*60*60*1000).toISOString().slice(0,10);
+    const mfToken = await getMinfotbollToken();
+    const FOGIS_API_KEY = '22a66c836d2f49a3bb4820131eb5d1a4';
+
+    const results = {};
+
+    // MinFotboll endpoint'lerini test et
+    const mfEndpoints = [
+      `/api/gameresultapi/searchgames?facilityId=${testArenaId}&fromDate=${from}&toDate=${to}`,
+      `/api/gameresultapi/searchgames?arenaId=${testArenaId}&fromDate=${from}&toDate=${to}`,
+      `/api/calendarapi/getfacilitycalendarevents?facilityId=${testArenaId}&fromDate=${from}&toDate=${to}`,
+      `/api/arenaapi/getgamesbyarena?arenaId=${testArenaId}&fromDate=${from}&toDate=${to}`,
+      `/api/gameapi/getgamesbyarena?arenaId=${testArenaId}&fromDate=${from}&toDate=${to}`,
+      `/api/gameapi/getgamesbyarena?ArenaID=${testArenaId}&DateFrom=${from}&DateTo=${to}`,
+      `/api/magazinegameviewapi/searchgames?arenaId=${testArenaId}&fromDate=${from}&toDate=${to}`,
+    ];
+
+    await Promise.all(mfEndpoints.map(async ep => {
+      try {
+        const r = await minfotbollGet(ep, mfToken);
+        const isArray = Array.isArray(r);
+        const len = isArray ? r.length : (r && typeof r === 'object' ? Object.keys(r).length : -1);
+        results[ep] = { status: 'ok', isArray, len, sample: isArray && r[0] ? Object.keys(r[0]).slice(0,5) : (r && typeof r === 'object' ? Object.keys(r).slice(0,5) : r) };
+      } catch(e) { results[ep] = { status: 'error', msg: e.message }; }
+    }));
+
+    // FOGIS API test
+    const fogisEndpoints = [
+      `/matches?facilityIds=${testArenaId}&minDate=${from}&maxDate=${to}`,
+      `/club/matches?facilityId=${testArenaId}&from=${from}&to=${to}`,
+    ];
+
+    await Promise.all(fogisEndpoints.map(async ep => {
+      try {
+        const r = await new Promise((resolve, reject) => {
+          const isClub = ep.startsWith('/club');
+          const req2 = require('https').request({
+            host: 'forening-api.svenskfotboll.se',
+            path: isClub ? ep : `/club${ep}`,
+            method: 'GET',
+            headers: { 'ApiKey': FOGIS_API_KEY, 'Accept': 'application/json' }
+          }, (response) => {
+            let data=''; response.on('data',c=>data+=c);
+            response.on('end',()=>{try{resolve(JSON.parse(data))}catch(e){resolve(data)}});
+          });
+          req2.on('error', reject); req2.end();
+        });
+        const isArray = Array.isArray(r);
+        results['FOGIS:'+ep] = { status: 'ok', isArray, len: isArray ? r.length : -1, sample: isArray && r[0] ? Object.keys(r[0]).slice(0,5) : r };
+      } catch(e) { results['FOGIS:'+ep] = { status: 'error', msg: e.message }; }
+    }));
+
+    return res.status(200).json(results);
   }
 
   // SFK kadro listesi - oyuncular + staff
