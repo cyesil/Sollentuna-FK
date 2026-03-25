@@ -679,3 +679,5 @@ module.exports = async (req, res) => {
 
   res.status(400).json({ error: 'Ogiltig åtgärd' });
 };
+
+// deploy trigger Wed Mar 25 13:32:45 UTC 2026
