@@ -2163,7 +2163,8 @@ function buildOmkTable(games, rooms) {
     var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
     var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
 
-    var prevGame = arena.games[arena.games.indexOf(g) - 1];
+    var gIdx     = games.indexOf(g);
+    var prevGame = gIdx > 0 ? games[gIdx - 1] : null;
     var prevDate = prevGame ? new Date(prevGame.gameDate).toISOString().slice(0,10) : null;
     var curDate  = new Date(g.gameDate).toISOString().slice(0,10);
     var dayBorder = (prevDate && prevDate !== curDate) ? 'border-top:3px solid var(--accent);' : '';
