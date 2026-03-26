@@ -854,7 +854,34 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: e.message });
     }
   }
-if (action === 'rawgame') {
+if (action === 'clubgames') {
+    try {
+      const mfToken = await getMinfotbollToken();
+      const clubId = req.query.clubId || '1917';
+      const [coming, previous] = await Promise.all([
+        minfotbollGet(`/api/clubapi/getcomingclubgames?ClubID=${clubId}&LastGameID=0`, mfToken),
+        minfotbollGet(`/api/clubapi/getpreviousclubgames?ClubID=${clubId}&LastGameID=0`, mfToken),
+      ]);
+      // Tüm maçlardan SFK takımlarını ve ID'lerini topla
+      const teams = {};
+      [...(Array.isArray(coming) ? coming : []), ...(Array.isArray(previous) ? previous : [])].forEach(g => {
+        if (g.HomeTeamClubID === parseInt(clubId) || g.HomeTeamClubName?.toLowerCase().includes('sollentuna')) {
+          teams[g.HomeTeamID] = g.HomeTeamDisplayName;
+        }
+        if (g.AwayTeamClubID === parseInt(clubId) || g.AwayTeamClubName?.toLowerCase().includes('sollentuna')) {
+          teams[g.AwayTeamID] = g.AwayTeamDisplayName;
+        }
+      });
+      return res.status(200).json({
+        comingCount: Array.isArray(coming) ? coming.length : 0,
+        previousCount: Array.isArray(previous) ? previous.length : 0,
+        sfkTeams: teams,
+        comingSample: Array.isArray(coming) ? coming.slice(0, 2) : coming,
+      });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  if (action === 'rawgame') {
     try {
       const mfToken = await getMinfotbollToken();
       const leagueId = req.query.leagueId || '59554';
