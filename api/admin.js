@@ -604,43 +604,7 @@ module.exports = async (req, res) => {
   }
 
   // Soyunma odası atamasını kaydet
-  if (action === 'saveroom') {
-    if (req.method !== 'POST') return res.status(405).json({ error: 'POST gerekli' });
-    let body = '';
-    await new Promise(resolve => { req.on('data', c => body += c); req.on('end', resolve); });
-    const { gameId, homeRoom, awayRoom } = JSON.parse(body);
-    if (!gameId) return res.status(400).json({ error: 'gameId krävs' });
 
-    // Upsert - game_id unique
-    const existing = await supabaseGet(`/room_assignments?game_id=eq.${gameId}&select=id`);
-    const url = new URL(SUPABASE_URL);
-    const rowData = { game_id: gameId, home_room: homeRoom || null, away_room: awayRoom || null };
-
-    if (Array.isArray(existing) && existing.length > 0) {
-      // Update
-      await new Promise((resolve, reject) => {
-        const bodyStr = JSON.stringify(rowData);
-        const req2 = require('https').request({
-          host: url.host, path: `/rest/v1/room_assignments?game_id=eq.${gameId}`,
-          method: 'PATCH',
-          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal', 'Content-Length': Buffer.byteLength(bodyStr) }
-        }, res2 => { res2.on('data',()=>{}); res2.on('end', resolve); });
-        req2.on('error', reject); req2.write(bodyStr); req2.end();
-      });
-    } else {
-      // Insert
-      await new Promise((resolve, reject) => {
-        const bodyStr = JSON.stringify(rowData);
-        const req2 = require('https').request({
-          host: url.host, path: `/rest/v1/room_assignments`,
-          method: 'POST',
-          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal', 'Content-Length': Buffer.byteLength(bodyStr) }
-        }, res2 => { res2.on('data',()=>{}); res2.on('end', resolve); });
-        req2.on('error', reject); req2.write(bodyStr); req2.end();
-      });
-    }
-    return res.status(200).json({ success: true });
-  }
 
   // Soyunma odası atamalarını getir
   if (action === 'getrooms') {
