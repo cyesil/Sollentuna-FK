@@ -687,6 +687,8 @@ module.exports = async (req, res) => {
           gameDate  : g.GameTime,
           homeTeam  : g.HomeTeamDisplayName,
           awayTeam  : g.AwayTeamDisplayName,
+          homeLogo  : g.HomeTeamClubLogoURL || null,
+          awayLogo  : g.AwayTeamClubLogoURL || null,
           homeScore : g.HomeTeamScore ?? null,
           awayScore : g.AwayTeamScore ?? null,
           arenaId   : g.ArenaID,
@@ -943,7 +945,8 @@ if (action === 'clubgames') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
     try {
       const { game_id, game_date, home_team, away_team, arena_id, arena_name,
-              home_room, away_room, notes, status, extra_json } = req.body;
+              home_room, away_room, notes, status, extra_json,
+              home_logo, away_logo } = req.body;
       const gameIdVal = game_id || req.body.gameId;
       if (!gameIdVal) return res.status(400).json({ error: 'game_id required', body: req.body });
       // Upsert
@@ -951,6 +954,7 @@ if (action === 'clubgames') {
                     home_room: home_room || null, away_room: away_room || null,
                     notes: notes || null, status: status || 'pending',
                     extra_json: extra_json || null,
+                    home_logo: home_logo || null, away_logo: away_logo || null,
                     updated_at: new Date().toISOString() };
       // Mevcut kaydı kontrol et
       const existing = await supabaseGet(`/room_assignments?game_id=eq.${gameIdVal}`);
