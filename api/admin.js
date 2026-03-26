@@ -169,7 +169,7 @@ module.exports = async (req, res) => {
   const action = req.query.action;
 
   // savedmatches tüm roller için açık (lig listesi için)
-  if (action !== 'savedmatches' && action !== 'getrooms' && user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Behörighet krävs' });
+  if (action !== 'savedmatches' && action !== 'getrooms' && action !== 'deleteroom' && user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Behörighet krävs' });
 
   // Maçları çek (önizleme)
   if (action === 'fetchmatches') {
@@ -644,12 +644,14 @@ module.exports = async (req, res) => {
     const { dateFrom, dateTo } = req.query;
 
     // SFK arenalarının MinFotboll ArenaID'leri (doğrulanmış):
-    // 20591 = Edsbergs Sportfält 3       (P16 + P17 Allsvenskan)
-    // 20977 = Sollentuna Fotbollshall 1  (P17 kupa)
-    // 20976 = Sollentuna Fotbollshall    (P17 hazırlık)
-    // 21808 = Norrvikens IP 1            (P17 kupa)
-    // 21815 = Norrvikens IP 2 Hall       (P17 hazırlık)
-    const SFK_ARENA_IDS = new Set([20591, 20977, 20976, 21808, 21815]);
+    // 21808 = Norrvikens IP 1
+    // 21815 = Norrvikens IP 2 Hall
+    // 20977 = Sollentuna Fotbollshall 1
+    // 20976 = Sollentuna Fotbollshall
+    // 20586 = Edsbergs Sportfält
+    // 20588 = Edsbergs Sportfält 2
+    // 20591 = Edsbergs Sportfält 3
+    const SFK_ARENA_IDS = new Set([21808, 21815, 20977, 20976, 20586, 20588, 20591]);
 
     const from = dateFrom || new Date().toISOString().slice(0, 10);
     const to   = dateTo   || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
