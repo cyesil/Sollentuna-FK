@@ -169,7 +169,7 @@ module.exports = async (req, res) => {
   const action = req.query.action;
 
   // savedmatches tüm roller için açık (lig listesi için)
-  if (action !== 'savedmatches' && user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Behörighet krävs' });
+  if (action !== 'savedmatches' && action !== 'getrooms' && user.role !== 'admin' && user.role !== 'antrenor') return res.status(403).json({ error: 'Behörighet krävs' });
 
   // Maçları çek (önizleme)
   if (action === 'fetchmatches') {
