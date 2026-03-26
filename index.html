@@ -2317,120 +2317,147 @@ async function saveOmkRoom() {
 
 // ── Sparade atamalar ─────────────────────────────────────
 let _sparadePanel = null;
+let _currentSession = null;
 
 async function loadSparadeAtamalar() {
   const omkContent = document.getElementById('omkladningsrumContent');
-  const nastaPanel = document.getElementById('omkNastaPanel');
-  nastaPanel.style.display = 'none';
+  document.getElementById('omkNastaPanel').style.display = 'none';
   omkContent.style.display = '';
   document.getElementById('omkNastaBtn').style.display = 'none';
 
-  omkContent.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Laddar sparade atamalar...</div>';
+  omkContent.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Laddar sparade...</div>';
 
   try {
     const r = await fetch('/api/admin?action=getrooms', {headers: authHeaders()});
-    const rows = await r.json();
-    console.log('getrooms response:', r.status, JSON.stringify(rows).slice(0,200));
+    const d = await r.json();
 
     if (!r.ok) {
-      omkContent.innerHTML = '<div class="empty-state">Fel: ' + (rows.error || r.status) + '</div>';
+      omkContent.innerHTML = '<div class="empty-state">Fel: ' + (d.error || r.status) + '</div>';
       return;
     }
-    if (!Array.isArray(rows) || !rows.length) {
+
+    const sessions = d.sessions || [];
+    if (!sessions.length) {
       omkContent.innerHTML = '<div class="empty-state">Inga sparade matcher hittades.</div>';
       return;
     }
 
-    // Cache güncelle
-    rows.forEach(function(r) {
-      if (!window._omkRooms) window._omkRooms = {};
-      window._omkRooms[r.game_id] = {homeRoom: r.home_room, awayRoom: r.away_room, notes: r.notes};
-    });
-
+    // Session listesini göster
     let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">';
-    html += '<div style="font-size:1.2rem;font-weight:700;color:var(--accent);">📋 Sparade <span style="color:var(--muted);font-size:0.9rem;font-weight:400;">(' + validRows.length + ' matcher)</span></div>';
-    html += '<button onclick="loadOmkladningsrum()" class="btn btn-secondary" style="font-size:0.85rem;">← Tillbaka till matcher</button>';
+    html += '<div style="font-size:1.2rem;font-weight:700;color:var(--accent);">📋 Sparade (' + sessions.length + ' filer)</div>';
+    html += '<button onclick="filterOmk()" class="btn btn-secondary" style="font-size:0.85rem;">← Tillbaka</button>';
     html += '</div>';
-
-    html += '<div class="table-wrap"><table><thead><tr>';
-    html += '<th>Datum</th><th>Avspark</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
-    html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
-    html += '</tr></thead><tbody>';
-
-    // Boş/geçersiz kayıtları filtrele
-    var validRows = rows.filter(function(r) { return r.game_date && r.home_team; });
-    validRows.sort(function(a,b) { return new Date(a.game_date) - new Date(b.game_date); });
-    if (!validRows.length) {
-      omkContent.innerHTML = '<div class="empty-state">Inga sparade matcher hittades.</div>';
-      return;
-    }
-
-    validRows.forEach(function(row) {
-      var dt      = row.game_date ? new Date(row.game_date) : null;
-      var dateStr = dt ? dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'}) : '—';
-      var timeStr = dt ? dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'}) : '—';
-      var isSFK_home = row.home_team && row.home_team.includes('Sollentuna');
-      var isSFK_away = row.away_team && row.away_team.includes('Sollentuna');
-
-      html += '<tr id="sparade_row_' + row.game_id + '">';
-      html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
-      html += '<td style="font-weight:600;">' + timeStr + '</td>';
-      html += '<td style="font-size:0.8rem;color:var(--muted);">' + (row.arena_name || '—') + '</td>';
-      var hLogoUrl = row.home_logo || '';
-      var aLogoUrl = row.away_logo || '';
-      var lStyle = 'width:18px;height:18px;object-fit:contain;border-radius:3px;vertical-align:middle;margin-right:4px;';
-      html += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + '">';
-      if (hLogoUrl) html += '<img src="' + hLogoUrl + '" style="' + lStyle + '" onerror="this.remove()"> ';
-      html += (row.home_team || '—') + '</td>';
-      html += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">';
-      if (aLogoUrl) html += '<img src="' + aLogoUrl + '" style="' + lStyle + '" onerror="this.remove()"> ';
-      html += (row.away_team || '—') + '</td>';
-      html += '<td>' + (row.home_room || '<span style="color:var(--muted);">—</span>') + '</td>';
-      html += '<td>' + (row.away_room || '<span style="color:var(--muted);">—</span>') + '</td>';
-      html += '<td style="color:var(--muted);font-size:0.82rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (row.notes||'') + '">' + (row.notes || '—') + '</td>';
-      html += '<td style="display:flex;gap:0.4rem;">';
-      html += '<button onclick="editSparadeRow(' + row.game_id + ')" class="btn btn-secondary" style="padding:0.25rem 0.6rem;font-size:0.8rem;">✏️</button>';
-      html += '<button onclick="deleteSparadeRow(' + row.game_id + ')" class="btn btn-danger" style="padding:0.25rem 0.6rem;font-size:0.8rem;">🗑️</button>';
-      html += '</td>';
-      html += '</tr>';
+    html += '<div style="display:flex;flex-direction:column;gap:0.5rem;">';
+    sessions.forEach(function(s) {
+            html += '<div style="display:flex;align-items:center;gap:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1.2rem;">';
+      html += '<div style="flex:1;font-weight:600;cursor:pointer;color:var(--text);" data-sname="' + encodeURIComponent(s.name) + '" onclick="openSparadeSession(decodeURIComponent(this.dataset.sname))">📄 ' + s.name + '</div>';
+      html += '<button data-sname="' + encodeURIComponent(s.name) + '" onclick="openSparadeSession(decodeURIComponent(this.dataset.sname))" class="btn btn-secondary" style="font-size:0.82rem;padding:0.3rem 0.8rem;">Oppna</button>';
+      html += '<button data-sname="' + encodeURIComponent(s.name) + '" onclick="deleteSparadeSession(decodeURIComponent(this.dataset.sname))" class="btn btn-danger" style="font-size:0.82rem;padding:0.3rem 0.8rem;">Ta bort</button>';
+      html += '</div>';
     });
-
-    html += '</tbody></table></div>';
+    html += '</div>';
     omkContent.innerHTML = html;
-    _sparadePanel = validRows;
 
   } catch(e) {
     omkContent.innerHTML = '<div class="empty-state">Fel: ' + e.message + '</div>';
   }
 }
 
-function editSparadeRow(gameId) {
-  // Mevcut oda atama modalını aç — game'i _omkAllGames'ten veya sparade'den bul
+async function openSparadeSession(sessionName) {
+  _currentSession = sessionName;
+  const omkContent = document.getElementById('omkladningsrumContent');
+  omkContent.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Laddar...</div>';
+
+  try {
+    const r = await fetch('/api/admin?action=getrooms&session=' + encodeURIComponent(sessionName), {headers: authHeaders()});
+    const rows = await r.json();
+
+    if (!Array.isArray(rows) || !rows.length) {
+      omkContent.innerHTML = '<div class="empty-state">Inga matcher i denna fil.</div>';
+      return;
+    }
+
+    var validRows = rows.filter(function(r) { return r.game_date && r.home_team; });
+    validRows.sort(function(a,b) { return new Date(a.game_date) - new Date(b.game_date); });
+    _sparadePanel = validRows;
+
+    var html = '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;">';
+    html += '<button onclick="loadSparadeAtamalar()" class="btn btn-secondary">← Alla filer</button>';
+    html += '<div style="font-size:1.1rem;font-weight:700;color:var(--accent);">📄 ' + sessionName + '</div>';
+    html += '<span style="color:var(--muted);font-size:0.85rem;">(' + validRows.length + ' matcher)</span>';
+    html += '<div style="margin-left:auto;display:flex;gap:0.5rem;">';
+    html += '<button onclick="printSparade()" class="btn btn-secondary">🖨️ PDF</button>';
+    html += '<button data-sname="' + encodeURIComponent(sessionName) + '" onclick="deleteSparadeSession(decodeURIComponent(this.dataset.sname))" class="btn btn-danger" style="font-size:0.85rem;">Ta bort fil</button>';
+    html += '</div></div>';
+
+    html += '<div class="table-wrap"><table><thead><tr>';
+    html += '<th>Datum</th><th>Avspark</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
+    html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
+    html += '</tr></thead><tbody>';
+
+    var prevDate2 = null;
+    validRows.forEach(function(row) {
+      var dt      = row.game_date ? new Date(row.game_date) : null;
+      var dateStr = dt ? dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'}) : '—';
+      var timeStr = dt ? dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'}) : '—';
+      var curDate2 = dt ? dt.toISOString().slice(0,10) : null;
+      var dayBorder2 = (prevDate2 && prevDate2 !== curDate2) ? 'border-top:3px solid var(--accent);' : '';
+      prevDate2 = curDate2;
+      var isSFK_home = row.home_team && row.home_team.includes('Sollentuna');
+      var isSFK_away = row.away_team && row.away_team.includes('Sollentuna');
+      var lStyle = 'width:18px;height:18px;object-fit:contain;border-radius:3px;vertical-align:middle;margin-right:4px;';
+
+      html += '<tr style="' + dayBorder2 + '">';
+      html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
+      html += '<td style="font-weight:600;">' + timeStr + '</td>';
+      html += '<td style="font-size:0.8rem;color:var(--muted);">' + (row.arena_name||'—') + '</td>';
+      html += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + '">';
+      if (row.home_logo) html += '<img src="' + row.home_logo + '" style="' + lStyle + '" onerror="this.remove()"> ';
+      html += (row.home_team||'—') + '</td>';
+      html += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">';
+      if (row.away_logo) html += '<img src="' + row.away_logo + '" style="' + lStyle + '" onerror="this.remove()"> ';
+      html += (row.away_team||'—') + '</td>';
+      html += '<td>' + (row.home_room||'—') + '</td>';
+      html += '<td>' + (row.away_room||'—') + '</td>';
+      html += '<td style="color:var(--muted);font-size:0.82rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (row.notes||'') + '">' + (row.notes||'—') + '</td>';
+      html += '<td><button onclick="editSparadeRow(' + row.id + ',' + row.game_id + ')" class="btn btn-secondary" style="padding:0.25rem 0.6rem;font-size:0.8rem;">✏️</button></td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    omkContent.innerHTML = html;
+
+  } catch(e) {
+    omkContent.innerHTML = '<div class="empty-state">Fel: ' + e.message + '</div>';
+  }
+}
+
+async function deleteSparadeSession(sessionName) {
+  if (!confirm('Ta bort hela filen "' + sessionName + '"?')) return;
+  try {
+    const r = await fetch('/api/admin?action=deleteroom&session=' + encodeURIComponent(sessionName), {headers: authHeaders()});
+    if (r.ok) { loadSparadeAtamalar(); }
+    else { alert('Fel vid borttagning'); }
+  } catch(e) { alert('Fel: ' + e.message); }
+}
+
+function editSparadeRow(rowId, gameId) {
   const sparade = (_sparadePanel || []).find(function(r) { return r.game_id === gameId; });
   if (!sparade) return;
-
-  // _omkAllGames'e ekle (modal için)
   if (!window._omkAllGames) window._omkAllGames = [];
   const existing = window._omkAllGames.find(function(g) { return g.gameId === gameId; });
   if (!existing) {
     window._omkAllGames.push({
-      gameId   : sparade.game_id,
-      gameDate : sparade.game_date,
-      homeTeam : sparade.home_team,
-      awayTeam : sparade.away_team,
-      arenaId  : sparade.arena_id,
-      arenaName: sparade.arena_name,
+      gameId: sparade.game_id, gameDate: sparade.game_date,
+      homeTeam: sparade.home_team, awayTeam: sparade.away_team,
+      arenaId: sparade.arena_id, arenaName: sparade.arena_name,
+      homeLogo: sparade.home_logo, awayLogo: sparade.away_logo,
     });
   }
-
-  // Cache'e yükle
   if (!window._omkRooms) window._omkRooms = {};
   window._omkRooms[gameId] = {homeRoom: sparade.home_room, awayRoom: sparade.away_room, notes: sparade.notes};
-
-  // Modal aç, kayıt sonrası listeyi yenile
   openOmkModal(gameId);
-  // saveOmkRoom'dan sonra listeyi yenilemek için callback
-  window._afterSaveOmkRoom = loadSparadeAtamalar;
+  window._afterSaveOmkRoom = function() { openSparadeSession(_currentSession); };
 }
 
 async function deleteSparadeRow(gameId) {
@@ -2440,13 +2467,11 @@ async function deleteSparadeRow(gameId) {
     if (r.ok) {
       const row = document.getElementById('sparade_row_' + gameId);
       if (row) row.remove();
-      // Cache'den sil
       if (window._omkRooms) delete window._omkRooms[gameId];
-    } else {
-      alert('Fel vid borttagning');
-    }
+    } else { alert('Fel vid borttagning'); }
   } catch(e) { alert('Fel: ' + e.message); }
 }
+
 
 function printSparade() {
   var rows = _sparadePanel || [];
@@ -2674,29 +2699,33 @@ function renderNastaContent(games) {
 async function saveAllOmkRooms() {
   const games = window._omkNastaGames || [];
   if (!games.length) return;
+
+  const today = new Date().toLocaleDateString('sv-SE');
+  const sessionName = prompt('Ange ett namn för att spara dessa tilldelningar:', today + ' Omkladningsrum');
+  if (!sessionName || !sessionName.trim()) return;
+  const sName = sessionName.trim();
+
   const msgEl = document.getElementById('omkNastaMsg');
   msgEl.style.color = 'var(--muted)';
-  msgEl.textContent = 'Sparar ' + games.length + ' matcher...';
+  msgEl.textContent = 'Sparar ' + games.length + ' matcher som "' + sName + '"...';
 
   let saved = 0, errors = 0;
   for (const g of games) {
-    const homeRoom  = document.getElementById('nasta_home_' + g.gameId)?.value || null;
-    const awayRoom  = document.getElementById('nasta_away_' + g.gameId)?.value || null;
-    const homeIn    = document.getElementById('nasta_home_in_' + g.gameId)?.value || null;
-    const homeOut   = document.getElementById('nasta_home_out_' + g.gameId)?.value || null;
-    const awayIn    = document.getElementById('nasta_away_in_' + g.gameId)?.value || null;
-    const awayOut   = document.getElementById('nasta_away_out_' + g.gameId)?.value || null;
-    const msgHome   = document.getElementById('nasta_msg_home_' + g.gameId)?.checked;
-    const msgAway   = document.getElementById('nasta_msg_away_' + g.gameId)?.checked;
-    const ownText   = document.getElementById('nasta_msg_own_' + g.gameId)?.value.trim() || '';
+    const homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value || null;
+    const awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value || null;
+    const homeIn   = document.getElementById('nasta_home_in_' + g.gameId)?.value || null;
+    const homeOut  = document.getElementById('nasta_home_out_' + g.gameId)?.value || null;
+    const awayIn   = document.getElementById('nasta_away_in_' + g.gameId)?.value || null;
+    const awayOut  = document.getElementById('nasta_away_out_' + g.gameId)?.value || null;
+    const msgHome  = document.getElementById('nasta_msg_home_' + g.gameId)?.checked;
+    const msgAway  = document.getElementById('nasta_msg_away_' + g.gameId)?.checked;
+    const ownText  = document.getElementById('nasta_msg_own_' + g.gameId)?.value.trim() || '';
     const msgs = [];
-    if (msgHome) msgs.push('Hemmalag: lämna rum innan matchstart');
-    if (msgAway) msgs.push('Bortalag: lämna rum innan matchstart');
+    if (msgHome) msgs.push('Hemmalag: lamna rum innan matchstart');
+    if (msgAway) msgs.push('Bortalag: lamna rum innan matchstart');
     if (ownText) msgs.push(ownText);
-    const notes  = msgs.join(' | ') || null;
-    const status = 'pending';
-    const extra  = JSON.stringify({homeIn, homeOut, awayIn, awayOut});
-
+    const notes = msgs.join(' | ') || null;
+    const extra = JSON.stringify({homeIn, homeOut, awayIn, awayOut});
     try {
       const r = await fetch('/api/admin?action=saveroom', {
         method: 'POST',
@@ -2706,26 +2735,25 @@ async function saveAllOmkRooms() {
           home_team: g.homeTeam, away_team: g.awayTeam,
           arena_id: g.arenaId, arena_name: g.arenaName,
           home_room: homeRoom || null, away_room: awayRoom || null,
-          notes: notes || null, status: status || 'pending',
+          notes: notes || null, status: 'pending',
           extra_json: extra,
-          home_logo: g.homeLogo || null, away_logo: g.awayLogo || null
+          home_logo: g.homeLogo || null, away_logo: g.awayLogo || null,
+          session_name: sName
         })
       });
       if (r.ok) {
         saved++;
-        // Cache güncelle
         if (!window._omkRooms) window._omkRooms = {};
-        window._omkRooms[g.gameId] = {homeRoom, awayRoom, notes, status};
-        // Satır feedback
+        window._omkRooms[g.gameId] = {homeRoom, awayRoom, notes};
         const row = document.getElementById('nasta_row_' + g.gameId);
-        if (row) { row.style.background = 'rgba(0,230,118,0.05)'; }
+        if (row) row.style.background = 'rgba(0,230,118,0.05)';
       } else { errors++; }
     } catch(e) { errors++; }
   }
 
   if (errors === 0) {
     msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '✅ ' + saved + ' matcher sparade!';
+    msgEl.textContent = '✅ ' + saved + ' matcher sparade som "' + sName + '"!';
   } else {
     msgEl.style.color = 'var(--yellow)';
     msgEl.textContent = '⚠️ ' + saved + ' sparade, ' + errors + ' fel.';
