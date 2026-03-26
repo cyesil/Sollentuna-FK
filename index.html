@@ -586,9 +586,9 @@
           </div>
 
           <div style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="loadOmkladningsrum()">🏟️ Hämta matcher</button>
+            <button class="btn btn-primary" id="omkHamtaBtn" onclick="loadOmkladningsrum()">🏟️ Hämta matcher</button>
             <button class="btn btn-success" onclick="omkNasta()" id="omkNastaBtn" style="display:none;">Nästa →</button>
-            <button class="btn btn-secondary" onclick="loadSparadeAtamalar()">📋 Sparade</button>
+            <button class="btn btn-secondary" id="omkSparadeBtn" onclick="loadSparadeAtamalar()">📋 Sparade</button>
             <button class="btn btn-secondary" onclick="saveOmkPDF()">💾 PDF</button>
           </div>
         </div>
@@ -2042,6 +2042,11 @@ function nextWeek() {
 }
 
 async function loadOmkladningsrum() {
+  // Buton aktif durumu
+  document.getElementById('omkHamtaBtn')?.classList.add('btn-primary');
+  document.getElementById('omkHamtaBtn')?.classList.remove('btn-secondary');
+  document.getElementById('omkSparadeBtn')?.classList.add('btn-secondary');
+  document.getElementById('omkSparadeBtn')?.classList.remove('btn-primary');
   const from = document.getElementById('omkFrom').value;
   const to   = document.getElementById('omkTo').value;
   const omkContent = document.getElementById('omkladningsrumContent');
@@ -2324,19 +2329,31 @@ async function loadSparadeAtamalar() {
   document.getElementById('omkNastaPanel').style.display = 'none';
   omkContent.style.display = '';
   document.getElementById('omkNastaBtn').style.display = 'none';
+  // Buton aktif durumu
+  document.getElementById('omkHamtaBtn')?.classList.remove('btn-primary');
+  document.getElementById('omkHamtaBtn')?.classList.add('btn-secondary');
+  document.getElementById('omkSparadeBtn')?.classList.remove('btn-secondary');
+  document.getElementById('omkSparadeBtn')?.classList.add('btn-primary');
 
   omkContent.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Laddar sparade...</div>';
 
   try {
     const r = await fetch('/api/admin?action=getrooms', {headers: authHeaders()});
     const d = await r.json();
+    console.log('getrooms raw:', JSON.stringify(d).slice(0, 300));
 
     if (!r.ok) {
       omkContent.innerHTML = '<div class="empty-state">Fel: ' + (d.error || r.status) + '</div>';
       return;
     }
 
-    const sessions = d.sessions || [];
+    // d array ise eski format, object ise yeni format
+    const sessions = Array.isArray(d) ? [] : (d.sessions || []);
+    if (Array.isArray(d) && d.length > 0) {
+      // Eski format — session_name olmayan kayıtlar var
+      omkContent.innerHTML = '<div class="empty-state">Inga sparade filer. Spara matcher med ett namn forst.</div>';
+      return;
+    }
     if (!sessions.length) {
       omkContent.innerHTML = '<div class="empty-state">Inga sparade matcher hittades.</div>';
       return;
