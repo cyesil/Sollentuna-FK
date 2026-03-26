@@ -2181,6 +2181,9 @@ function buildOmkTable(games, rooms) {
 
     var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
     var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
+    var lS = 'width:18px;height:18px;object-fit:contain;border-radius:3px;vertical-align:middle;margin-right:4px;';
+    var hLogoHtml = g.homeLogo ? '<img src="' + g.homeLogo + '" style="' + lS + '" onerror="this.remove()"> ' : '';
+    var aLogoHtml = g.awayLogo ? '<img src="' + g.awayLogo + '" style="' + lS + '" onerror="this.remove()"> ' : '';
 
     var gIdx     = games.indexOf(g);
     var prevGame = gIdx > 0 ? games[gIdx - 1] : null;
@@ -2192,8 +2195,8 @@ function buildOmkTable(games, rooms) {
     html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
     html += '<td style="font-weight:600;">' + timeStr + '</td>';
     html += '<td style="font-size:0.8rem;color:var(--muted);">' + (g.arenaName || '—') + '</td>';
-    html += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + '">' + (g.homeTeam || '—') + '</td>';
-    html += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">' + (g.awayTeam || '—') + '</td>';
+    html += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + '">' + hLogoHtml + (g.homeTeam || '—') + '</td>';
+    html += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">' + aLogoHtml + (g.awayTeam || '—') + '</td>';
     html += '<td style="color:' + (saved.homeRoom ? 'var(--text)' : 'var(--muted)') + ';">' + (saved.homeRoom || '—') + '</td>';
     html += '<td style="color:' + (saved.awayRoom ? 'var(--text)' : 'var(--muted)') + ';">' + (saved.awayRoom || '—') + '</td>';
     html += '<td style="color:var(--muted);font-size:0.82rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (saved.notes||'') + '">' + (saved.notes || '—') + '</td>';
@@ -2728,7 +2731,7 @@ function renderNastaContent(games) {
     if (!gList.length) return '';
     var h = '<div class="omk-group" style="margin-bottom:2rem;">';
     h += '<div class="omk-group-title">🏟️ ' + title + '</div>';
-    h += '<div class="table-wrap"><table>';
+    h += '<div class="table-wrap" style="overflow-x:auto;"><table style="min-width:900px;">';
     h += '<thead><tr>';
     h += '<th>Datum</th><th>Avspark</th><th>Arena</th>';
     h += '<th>Lag</th><th>Rum</th><th>In</th><th>Ut</th>';
