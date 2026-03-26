@@ -593,7 +593,7 @@
         <div id="omkladningsrumContent"><div class="empty-state">Välj datumintervall och hämta matcher</div></div>
 
         <!-- Oda atama modal -->
-        <div id="omkModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;">
+        <div id="omkModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;">
           <div style="background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:1.75rem;min-width:420px;max-width:520px;box-shadow:0 8px 40px rgba(0,212,255,0.15);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
               <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;color:var(--accent);">🏟️ Tilldela omklädningsrum</div>
@@ -2240,7 +2240,7 @@ function openOmkModal(gameId) {
   document.getElementById('omkStatus').value  = saved.status || 'pending';
   document.getElementById('omkModalMsg').textContent = '';
 
-  document.getElementById('omkModal').style.display = 'flex';
+  const m = document.getElementById('omkModal'); m.style.display = 'flex'; m.style.alignItems = 'center'; m.style.justifyContent = 'center';
 }
 
 function closeOmkModal() {
