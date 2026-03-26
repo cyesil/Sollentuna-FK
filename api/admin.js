@@ -876,22 +876,36 @@ module.exports = async (req, res) => {
 if (action === 'testleague') {
     try {
       const mfToken = await getMinfotbollToken();
-      const leagueId = req.query.leagueId || '133338';
-      const games = await minfotbollGet('/api/leagueapi/getleaguegames?leagueId=' + leagueId, mfToken);
+      const leagueId = req.query.leagueId || '59554';
+      const teamId   = parseInt(req.query.teamId || '398871');
+      const games    = await minfotbollGet('/api/leagueapi/getleaguegames?leagueId=' + leagueId, mfToken);
       if (!Array.isArray(games) || games.length === 0) {
         return res.status(200).json({ count: 0, raw: typeof games === 'string' ? games.slice(0,200) : games });
       }
+      // Sadece ev maçları
+      const homeGames = games
+        .filter(g => g.HomeTeamID === teamId)
+        .map(g => ({
+          GameID   : g.GameID,
+          GameTime : g.GameTime,
+          Home     : g.HomeTeamDisplayName,
+          Away     : g.AwayTeamDisplayName,
+          ArenaID  : g.ArenaID,
+          FacilityID: g.FacilityID,
+          Arena    : g.Arena,
+          StatusID : g.GameStatusID,
+        }));
+      // Ligdeki tüm benzersiz ArenaID'ler
+      const arenaIds     = [...new Set(games.map(g => g.ArenaID).filter(Boolean))];
+      const facilityIds  = [...new Set(games.map(g => g.FacilityID).filter(Boolean))];
       return res.status(200).json({
-        count: games.length,
-        allKeys: Object.keys(games[0]),
-        hasArenaID: 'ArenaID' in games[0],
+        count      : games.length,
+        allKeys    : Object.keys(games[0]),
+        hasArenaID : 'ArenaID' in games[0],
         hasFacilityID: 'FacilityID' in games[0],
-        first3: games.slice(0,3).map(g => ({
-          GameID: g.GameID, GameTime: g.GameTime,
-          Home: g.HomeTeamDisplayName, Away: g.AwayTeamDisplayName,
-          ArenaID: g.ArenaID, FacilityID: g.FacilityID,
-          Arena: g.Arena, StatusID: g.GameStatusID,
-        }))
+        arenaIds,
+        facilityIds,
+        homeGames,
       });
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
