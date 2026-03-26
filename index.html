@@ -596,7 +596,7 @@
         <!-- Nästa — Toplu oda atama ekranı -->
         <div id="omkNastaPanel" style="display:none;margin-top:1rem;">
           <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
-            <button onclick="omkGeriDon()" class="btn btn-secondary">← Geri</button>
+            <button onclick="omkGeriDon()" class="btn btn-secondary">← Back</button>
             <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;color:var(--accent);">
               🏟️ Tilldela omklädningsrum
               <span id="omkNastaCount" style="color:var(--muted);font-size:1rem;font-weight:400;"></span>
@@ -2440,10 +2440,11 @@ async function saveAllOmkRooms() {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
-          game_id: g.gameId, game_date: g.gameDate,
+          game_id: parseInt(g.gameId), game_date: g.gameDate,
           home_team: g.homeTeam, away_team: g.awayTeam,
           arena_id: g.arenaId, arena_name: g.arenaName,
-          home_room: homeRoom, away_room: awayRoom, notes, status
+          home_room: homeRoom || null, away_room: awayRoom || null,
+          notes: notes || null, status: status || 'pending'
         })
       });
       if (r.ok) {
