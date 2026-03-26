@@ -571,12 +571,13 @@
             <label>Arena</label>
             <select id="omkArena" onchange="filterOmk()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.9rem;min-width:200px;">
               <option value="">Alla arenor</option>
-              <optgroup label="Norrvikens Omklädningsrum">
+              <optgroup label="Norrvikens Omkladningsrum">
                 <option value="21808">Norrvikens IP 1</option>
                 <option value="21815">Norrvikens IP 2 Hall</option>
-                <option value="20977">Sollentuna Fotbollshall</option>
+                <option value="20977">Sollentuna Fotbollshall 1</option>
+                <option value="20976">Sollentuna Fotbollshall</option>
               </optgroup>
-              <optgroup label="Edsbergs Omklädningsrum">
+              <optgroup label="Edsbergs Omkladningsrum">
                 <option value="20586">Edsbergs Sportfält</option>
                 <option value="20588">Edsbergs Sportfält 2</option>
                 <option value="20591">Edsbergs Sportfält 3</option>
@@ -587,7 +588,7 @@
           <div style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap;">
             <button class="btn btn-primary" onclick="loadOmkladningsrum()">🏟️ Hämta matcher</button>
             <button class="btn btn-success" onclick="omkNasta()" id="omkNastaBtn" style="display:none;">Nästa →</button>
-            <button class="btn btn-secondary" onclick="loadSparadeAtamalar()">📋 Sparade atamalar</button>
+            <button class="btn btn-secondary" onclick="loadSparadeAtamalar()">📋 Sparade</button>
             <button class="btn btn-secondary" onclick="saveOmkPDF()">💾 PDF</button>
           </div>
         </div>
@@ -1971,13 +1972,14 @@ async function loadOyuncuLeagueFilters() {
 const SFK_ARENAS = {
   21808: 'Norrvikens IP 1',
   21815: 'Norrvikens IP 2 Hall',
-  20977: 'Sollentuna Fotbollshall',
+  20977: 'Sollentuna Fotbollshall 1',
+  20976: 'Sollentuna Fotbollshall',
   20586: 'Edsbergs Sportfält',
   20588: 'Edsbergs Sportfält 2',
   20591: 'Edsbergs Sportfält 3',
 };
 
-const NORRVIKEN_ARENAS = [21808, 21815, 20977];
+const NORRVIKEN_ARENAS = [21808, 21815, 20977, 20976];
 const EDSBERGS_ARENAS  = [20586, 20588, 20591];
 
 const NORRVIKEN_ROOMS = [
@@ -2141,10 +2143,12 @@ function renderOmkWeek(games, rooms, weekStart) {
 }
 
 // ── Liste görünümü ─────────────────────────────────────────
+let _omkTableCounter = 0;
 function buildOmkTable(games, rooms) {
   if (!games.length) return '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0;">Inga matcher</div>';
+  var tableGroup = 'omk_grp_' + (++_omkTableCounter);
   let html = '<div class="table-wrap"><table><thead><tr>';
-  html += '<th style="width:36px;"><input type="checkbox" onchange="omkToggleAll(this)" style="cursor:pointer;width:15px;height:15px;"></th>';
+  html += '<th style="width:36px;"><input type="checkbox" onchange="omkToggleAll(this,'' + tableGroup + '')" style="cursor:pointer;width:15px;height:15px;"></th>';
   html += '<th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
   html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
   html += '</tr></thead><tbody>';
@@ -2159,7 +2163,7 @@ function buildOmkTable(games, rooms) {
     var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
 
     html += '<tr id="omk_row_' + g.gameId + '">';
-    html += '<td><input type="checkbox" class="omk-check" data-gameid="' + g.gameId + '" onchange="omkCheckChange()" style="cursor:pointer;width:15px;height:15px;"></td>';
+    html += '<td><input type="checkbox" class="omk-check ' + tableGroup + '" data-gameid="' + g.gameId + '" onchange="omkCheckChange()" style="cursor:pointer;width:15px;height:15px;"></td>';
     html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
     html += '<td style="font-weight:600;">' + timeStr + '</td>';
     html += '<td style="font-size:0.8rem;color:var(--muted);">' + (g.arenaName || '—') + '</td>';
@@ -2431,8 +2435,9 @@ function omkCheckChange() {
   if (btn) btn.style.display = checked > 0 ? 'inline-block' : 'none';
 }
 
-function omkToggleAll(el) {
-  document.querySelectorAll('.omk-check').forEach(function(cb) { cb.checked = el.checked; });
+function omkToggleAll(el, grp) {
+  var sel = grp ? document.querySelectorAll('.omk-check.' + grp) : document.querySelectorAll('.omk-check');
+  sel.forEach(function(cb) { cb.checked = el.checked; });
   omkCheckChange();
 }
 
@@ -2498,13 +2503,9 @@ function renderNastaContent(games) {
     h += '<div class="omk-group-title">🏟️ ' + title + '</div>';
     h += '<div class="table-wrap"><table>';
     h += '<thead><tr>';
-    h += '<th rowspan="2">Datum</th><th rowspan="2">Tid</th><th rowspan="2">Arena</th>';
-    h += '<th colspan="4" style="text-align:center;border-bottom:1px solid rgba(255,255,255,0.2);">Hemmalag</th>';
-    h += '<th colspan="4" style="text-align:center;border-bottom:1px solid rgba(255,255,255,0.2);">Bortalag</th>';
-    h += '<th rowspan="2">Meddelande</th>';
-    h += '</tr><tr>';
-    h += '<th>Lag</th><th>Rum</th><th>① In</th><th>② Ut</th>';
-    h += '<th>Lag</th><th>Rum</th><th>③ In</th><th>④ Ut</th>';
+    h += '<th>Datum</th><th>Tid</th><th>Arena</th>';
+    h += '<th>Lag</th><th>Rum</th><th>In</th><th>Ut</th>';
+    h += '<th>Meddelande</th>';
     h += '</tr></thead><tbody>';
 
     gList.forEach(function(g) {
@@ -2532,30 +2533,42 @@ function renderNastaContent(games) {
         return s;
       }
 
-      h += '<tr>';
-      h += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
-      h += '<td style="font-weight:600;white-space:nowrap;">' + timeStr + '</td>';
-      h += '<td style="font-size:0.8rem;color:var(--muted);">' + (g.arenaName||'—') + '</td>';
-      // Hemma
-      h += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + 'white-space:nowrap;">' + (g.homeTeam||'—') + '</td>';
+      // Logo URL'leri
+      var homeLogo = g.homeLogo || '';
+      var awayLogo = g.awayLogo || '';
+      var logoStyle = 'width:20px;height:20px;object-fit:contain;border-radius:3px;vertical-align:middle;margin-right:4px;';
+
+      // Hemma satırı
+      h += '<tr style="border-top:2px solid var(--border);">';
+      h += '<td rowspan="2" style="color:var(--muted);font-size:0.82rem;white-space:nowrap;vertical-align:top;padding-top:0.6rem;">' + dateStr + '</td>';
+      h += '<td rowspan="2" style="font-weight:600;white-space:nowrap;vertical-align:top;padding-top:0.6rem;">' + timeStr + '</td>';
+      h += '<td rowspan="2" style="font-size:0.8rem;color:var(--muted);vertical-align:top;padding-top:0.6rem;">' + (g.arenaName||'—') + '</td>';
+      h += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + 'white-space:nowrap;">';
+      if (homeLogo) h += '<img src="' + homeLogo + '" style="' + logoStyle + '" onerror="this.style.display='none'">';
+      h += '🏠 ' + (g.homeTeam||'—') + '</td>';
       h += '<td>' + makeRoomSelect('nasta_home_' + g.gameId, saved.homeRoom) + '</td>';
       h += '<td>' + makeTimeSelect('nasta_home_in_' + g.gameId, homeIn) + '</td>';
       h += '<td>' + makeTimeSelect('nasta_home_out_' + g.gameId, homeOut) + '</td>';
-      // Borta
-      h += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + 'white-space:nowrap;">' + (g.awayTeam||'—') + '</td>';
-      h += '<td>' + makeRoomSelect('nasta_away_' + g.gameId, saved.awayRoom) + '</td>';
-      h += '<td>' + makeTimeSelect('nasta_away_in_' + g.gameId, awayIn) + '</td>';
-      h += '<td>' + makeTimeSelect('nasta_away_out_' + g.gameId, awayOut) + '</td>';
-      // Meddelande
-      h += '<td style="min-width:200px;">';
-      h += '<div style="display:flex;flex-direction:column;gap:0.3rem;">';
+      // Meddelande — rowspan 2
+      h += '<td rowspan="2" style="min-width:180px;vertical-align:top;padding-top:0.4rem;">';
+      h += '<div style="display:flex;flex-direction:column;gap:0.35rem;">';
       h += '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;">';
-      h += '<input type="checkbox" id="nasta_msg_home_' + g.gameId + '"> Hemmalag lamna rum innan matchstart</label>';
+      h += '<input type="checkbox" id="nasta_msg_home_' + g.gameId + '"> Hemmalag: lamna rum</label>';
       h += '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;">';
-      h += '<input type="checkbox" id="nasta_msg_away_' + g.gameId + '"> Bortalag lamna rum innan matchstart</label>';
+      h += '<input type="checkbox" id="nasta_msg_away_' + g.gameId + '"> Bortalag: lamna rum</label>';
       h += '<input type="text" id="nasta_msg_own_' + g.gameId + '" placeholder="Egen text..." value="' + (saved.notes||'') + '" ';
       h += 'style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;">';
       h += '</div></td>';
+      h += '</tr>';
+
+      // Borta satırı
+      h += '<tr>';
+      h += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + 'white-space:nowrap;">';
+      if (awayLogo) h += '<img src="' + awayLogo + '" style="' + logoStyle + '" onerror="this.style.display='none'">';
+      h += '✈️ ' + (g.awayTeam||'—') + '</td>';
+      h += '<td>' + makeRoomSelect('nasta_away_' + g.gameId, saved.awayRoom) + '</td>';
+      h += '<td>' + makeTimeSelect('nasta_away_in_' + g.gameId, awayIn) + '</td>';
+      h += '<td>' + makeTimeSelect('nasta_away_out_' + g.gameId, awayOut) + '</td>';
       h += '</tr>';
     });
 
@@ -2665,23 +2678,21 @@ function printOmkNasta() {
     var h = '<div class="group"><div class="gtitle">' + title + '</div>';
     h += '<table><thead><tr>';
     h += '<th>Datum</th><th>Tid</th><th>Arena</th>';
-    h += '<th>Hemmalag</th><th>Hemma rum</th><th>In</th><th>Ut</th>';
-    h += '<th>Bortalag</th><th>Borta rum</th><th>In</th><th>Ut</th>';
-    h += '<th>Meddelande</th>';
+    h += '<th>Lag</th><th>Rum</th><th>In</th><th>Ut</th><th>Meddelande</th>';
     h += '</tr></thead><tbody>';
     gList.forEach(function(g) {
       var dt      = new Date(g.gameDate);
       var dateStr = dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'});
       var timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'});
-      var homeRoom  = document.getElementById('nasta_home_' + g.gameId)?.value || '—';
-      var awayRoom  = document.getElementById('nasta_away_' + g.gameId)?.value || '—';
-      var homeIn    = document.getElementById('nasta_home_in_' + g.gameId)?.value || '—';
-      var homeOut   = document.getElementById('nasta_home_out_' + g.gameId)?.value || '—';
-      var awayIn    = document.getElementById('nasta_away_in_' + g.gameId)?.value || '—';
-      var awayOut   = document.getElementById('nasta_away_out_' + g.gameId)?.value || '—';
-      var msgHome   = document.getElementById('nasta_msg_home_' + g.gameId)?.checked;
-      var msgAway   = document.getElementById('nasta_msg_away_' + g.gameId)?.checked;
-      var ownText   = document.getElementById('nasta_msg_own_' + g.gameId)?.value || '';
+      var homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value || '—';
+      var awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value || '—';
+      var homeIn   = document.getElementById('nasta_home_in_' + g.gameId)?.value || '—';
+      var homeOut  = document.getElementById('nasta_home_out_' + g.gameId)?.value || '—';
+      var awayIn   = document.getElementById('nasta_away_in_' + g.gameId)?.value || '—';
+      var awayOut  = document.getElementById('nasta_away_out_' + g.gameId)?.value || '—';
+      var msgHome  = document.getElementById('nasta_msg_home_' + g.gameId)?.checked;
+      var msgAway  = document.getElementById('nasta_msg_away_' + g.gameId)?.checked;
+      var ownText  = document.getElementById('nasta_msg_own_' + g.gameId)?.value || '';
       var msgs = [];
       if (msgHome) msgs.push('Hemmalag: lamna rum innan matchstart');
       if (msgAway) msgs.push('Bortalag: lamna rum innan matchstart');
@@ -2689,15 +2700,23 @@ function printOmkNasta() {
       var msgStr = msgs.join(' | ') || '—';
       var hc = g.homeTeam?.includes('Sollentuna') ? ' class="sfk"' : '';
       var ac = g.awayTeam?.includes('Sollentuna') ? ' class="sfk"' : '';
-      h += '<tr class="main-row">';
-      h += '<td>' + dateStr + '</td><td class="time-cell">' + timeStr + '</td><td>' + (g.arenaName||'—') + '</td>';
-      h += '<td' + hc + '>' + (g.homeTeam||'—') + '</td>';
+      // Hemma satırı
+      h += '<tr style="border-top:2px solid #bbb;">';
+      h += '<td rowspan="2">' + dateStr + '</td>';
+      h += '<td rowspan="2" class="time-cell">' + timeStr + '</td>';
+      h += '<td rowspan="2">' + (g.arenaName||'—') + '</td>';
+      h += '<td' + hc + '>🏠 ' + (g.homeTeam||'—') + '</td>';
       h += '<td>' + homeRoom + '</td>';
-      h += '<td class="time-cell">' + homeIn + '</td><td class="time-cell">' + homeOut + '</td>';
-      h += '<td' + ac + '>' + (g.awayTeam||'—') + '</td>';
+      h += '<td class="time-cell">' + homeIn + '</td>';
+      h += '<td class="time-cell">' + homeOut + '</td>';
+      h += '<td rowspan="2">' + msgStr + '</td>';
+      h += '</tr>';
+      // Borta satırı
+      h += '<tr>';
+      h += '<td' + ac + '>✈️ ' + (g.awayTeam||'—') + '</td>';
       h += '<td>' + awayRoom + '</td>';
-      h += '<td class="time-cell">' + awayIn + '</td><td class="time-cell">' + awayOut + '</td>';
-      h += '<td>' + msgStr + '</td>';
+      h += '<td class="time-cell">' + awayIn + '</td>';
+      h += '<td class="time-cell">' + awayOut + '</td>';
       h += '</tr>';
     });
     h += '</tbody></table></div>';
