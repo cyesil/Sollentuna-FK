@@ -889,7 +889,16 @@ if (action === 'rawgame') {
         const sfkTeams = Object.entries(teams)
           .filter(([id, name]) => name && name.toLowerCase().includes('sollentuna'))
           .reduce((acc, [id, name]) => { acc[id] = name; return acc; }, {});
-        return res.status(200).json({ count: games.length, sfkTeams, allTeams: teams });
+        // ClubID'leri de topla
+        const clubs = {};
+        games.forEach(g => {
+          clubs[g.HomeTeamClubID] = g.HomeTeamClubName;
+          clubs[g.AwayTeamClubID] = g.AwayTeamClubName;
+        });
+        const sfkClubs = Object.entries(clubs)
+          .filter(([id, name]) => name && name.toLowerCase().includes('sollentuna'))
+          .reduce((acc, [id, name]) => { acc[id] = name; return acc; }, {});
+        return res.status(200).json({ count: games.length, sfkTeams, sfkClubs, allTeams: teams, allClubs: clubs });
       }
 
       // Sadece ev macları
