@@ -620,7 +620,6 @@
             </div>
             <div style="margin-left:auto;display:flex;gap:0.5rem;">
               <button onclick="saveAllOmkRooms()" class="btn btn-success">💾 Spara alla</button>
-              <button onclick="printSparade()" class="btn btn-secondary">🖨️ PDF</button>
             </div>
           </div>
           <div id="omkNastaMsg" style="min-height:1.2rem;margin-bottom:0.75rem;font-size:0.9rem;"></div>
@@ -2763,18 +2762,18 @@ async function saveAllOmkRooms() {
   const games = window._omkNastaGames || [];
   if (!games.length) return;
 
-  // DOM değerlerini şimdi oku
-  var savedData = games.map(function(g) {
-    var homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value || null;
-    var awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value || null;
-    var homeIn   = document.getElementById('nasta_home_in_' + g.gameId)?.value || null;
-    var homeOut  = document.getElementById('nasta_home_out_' + g.gameId)?.value || null;
-    var awayIn   = document.getElementById('nasta_away_in_' + g.gameId)?.value || null;
-    var awayOut  = document.getElementById('nasta_away_out_' + g.gameId)?.value || null;
-    var msgHome  = document.getElementById('nasta_msg_home_' + g.gameId)?.checked || false;
-    var msgAway  = document.getElementById('nasta_msg_away_' + g.gameId)?.checked || false;
-    var ownText  = document.getElementById('nasta_msg_own_' + g.gameId)?.value?.trim() || '';
-    var msgs = [];
+  // DOM değerlerini oku
+  const savedData = games.map(function(g) {
+    const homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value || null;
+    const awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value || null;
+    const homeIn   = document.getElementById('nasta_home_in_' + g.gameId)?.value || null;
+    const homeOut  = document.getElementById('nasta_home_out_' + g.gameId)?.value || null;
+    const awayIn   = document.getElementById('nasta_away_in_' + g.gameId)?.value || null;
+    const awayOut  = document.getElementById('nasta_away_out_' + g.gameId)?.value || null;
+    const msgHome  = document.getElementById('nasta_msg_home_' + g.gameId)?.checked || false;
+    const msgAway  = document.getElementById('nasta_msg_away_' + g.gameId)?.checked || false;
+    const ownText  = document.getElementById('nasta_msg_own_' + g.gameId)?.value?.trim() || '';
+    const msgs = [];
     if (msgHome) msgs.push('Hemmalag: lamna rum innan matchstart');
     if (msgAway) msgs.push('Bortalag: lamna rum innan matchstart');
     if (ownText) msgs.push(ownText);
@@ -2789,37 +2788,40 @@ async function saveAllOmkRooms() {
     };
   });
 
-  // Prompt ile isim al — en basit yöntem
-  var today = new Date().toLocaleDateString('sv-SE');
-  var sName = prompt('Ange ett namn:', today + ' Omkladningsrum');
+  console.log('savedData count:', savedData.length, 'first homeRoom:', savedData[0]?.homeRoom);
+
+  // İsim al
+  const today = new Date().toLocaleDateString('sv-SE');
+  const sName = prompt('Ange ett namn:', today + ' Omkladningsrum');
   if (!sName || !sName.trim()) return;
-  sName = sName.trim();
+  const sessionName = sName.trim();
 
-  var msgEl = document.getElementById('omkNastaMsg');
-  if (msgEl) { msgEl.style.color = 'var(--muted)'; msgEl.textContent = 'Sparar ' + savedData.length + ' matcher...'; }
+  const msgEl = document.getElementById('omkNastaMsg');
+  if (msgEl) { msgEl.style.color = 'var(--muted)'; msgEl.textContent = 'Sparar...'; }
 
-  var saved = 0, errors = 0;
-  for (var i = 0; i < savedData.length; i++) {
-    var d = savedData[i];
-    try {
-      var r = await fetch('/api/admin?action=saveroom', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          game_id: parseInt(d.gameId), game_date: d.gameDate,
-          home_team: d.homeTeam, away_team: d.awayTeam,
-          arena_id: d.arenaId, arena_name: d.arenaName,
-          home_room: d.homeRoom, away_room: d.awayRoom,
-          notes: d.notes, status: 'pending',
-          extra_json: d.extra,
-          home_logo: d.homeLogo, away_logo: d.awayLogo,
-          session_name: sName
-        })
-      });
-      if (r.ok) { saved++; }
-      else { var err = await r.json(); console.error('saveroom error:', err); errors++; }
-    } catch(e) { console.error('saveroom ex:', e); errors++; }
-  }
+  // Tüm kayıtları paralel gönder
+  const results = await Promise.all(savedData.map(function(d) {
+    return fetch('/api/admin?action=saveroom', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        game_id: parseInt(d.gameId), game_date: d.gameDate,
+        home_team: d.homeTeam, away_team: d.awayTeam,
+        arena_id: d.arenaId, arena_name: d.arenaName,
+        home_room: d.homeRoom, away_room: d.awayRoom,
+        notes: d.notes, status: 'pending',
+        extra_json: d.extra,
+        home_logo: d.homeLogo, away_logo: d.awayLogo,
+        session_name: sessionName
+      })
+    }).then(function(r) { return r.ok ? 'ok' : 'err'; })
+    .catch(function(e) { console.error('err:', e); return 'err'; });
+  }));
+
+  const saved  = results.filter(function(r){ return r==='ok'; }).length;
+  const errors = results.filter(function(r){ return r==='err'; }).length;
+
+  console.log('saved:', saved, 'errors:', errors);
 
   if (msgEl) {
     if (errors === 0) { msgEl.style.color='var(--green)'; msgEl.textContent='✅ '+saved+' matcher sparade!'; }
@@ -2833,6 +2835,7 @@ async function saveAllOmkRooms() {
     await loadSparadeAtamalar();
   }
 }
+
 
 
 
