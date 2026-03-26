@@ -2492,7 +2492,11 @@ async function deleteSparadeRow(gameId) {
 
 function printSparade() {
   var rows = _sparadePanel || [];
-  if (!rows || !rows.length) { alert('Inga sparade matcher att skriva ut. Oppna en sparad fil forst.'); return; }
+  if (!rows || !rows.length) { alert('Oppna en sparad fil forst.'); return; }
+
+  var norrviken = rows.filter(function(r) { return NORRVIKEN_ARENAS.includes(r.arena_id); });
+  var edsbergs  = rows.filter(function(r) { return EDSBERGS_ARENAS.includes(r.arena_id); });
+  var other     = rows.filter(function(r) { return !NORRVIKEN_ARENAS.includes(r.arena_id) && !EDSBERGS_ARENAS.includes(r.arena_id); });
 
   var printWin = window.open('', '_blank', 'width=1400,height=900');
   printWin.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sparade</title>');
@@ -2500,53 +2504,72 @@ function printSparade() {
   printWin.document.write('body{font-family:Arial,sans-serif;font-size:10px;color:#111;margin:15px;}');
   printWin.document.write('h1{font-size:15px;margin-bottom:3px;}');
   printWin.document.write('.sub{color:#666;font-size:9px;margin-bottom:14px;}');
-  printWin.document.write('table{width:100%;border-collapse:collapse;font-size:9px;}');
-  printWin.document.write('th{background:#1a1a2e;color:#fff;padding:4px 5px;text-align:left;}');
+  printWin.document.write('.group{margin-bottom:18px;}');
+  printWin.document.write('.gtitle{font-size:12px;font-weight:700;color:#1a1a2e;border-bottom:2px solid #1a1a2e;padding-bottom:3px;margin-bottom:6px;}');
+  printWin.document.write('table{width:100%;border-collapse:collapse;font-size:9px;margin-bottom:10px;}');
+  printWin.document.write('th{background:#1a1a2e;color:#fff;padding:4px 5px;text-align:left;white-space:nowrap;}');
   printWin.document.write('td{padding:3px 5px;vertical-align:top;}');
-  printWin.document.write('tr.new-day td{border-top:2px solid #1a1a2e;}');
+  printWin.document.write('tr.new-day td{border-top:2px solid #555;}');
   printWin.document.write('tr.borta-row td{border-top:none;}');
   printWin.document.write('.sfk{font-weight:700;color:#0055aa;}');
-  printWin.document.write('img{width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:3px;}');
   printWin.document.write('@media print{@page{margin:0.8cm;size:A4 landscape;}body{margin:8px;}}');
   printWin.document.write('</style></head><body>');
-  printWin.document.write('<h1>Sollentuna FK - Sparade matcher</h1>');
-  printWin.document.write('<div class="sub">Utskriven: ' + new Date().toLocaleDateString('sv-SE') + '</div>');
+  printWin.document.write('<h1>Sollentuna FK - Omkladningsrum</h1>');
+  printWin.document.write('<div class="sub">Utskriven: ' + new Date().toLocaleDateString('sv-SE') + ' &nbsp;|&nbsp; Fil: ' + (_currentSession || '') + '</div>');
 
-  printWin.document.write('<table><thead><tr>');
-  printWin.document.write('<th>Datum</th><th>Avspark</th><th>Arena</th><th>Lag</th><th>Rum</th><th>Anteckningar</th>');
-  printWin.document.write('</tr></thead><tbody>');
+  function buildGroup(title, gList) {
+    if (!gList.length) return '';
+    var h = '<div class="group"><div class="gtitle">' + title + '</div>';
+    h += '<table><thead><tr>';
+    h += '<th>Datum</th><th>Avspark</th><th>Arena</th><th>Lag</th><th>Rum</th><th>In</th><th>Ut</th><th>Meddelande</th>';
+    h += '</tr></thead><tbody>';
+    var prevDate = null;
+    gList.forEach(function(row) {
+      var dt      = row.game_date ? new Date(row.game_date) : null;
+      var dateStr = dt ? dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'}) : '—';
+      var timeStr = dt ? dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'}) : '—';
+      var curDate = dt ? dt.toISOString().slice(0,10) : null;
+      var isNewDay = curDate && curDate !== prevDate;
+      prevDate = curDate;
+      var hc = row.home_team?.includes('Sollentuna') ? ' class="sfk"' : '';
+      var ac = row.away_team?.includes('Sollentuna') ? ' class="sfk"' : '';
+      var notes = row.notes || '—';
+      // extra_json'dan saatleri al
+      var extra = {};
+      try { extra = JSON.parse(row.extra_json || '{}'); } catch(e) {}
+      var homeIn  = extra.homeIn  || '—';
+      var homeOut = extra.homeOut || '—';
+      var awayIn  = extra.awayIn  || '—';
+      var awayOut = extra.awayOut || '—';
+      // Hemma satırı
+      h += '<tr class="' + (isNewDay ? 'new-day' : '') + '">';
+      h += '<td rowspan="2">' + dateStr + '</td>';
+      h += '<td rowspan="2">' + timeStr + '</td>';
+      h += '<td rowspan="2">' + (row.arena_name||'—') + '</td>';
+      h += '<td' + hc + '>🏠 ' + (row.home_team||'—') + '</td>';
+      h += '<td>' + (row.home_room||'—') + '</td>';
+      h += '<td>' + homeIn + '</td><td>' + homeOut + '</td>';
+      h += '<td rowspan="2">' + notes + '</td>';
+      h += '</tr>';
+      // Borta satırı
+      h += '<tr class="borta-row">';
+      h += '<td' + ac + '>✈️ ' + (row.away_team||'—') + '</td>';
+      h += '<td>' + (row.away_room||'—') + '</td>';
+      h += '<td>' + awayIn + '</td><td>' + awayOut + '</td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+    return h;
+  }
 
-  var prevDate = null;
-  rows.forEach(function(row) {
-    var dt      = row.game_date ? new Date(row.game_date) : null;
-    var dateStr = dt ? dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'}) : '—';
-    var timeStr = dt ? dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'}) : '—';
-    var curDate = dt ? dt.toISOString().slice(0,10) : null;
-    var isNewDay = curDate && curDate !== prevDate;
-    prevDate = curDate;
-    var hc = row.home_team?.includes('Sollentuna') ? ' class="sfk"' : '';
-    var ac = row.away_team?.includes('Sollentuna') ? ' class="sfk"' : '';
-    var notes = row.notes || '—';
-    // Hemma satırı
-    printWin.document.write('<tr class="' + (isNewDay ? 'new-day' : '') + '">');
-    printWin.document.write('<td rowspan="2">' + dateStr + '</td>');
-    printWin.document.write('<td rowspan="2">' + timeStr + '</td>');
-    printWin.document.write('<td rowspan="2">' + (row.arena_name||'—') + '</td>');
-    printWin.document.write('<td' + hc + '>🏠 ' + (row.home_team||'—') + '</td>');
-    printWin.document.write('<td>' + (row.home_room||'—') + '</td>');
-    printWin.document.write('<td rowspan="2">' + notes + '</td>');
-    printWin.document.write('</tr>');
-    // Borta satırı
-    printWin.document.write('<tr class="borta-row">');
-    printWin.document.write('<td' + ac + '>✈️ ' + (row.away_team||'—') + '</td>');
-    printWin.document.write('<td>' + (row.away_room||'—') + '</td>');
-    printWin.document.write('</tr>');
-  });
-
-  printWin.document.write('</tbody></table></body></html>');
+  printWin.document.write(buildGroup('Norrvikens Omkladningsrum', norrviken));
+  printWin.document.write(buildGroup('Edsbergs Omkladningsrum', edsbergs));
+  if (other.length) printWin.document.write(buildGroup('Ovriga arenor', other));
+  printWin.document.write('</body></html>');
   printWin.document.close();
   setTimeout(function(){ printWin.print(); }, 600);
 }
+
 
 // ── Eski fonksiyonlar (uyumluluk için) ─────────────────────
 function renderOmkladningsrum(games, rooms, from, to) { renderOmkList(games, rooms); }
