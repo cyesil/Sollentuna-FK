@@ -1981,13 +1981,12 @@ const NORRVIKEN_ARENAS = [21808, 21815, 20977];
 const EDSBERGS_ARENAS  = [20586, 20588, 20591];
 
 const NORRVIKEN_ROOMS = [
-  'Omklädningsrum 1','Omklädningsrum 2','Omklädningsrum 3','Omklädningsrum 4',
-  'Omklädningsrum 5','Omklädningsrum 6','Omklädningsrum 7','Omklädningsrum 8',
-  'Omklädningsrum 9','Omklädningsrum 10'
+  'Rum 1','Rum 2','Rum 3','Rum 4','Rum 5',
+  'Rum 6','Rum 7','Rum 8','Rum 9','Rum 10'
 ];
 const EDSBERGS_ROOMS = [
-  'Omklädningsrum 1','Omklädningsrum 2','Omklädningsrum 3','Omklädningsrum 4',
-  'Omklädningsrum 5','Omklädningsrum 6','Barackrum 1','Barackrum 2'
+  'Rum 1','Rum 2','Rum 3','Rum 4','Rum 5','Rum 6',
+  'Barack 1','Barack 2'
 ];
 
 let _roomAssignments = {};
@@ -2145,7 +2144,7 @@ function renderOmkWeek(games, rooms, weekStart) {
 function buildOmkTable(games, rooms) {
   if (!games.length) return '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0;">Inga matcher</div>';
   let html = '<div class="table-wrap"><table><thead><tr>';
-  html += '<th style="width:36px;"><input type="checkbox" id="omkSelectAll_' + (Math.random()*9999|0) + '" onchange="omkToggleAll(this)" style="cursor:pointer;width:15px;height:15px;"></th>';
+  html += '<th style="width:36px;"><input type="checkbox" onchange="omkToggleAll(this)" style="cursor:pointer;width:15px;height:15px;"></th>';
   html += '<th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
   html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
   html += '</tr></thead><tbody>';
