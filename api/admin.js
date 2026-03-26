@@ -961,6 +961,16 @@ if (action === 'clubgames') {
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
 
+  // Oda atamasını sil
+  if (action === 'deleteroom') {
+    try {
+      const gameId = req.query.gameId;
+      if (!gameId) return res.status(400).json({ error: 'gameId required' });
+      await supabaseRequest('DELETE', `/room_assignments?game_id=eq.${gameId}`, null);
+      return res.status(200).json({ ok: true });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
   // Onay durumunu güncelle
   if (action === 'approveroom') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
