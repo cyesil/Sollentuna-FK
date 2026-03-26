@@ -673,7 +673,9 @@ module.exports = async (req, res) => {
     const { dateFrom, dateTo } = req.query;
 
     // SFK arenalarının MinFotboll ArenaID'leri
-    const SFK_ARENA_IDS = new Set([13386, 21389, 20591]);
+    // SFK P16 ev maçları: sadece 20591 (Edsbergs Sportfält 3)
+    // 13386 = Täby FK arenası, 21389 = Hammarby arenası — bunlar SFK değil
+    const SFK_ARENA_IDS = new Set([20591]);
 
     const from = dateFrom || new Date().toISOString().slice(0, 10);
     const to   = dateTo   || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
