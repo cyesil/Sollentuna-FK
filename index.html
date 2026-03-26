@@ -2475,20 +2475,78 @@ async function deleteSparadeSession(sessionName) {
 function editSparadeRow(rowId, gameId) {
   const sparade = (_sparadePanel || []).find(function(r) { return r.game_id === gameId; });
   if (!sparade) return;
-  if (!window._omkAllGames) window._omkAllGames = [];
-  const existing = window._omkAllGames.find(function(g) { return g.gameId === gameId; });
-  if (!existing) {
-    window._omkAllGames.push({
-      gameId: sparade.game_id, gameDate: sparade.game_date,
-      homeTeam: sparade.home_team, awayTeam: sparade.away_team,
-      arenaId: sparade.arena_id, arenaName: sparade.arena_name,
-      homeLogo: sparade.home_logo, awayLogo: sparade.away_logo,
-    });
+
+  // Inline edit panel göster
+  const rowEl = document.getElementById('sparade_row_' + gameId);
+  if (!rowEl) return;
+
+  // Zaten açık mı?
+  const existingEdit = document.getElementById('sparade_edit_' + gameId);
+  if (existingEdit) { existingEdit.remove(); return; }
+
+  const rooms = getRoomsForArena(sparade.arena_id);
+  function makeOpt(val, cur) {
+    return rooms.map(function(r) {
+      return '<option value="' + r + '"' + (cur === r ? ' selected' : '') + '>' + r + '</option>';
+    }).join('');
   }
-  if (!window._omkRooms) window._omkRooms = {};
-  window._omkRooms[gameId] = {homeRoom: sparade.home_room, awayRoom: sparade.away_room, notes: sparade.notes};
-  openOmkModal(gameId);
-  window._afterSaveOmkRoom = function() { openSparadeSession(_currentSession); };
+
+  const editRow = document.createElement('tr');
+  editRow.id = 'sparade_edit_' + gameId;
+  editRow.style.background = 'rgba(0,212,255,0.05)';
+  editRow.innerHTML = '<td colspan="9" style="padding:0.75rem 1rem;">'
+    + '<div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">'
+    + '<div><label style="font-size:0.75rem;color:var(--muted);display:block;">Hemma rum</label>'
+    + '<select id="sedit_home_' + gameId + '" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.35rem 0.5rem;border-radius:6px;font-size:0.85rem;">'
+    + '<option value="">— Rum —</option>' + makeOpt(sparade.home_room) + '</select></div>'
+    + '<div><label style="font-size:0.75rem;color:var(--muted);display:block;">Borta rum</label>'
+    + '<select id="sedit_away_' + gameId + '" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.35rem 0.5rem;border-radius:6px;font-size:0.85rem;">'
+    + '<option value="">— Rum —</option>' + makeOpt(sparade.away_room) + '</select></div>'
+    + '<div style="flex:1;min-width:150px;"><label style="font-size:0.75rem;color:var(--muted);display:block;">Anteckningar</label>'
+    + '<input type="text" id="sedit_notes_' + gameId + '" value="' + (sparade.notes||'') + '" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.35rem 0.5rem;border-radius:6px;font-size:0.85rem;"></div>'
+    + '<button onclick="saveSparadeEdit(' + gameId + ')" class="btn btn-success" style="margin-top:1.1rem;padding:0.35rem 0.8rem;">💾</button>'
+    + '<button onclick="cancelSparadeEdit(' + gameId + ')" class="btn btn-secondary" style="margin-top:1.1rem;padding:0.35rem 0.8rem;">✕</button>'
+    + '</div></td>';
+
+  rowEl.insertAdjacentElement('afterend', editRow);
+}
+
+function cancelSparadeEdit(gameId) {
+  var el = document.getElementById('sparade_edit_' + gameId);
+  if (el) el.remove();
+}
+
+async function saveSparadeEdit(gameId) {
+  const sparade = (_sparadePanel || []).find(function(r) { return r.game_id === gameId; });
+  if (!sparade) return;
+  const homeRoom = document.getElementById('sedit_home_' + gameId)?.value || null;
+  const awayRoom = document.getElementById('sedit_away_' + gameId)?.value || null;
+  const notes    = document.getElementById('sedit_notes_' + gameId)?.value?.trim() || null;
+
+  try {
+    const r = await fetch('/api/admin?action=saveroom', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        game_id: gameId, game_date: sparade.game_date,
+        home_team: sparade.home_team, away_team: sparade.away_team,
+        arena_id: sparade.arena_id, arena_name: sparade.arena_name,
+        home_room: homeRoom, away_room: awayRoom,
+        notes: notes, status: 'pending',
+        extra_json: sparade.extra_json,
+        home_logo: sparade.home_logo, away_logo: sparade.away_logo,
+        session_name: _currentSession
+      })
+    });
+    if (r.ok) {
+      // Panel'i güncelle
+      sparade.home_room = homeRoom;
+      sparade.away_room = awayRoom;
+      sparade.notes = notes;
+      document.getElementById('sparade_edit_' + gameId)?.remove();
+      openSparadeSession(_currentSession);
+    }
+  } catch(e) { alert('Fel: ' + e.message); }
 }
 
 async function deleteSparadeRow(gameId) {
@@ -2526,7 +2584,8 @@ function printSparade() {
   printWin.document.write('th{background:#1a1a2e;color:#fff;padding:4px 5px;text-align:left;overflow:hidden;}');
   printWin.document.write('td{padding:3px 5px;vertical-align:middle;overflow:hidden;word-break:break-word;}');
   printWin.document.write('tr.new-day td{border-top:2px solid #333;}');
-  printWin.document.write('tr.borta-row td{border-top:none;}');
+  printWin.document.write('tr.hemma-row td{border-top:1px solid #ddd;}');
+  printWin.document.write('tr.borta-row td{border-top:none;border-bottom:1px solid #ddd;}');
   printWin.document.write('.sfk{font-weight:700;color:#0055aa;}');
   printWin.document.write('.logo{width:14px;height:14px;object-fit:contain;vertical-align:middle;margin-right:3px;}');
   printWin.document.write('@media print{@page{margin:0.8cm;size:A4 landscape;}body{margin:8px;font-size:9px;}}');
@@ -2562,7 +2621,7 @@ function printSparade() {
       var homeLogo = row.home_logo ? '<img src="' + row.home_logo + '" class="logo" crossorigin="anonymous">' : '';
       var awayLogo = row.away_logo ? '<img src="' + row.away_logo + '" class="logo" crossorigin="anonymous">' : '';
       // Hemma satırı
-      h += '<tr class="' + (isNewDay ? 'new-day' : '') + '">';
+      h += '<tr class="' + (isNewDay ? 'new-day' : 'hemma-row') + '">';
       h += '<td rowspan="2">' + dateStr + '</td>';
       h += '<td rowspan="2">' + timeStr + '</td>';
       h += '<td rowspan="2">' + (row.arena_name||'—') + '</td>';
