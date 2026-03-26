@@ -673,9 +673,13 @@ module.exports = async (req, res) => {
     const { dateFrom, dateTo } = req.query;
 
     // SFK arenalarının MinFotboll ArenaID'leri
-    // SFK P16 ev maçları: sadece 20591 (Edsbergs Sportfält 3)
-    // 13386 = Täby FK arenası, 21389 = Hammarby arenası — bunlar SFK değil
-    const SFK_ARENA_IDS = new Set([20591]);
+    // SFK arenalarının MinFotboll ArenaID'leri (doğrulanmış):
+    // 20591 = Edsbergs Sportfält 3       (P16 + P17 Allsvenskan)
+    // 20977 = Sollentuna Fotbollshall 1  (P17 kupa)
+    // 20976 = Sollentuna Fotbollshall    (P17 hazırlık)
+    // 21808 = Norrvikens IP 1            (P17 kupa)
+    // 21815 = Norrvikens IP 2 Hall       (P17 hazırlık)
+    const SFK_ARENA_IDS = new Set([20591, 20977, 20976, 21808, 21815]);
 
     const from = dateFrom || new Date().toISOString().slice(0, 10);
     const to   = dateTo   || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
