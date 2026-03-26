@@ -595,6 +595,21 @@
 
         <div id="omkladningsrumContent"><div class="empty-state">Välj datumintervall och hämta matcher</div></div>
 
+        <!-- İsim dialog modal -->
+        <div id="omkNameModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:600;align-items:center;justify-content:center;">
+          <div style="background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:1.5rem;min-width:380px;box-shadow:0 8px 40px rgba(0,212,255,0.2);">
+            <div style="font-weight:700;font-size:1.1rem;margin-bottom:1rem;color:var(--accent);">💾 Spara tilldelningar</div>
+            <div style="font-size:0.9rem;color:var(--muted);margin-bottom:0.75rem;">Ange ett namn:</div>
+            <input type="text" id="omkSessionNameInput"
+              style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.6rem 0.8rem;border-radius:8px;font-size:0.95rem;margin-bottom:1rem;"
+              onkeydown="if(event.key==='Enter')confirmOmkName()">
+            <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+              <button onclick="cancelOmkName()" class="btn btn-secondary">Avbryt</button>
+              <button onclick="confirmOmkName()" class="btn btn-primary">💾 Spara</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Nästa — Toplu oda atama ekranı -->
         <div id="omkNastaPanel" style="display:none;margin-top:1rem;">
           <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
@@ -2747,11 +2762,34 @@ function renderNastaContent(games) {
 async function saveAllOmkRooms() {
   const games = window._omkNastaGames || [];
   if (!games.length) return;
+  window._pendingNastaGames = null; // reset
 
   const today = new Date().toLocaleDateString('sv-SE');
-  const sessionName = prompt('Ange ett namn för att spara dessa tilldelningar:', today + ' Omkladningsrum');
-  if (!sessionName || !sessionName.trim()) return;
-  const sName = sessionName.trim();
+  // Custom modal ile isim al
+  const input = document.getElementById('omkSessionNameInput');
+  if (input) input.value = today + ' Omkladningsrum';
+  const modal = document.getElementById('omkNameModal');
+  if (modal) { modal.style.display = 'flex'; if (input) setTimeout(function(){ input.focus(); input.select(); }, 50); }
+  // saveAllOmkRooms devamı confirmOmkName'de çalışacak
+  window._pendingNastaGames = games;
+  return; // Modal callback ile devam eder
+}
+
+let _pendingNastaGames = null;
+
+function cancelOmkName() {
+  document.getElementById('omkNameModal').style.display = 'none';
+}
+
+async function confirmOmkName() {
+  const input = document.getElementById('omkSessionNameInput');
+  const sName = (input?.value || '').trim();
+  if (!sName) { input?.focus(); return; }
+  document.getElementById('omkNameModal').style.display = 'none';
+
+  const games = window._pendingNastaGames || [];
+  if (!games.length) return;
+  window._pendingNastaGames = null;
 
   const msgEl = document.getElementById('omkNastaMsg');
   msgEl.style.color = 'var(--muted)';
@@ -2801,7 +2839,13 @@ async function saveAllOmkRooms() {
 
   if (errors === 0) {
     msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '✅ ' + saved + ' matcher sparade som "' + sName + '"!';
+    msgEl.textContent = '✅ ' + saved + ' matcher sparade!';
+    // Otomatik Sparade sayfasına git
+    setTimeout(function() {
+      document.getElementById('omkNastaPanel').style.display = 'none';
+      document.getElementById('omkladningsrumContent').style.display = '';
+      openSparadeSession(sName);
+    }, 800);
   } else {
     msgEl.style.color = 'var(--yellow)';
     msgEl.textContent = '⚠️ ' + saved + ' sparade, ' + errors + ' fel.';
