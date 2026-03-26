@@ -644,8 +644,15 @@ module.exports = async (req, res) => {
 
   // Soyunma odası atamalarını getir
   if (action === 'getrooms') {
-    const rooms = await supabaseGet('/room_assignments?select=*');
-    return res.status(200).json(Array.isArray(rooms) ? rooms : []);
+    try {
+      const from = req.query.from || '';
+      const to   = req.query.to   || '';
+      let path = '/room_assignments?select=*&order=game_date.asc';
+      if (from) path += `&game_date=gte.${from}`;
+      if (to)   path += `&game_date=lte.${to}`;
+      const rooms = await supabaseGet(path);
+      return res.status(200).json(Array.isArray(rooms) ? rooms : []);
+    } catch(e) { return res.status(500).json({ error: e.message }); }
   }
 
   // Arena/Venue bilgisi - maçtan arena ID'si al
@@ -688,16 +695,20 @@ module.exports = async (req, res) => {
       const allGames = [];
       const seen = new Set();
 
-      // Kulübün tüm maçlarını çek (coming + previous)
-      const [coming, previous] = await Promise.all([
-        minfotbollGet('/api/clubapi/getcomingclubgames?ClubID=1917&LastGameID=0', mfToken),
-        minfotbollGet('/api/clubapi/getpreviousclubgames?ClubID=1917&LastGameID=0', mfToken),
-      ]);
-
-      const allClubGames = [
-        ...(Array.isArray(coming) ? coming : []),
-        ...(Array.isArray(previous) ? previous : []),
-      ];
+      // Kulübün tüm coming maçlarını çek (pagination ile)
+      const allClubGames = [];
+      let lastGameId = 0;
+      let page = 0;
+      while (page < 20) { // max 20 sayfa (200 maç)
+        const batch = await minfotbollGet(
+          `/api/clubapi/getcomingclubgames?ClubID=1917&LastGameID=${lastGameId}`, mfToken
+        );
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        allClubGames.push(...batch);
+        lastGameId = batch[batch.length - 1].GameID;
+        if (batch.length < 10) break; // son sayfa
+        page++;
+      }
 
       allClubGames.forEach(g => {
         if (!SFK_ARENA_IDS.has(g.ArenaID)) return;
@@ -859,13 +870,18 @@ if (action === 'clubgames') {
     try {
       const mfToken = await getMinfotbollToken();
       const clubId = req.query.clubId || '1917';
-      const [coming, previous] = await Promise.all([
-        minfotbollGet(`/api/clubapi/getcomingclubgames?ClubID=${clubId}&LastGameID=0`, mfToken),
-        minfotbollGet(`/api/clubapi/getpreviousclubgames?ClubID=${clubId}&LastGameID=0`, mfToken),
-      ]);
-      // Tüm maçlardan SFK takımlarını ve ID'lerini topla
+      // Tüm coming maçları pagination ile çek
+      const allGamesForTeams = [];
+      let lastId = 0;
+      for (let p = 0; p < 20; p++) {
+        const batch = await minfotbollGet(`/api/clubapi/getcomingclubgames?ClubID=${clubId}&LastGameID=${lastId}`, mfToken);
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        allGamesForTeams.push(...batch);
+        lastId = batch[batch.length - 1].GameID;
+        if (batch.length < 10) break;
+      }
       const teams = {};
-      [...(Array.isArray(coming) ? coming : []), ...(Array.isArray(previous) ? previous : [])].forEach(g => {
+      allGamesForTeams.forEach(g => {
         if (g.HomeTeamClubID === parseInt(clubId) || g.HomeTeamClubName?.toLowerCase().includes('sollentuna')) {
           teams[g.HomeTeamID] = g.HomeTeamDisplayName;
         }
@@ -874,10 +890,9 @@ if (action === 'clubgames') {
         }
       });
       return res.status(200).json({
-        comingCount: Array.isArray(coming) ? coming.length : 0,
-        previousCount: Array.isArray(previous) ? previous.length : 0,
+        comingCount: allGamesForTeams.length,
         sfkTeams: teams,
-        comingSample: Array.isArray(coming) ? coming.slice(0, 2) : coming,
+        comingSample: allGamesForTeams.slice(0, 2),
       });
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
@@ -955,18 +970,7 @@ if (action === 'clubgames') {
       });
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
-  // Oda atamalarını getir
-  if (action === 'getrooms') {
-    try {
-      const from = req.query.from || '';
-      const to   = req.query.to   || '';
-      let path = '/room_assignments?select=*&order=game_date.asc';
-      if (from) path += `&game_date=gte.${from}`;
-      if (to)   path += `&game_date=lte.${to}`;
-      const rows = await supabaseGet(path);
-      return res.status(200).json(Array.isArray(rows) ? rows : []);
-    } catch(e) { return res.status(500).json({ error: e.message }); }
-  }
+
 
   // Tek oda atamasını kaydet/güncelle
   if (action === 'saveroom') {
