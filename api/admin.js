@@ -609,13 +609,29 @@ module.exports = async (req, res) => {
   // Soyunma odası atamalarını getir
   if (action === 'getrooms') {
     try {
+      const sessionName = req.query.session;
       const from = req.query.from || '';
       const to   = req.query.to   || '';
-      let path = '/room_assignments?select=*&order=game_date.asc';
-      if (from) path += `&game_date=gte.${from}`;
-      if (to)   path += `&game_date=lte.${to}`;
-      const rooms = await supabaseGet(path);
-      return res.status(200).json(Array.isArray(rooms) ? rooms : []);
+      if (sessionName) {
+        // Belirli bir session'ın kayıtları
+        const path = `/room_assignments?session_name=eq.${encodeURIComponent(sessionName)}&select=*&order=game_date.asc`;
+        const rooms = await supabaseGet(path);
+        return res.status(200).json(Array.isArray(rooms) ? rooms : []);
+      }
+      // Tüm session isimlerini listele (distinct)
+      const path = `/room_assignments?select=session_name,game_date&order=game_date.asc`;
+      const rows = await supabaseGet(path);
+      if (!Array.isArray(rows)) return res.status(200).json({ sessions: [] });
+      // Benzersiz session'ları bul
+      const seen = new Set();
+      const sessions = [];
+      rows.forEach(r => {
+        if (r.session_name && !seen.has(r.session_name)) {
+          seen.add(r.session_name);
+          sessions.push({ name: r.session_name });
+        }
+      });
+      return res.status(200).json({ sessions });
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
 
@@ -946,18 +962,22 @@ if (action === 'clubgames') {
     try {
       const { game_id, game_date, home_team, away_team, arena_id, arena_name,
               home_room, away_room, notes, status, extra_json,
-              home_logo, away_logo } = req.body;
+              home_logo, away_logo, session_name } = req.body;
       const gameIdVal = game_id || req.body.gameId;
       if (!gameIdVal) return res.status(400).json({ error: 'game_id required', body: req.body });
-      // Upsert
+      // Upsert — session_name + game_id kombinasyonu unique olmalı
+      // Önce aynı session+game_id var mı bak
+      const existing = await supabaseGet(
+        `/room_assignments?game_id=eq.${gameIdVal}&session_name=eq.${encodeURIComponent(session_name || '')}`
+      );
       const row = { game_id: gameIdVal, game_date, home_team, away_team, arena_id, arena_name,
                     home_room: home_room || null, away_room: away_room || null,
                     notes: notes || null, status: status || 'pending',
                     extra_json: extra_json || null,
                     home_logo: home_logo || null, away_logo: away_logo || null,
+                    session_name: session_name || null,
                     updated_at: new Date().toISOString() };
       // Mevcut kaydı kontrol et
-      const existing = await supabaseGet(`/room_assignments?game_id=eq.${gameIdVal}`);
       let result;
       if (Array.isArray(existing) && existing.length > 0) {
         result = await supabaseRequest('PATCH', `/room_assignments?game_id=eq.${gameIdVal}`, row);
@@ -971,7 +991,13 @@ if (action === 'clubgames') {
   // Oda atamasını sil
   if (action === 'deleteroom') {
     try {
-      const gameId = req.query.gameId;
+      const gameId     = req.query.gameId;
+      const sessionDel = req.query.session;
+      if (sessionDel) {
+        // Tüm session'ı sil
+        await supabaseRequest('DELETE', `/room_assignments?session_name=eq.${encodeURIComponent(sessionDel)}`, null);
+        return res.status(200).json({ ok: true, deleted: 'session' });
+      }
       if (!gameId) return res.status(400).json({ error: 'gameId required' });
       await supabaseRequest('DELETE', `/room_assignments?game_id=eq.${gameId}`, null);
       return res.status(200).json({ ok: true });
