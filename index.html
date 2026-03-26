@@ -584,9 +584,10 @@
             </select>
           </div>
 
-          <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+          <div style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap;">
             <button class="btn btn-primary" onclick="loadOmkladningsrum()">🏟️ Hämta matcher</button>
             <button class="btn btn-success" onclick="omkNasta()" id="omkNastaBtn" style="display:none;">Nästa →</button>
+            <button class="btn btn-secondary" onclick="loadSparadeAtamalar()">📋 Sparade atamalar</button>
             <button class="btn btn-secondary" onclick="saveOmkPDF()">💾 PDF</button>
           </div>
         </div>
@@ -632,14 +633,7 @@
               <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.5px;">📝 Anteckningar</label>
               <textarea id="omkNotes" rows="2" placeholder="Valfria anteckningar..." style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.7rem;border-radius:8px;font-size:0.9rem;resize:vertical;font-family:'Barlow',sans-serif;"></textarea>
             </div>
-            <div style="margin-bottom:1.25rem;">
-              <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.5px;">✅ Status</label>
-              <select id="omkStatus" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.7rem;border-radius:8px;font-size:0.9rem;width:100%;">
-                <option value="pending">⏳ Väntar på godkännande</option>
-                <option value="approved">✅ Godkänd</option>
-                <option value="rejected">❌ Avvisad</option>
-              </select>
-            </div>
+
             <div style="display:flex;gap:0.75rem;">
               <button onclick="saveOmkRoom()" class="btn btn-primary" style="flex:1;">💾 Spara</button>
               <button onclick="closeOmkModal()" class="btn btn-secondary">Avbryt</button>
@@ -2153,7 +2147,7 @@ function buildOmkTable(games, rooms) {
   let html = '<div class="table-wrap"><table><thead><tr>';
   html += '<th style="width:36px;"><input type="checkbox" id="omkSelectAll_' + (Math.random()*9999|0) + '" onchange="omkToggleAll(this)" style="cursor:pointer;width:15px;height:15px;"></th>';
   html += '<th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
-  html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th>Status</th><th></th>';
+  html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
   html += '</tr></thead><tbody>';
 
   games.forEach(function(g) {
@@ -2161,14 +2155,7 @@ function buildOmkTable(games, rooms) {
     var dateStr = dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'});
     var timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'});
     var saved   = rooms[g.gameId] || {};
-    var status  = saved.status || 'none';
-    var statusHtml = status === 'approved'
-      ? '<span style="color:var(--green);font-weight:700;">✅ Godkänd</span>'
-      : status === 'rejected'
-      ? '<span style="color:var(--red);font-weight:700;">❌ Avvisad</span>'
-      : status === 'pending'
-      ? '<span style="color:var(--yellow);font-weight:700;">⏳ Väntar</span>'
-      : '<span style="color:var(--muted);">—</span>';
+
     var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
     var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
 
@@ -2182,7 +2169,6 @@ function buildOmkTable(games, rooms) {
     html += '<td style="color:' + (saved.homeRoom ? 'var(--text)' : 'var(--muted)') + ';">' + (saved.homeRoom || '—') + '</td>';
     html += '<td style="color:' + (saved.awayRoom ? 'var(--text)' : 'var(--muted)') + ';">' + (saved.awayRoom || '—') + '</td>';
     html += '<td style="color:var(--muted);font-size:0.82rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (saved.notes||'') + '">' + (saved.notes || '—') + '</td>';
-    html += '<td>' + statusHtml + '</td>';
     html += '<td><button onclick="openOmkModal(' + g.gameId + ')" class="btn btn-secondary" style="padding:0.25rem 0.7rem;font-size:0.8rem;">✏️</button></td>';
     html += '</tr>';
   });
@@ -2271,7 +2257,7 @@ async function saveOmkRoom() {
   const homeRoom = document.getElementById('omkHomeRoom').value;
   const awayRoom = document.getElementById('omkAwayRoom').value;
   const notes    = document.getElementById('omkNotes').value.trim();
-  const status   = document.getElementById('omkStatus').value;
+  const status   = 'pending';
   const msgEl    = document.getElementById('omkModalMsg');
 
   msgEl.style.color = 'var(--muted)';
@@ -2306,12 +2292,133 @@ async function saveOmkRoom() {
     msgEl.textContent = '✅ Sparat!';
     setTimeout(function() {
       closeOmkModal();
-      filterOmk(); // Görünümü yenile
+      if (window._afterSaveOmkRoom) {
+        var cb = window._afterSaveOmkRoom;
+        window._afterSaveOmkRoom = null;
+        cb();
+      } else {
+        filterOmk();
+      }
     }, 800);
   } catch(e) {
     msgEl.style.color = 'var(--red)';
     msgEl.textContent = '❌ ' + e.message;
   }
+}
+
+// ── Sparade atamalar ─────────────────────────────────────
+let _sparadePanel = null;
+
+async function loadSparadeAtamalar() {
+  const omkContent = document.getElementById('omkladningsrumContent');
+  const nastaPanel = document.getElementById('omkNastaPanel');
+  nastaPanel.style.display = 'none';
+  omkContent.style.display = '';
+  document.getElementById('omkNastaBtn').style.display = 'none';
+
+  omkContent.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Laddar sparade atamalar...</div>';
+
+  try {
+    const r = await fetch('/api/admin?action=getrooms', {headers: authHeaders()});
+    const rows = await r.json();
+
+    if (!Array.isArray(rows) || !rows.length) {
+      omkContent.innerHTML = '<div class="empty-state">Inga sparade atamalar hittades</div>';
+      return;
+    }
+
+    // Cache güncelle
+    rows.forEach(function(r) {
+      if (!window._omkRooms) window._omkRooms = {};
+      window._omkRooms[r.game_id] = {homeRoom: r.home_room, awayRoom: r.away_room, notes: r.notes};
+    });
+
+    let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">';
+    html += '<div style="font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:700;color:var(--accent);">📋 Sparade atamalar <span style="color:var(--muted);font-size:0.9rem;font-weight:400;">(' + rows.length + ' st)</span></div>';
+    html += '<button onclick="loadOmkladningsrum()" class="btn btn-secondary" style="font-size:0.85rem;">← Tillbaka till matcher</button>';
+    html += '</div>';
+
+    html += '<div class="table-wrap"><table><thead><tr>';
+    html += '<th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
+    html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
+    html += '</tr></thead><tbody>';
+
+    rows.sort(function(a,b) { return new Date(a.game_date) - new Date(b.game_date); });
+
+    rows.forEach(function(row) {
+      var dt      = row.game_date ? new Date(row.game_date) : null;
+      var dateStr = dt ? dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'}) : '—';
+      var timeStr = dt ? dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'}) : '—';
+      var isSFK_home = row.home_team && row.home_team.includes('Sollentuna');
+      var isSFK_away = row.away_team && row.away_team.includes('Sollentuna');
+
+      html += '<tr id="sparade_row_' + row.game_id + '">';
+      html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
+      html += '<td style="font-weight:600;">' + timeStr + '</td>';
+      html += '<td style="font-size:0.8rem;color:var(--muted);">' + (row.arena_name || '—') + '</td>';
+      html += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + '">' + (row.home_team || '—') + '</td>';
+      html += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">' + (row.away_team || '—') + '</td>';
+      html += '<td>' + (row.home_room || '<span style="color:var(--muted);">—</span>') + '</td>';
+      html += '<td>' + (row.away_room || '<span style="color:var(--muted);">—</span>') + '</td>';
+      html += '<td style="color:var(--muted);font-size:0.82rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (row.notes||'') + '">' + (row.notes || '—') + '</td>';
+      html += '<td style="display:flex;gap:0.4rem;">';
+      html += '<button onclick="editSparadeRow(' + row.game_id + ')" class="btn btn-secondary" style="padding:0.25rem 0.6rem;font-size:0.8rem;">✏️</button>';
+      html += '<button onclick="deleteSparadeRow(' + row.game_id + ')" class="btn btn-danger" style="padding:0.25rem 0.6rem;font-size:0.8rem;">🗑️</button>';
+      html += '</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    omkContent.innerHTML = html;
+    _sparadePanel = rows;
+
+  } catch(e) {
+    omkContent.innerHTML = '<div class="empty-state">Fel: ' + e.message + '</div>';
+  }
+}
+
+function editSparadeRow(gameId) {
+  // Mevcut oda atama modalını aç — game'i _omkAllGames'ten veya sparade'den bul
+  const sparade = (_sparadePanel || []).find(function(r) { return r.game_id === gameId; });
+  if (!sparade) return;
+
+  // _omkAllGames'e ekle (modal için)
+  if (!window._omkAllGames) window._omkAllGames = [];
+  const existing = window._omkAllGames.find(function(g) { return g.gameId === gameId; });
+  if (!existing) {
+    window._omkAllGames.push({
+      gameId   : sparade.game_id,
+      gameDate : sparade.game_date,
+      homeTeam : sparade.home_team,
+      awayTeam : sparade.away_team,
+      arenaId  : sparade.arena_id,
+      arenaName: sparade.arena_name,
+    });
+  }
+
+  // Cache'e yükle
+  if (!window._omkRooms) window._omkRooms = {};
+  window._omkRooms[gameId] = {homeRoom: sparade.home_room, awayRoom: sparade.away_room, notes: sparade.notes};
+
+  // Modal aç, kayıt sonrası listeyi yenile
+  openOmkModal(gameId);
+  // saveOmkRoom'dan sonra listeyi yenilemek için callback
+  window._afterSaveOmkRoom = loadSparadeAtamalar;
+}
+
+async function deleteSparadeRow(gameId) {
+  if (!confirm('Ta bort denna tilldelning?')) return;
+  try {
+    const r = await fetch('/api/admin?action=deleteroom&gameId=' + gameId, {headers: authHeaders()});
+    if (r.ok) {
+      const row = document.getElementById('sparade_row_' + gameId);
+      if (row) row.remove();
+      // Cache'den sil
+      if (window._omkRooms) delete window._omkRooms[gameId];
+    } else {
+      alert('Fel vid borttagning');
+    }
+  } catch(e) { alert('Fel: ' + e.message); }
 }
 
 // ── Eski fonksiyonlar (uyumluluk için) ─────────────────────
@@ -2370,7 +2477,7 @@ function renderNastaContent(games) {
     h += '<th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
     h += '<th style="width:200px;">Hemma omklädningsrum</th>';
     h += '<th style="width:200px;">Borta omklädningsrum</th>';
-    h += '<th>Anteckningar</th><th>Status</th>';
+    h += '<th>Anteckningar</th>';
     h += '</tr></thead><tbody>';
 
     gList.forEach(function(g) {
@@ -2401,11 +2508,7 @@ function renderNastaContent(games) {
       h += '<td>' + makeSelect('nasta_home_' + g.gameId, saved.homeRoom) + '</td>';
       h += '<td>' + makeSelect('nasta_away_' + g.gameId, saved.awayRoom) + '</td>';
       h += '<td><input type="text" id="nasta_notes_' + g.gameId + '" value="' + (saved.notes||'') + '" placeholder="Anteckningar..." style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.35rem 0.5rem;border-radius:6px;font-size:0.82rem;"></td>';
-      h += '<td><select id="nasta_status_' + g.gameId + '" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.35rem 0.5rem;border-radius:6px;font-size:0.82rem;">';
-      h += '<option value="pending"' + (saved.status==='pending'||!saved.status ? ' selected':'') + '>⏳</option>';
-      h += '<option value="approved"' + (saved.status==='approved' ? ' selected':'') + '>✅</option>';
-      h += '<option value="rejected"' + (saved.status==='rejected' ? ' selected':'') + '>❌</option>';
-      h += '</select></td>';
+
       h += '</tr>';
     });
 
@@ -2433,7 +2536,7 @@ async function saveAllOmkRooms() {
     const homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value || null;
     const awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value || null;
     const notes    = document.getElementById('nasta_notes_' + g.gameId)?.value.trim() || null;
-    const status   = document.getElementById('nasta_status_' + g.gameId)?.value || 'pending';
+    const status   = 'pending';
 
     try {
       const r = await fetch('/api/admin?action=saveroom', {
@@ -2510,7 +2613,7 @@ function printOmkNasta() {
       var ac = g.awayTeam?.includes('Sollentuna') ? ' class="sfk"' : '';
       h += '<tr><td>' + dateStr + '</td><td>' + timeStr + '</td><td>' + (g.arenaName||'—') + '</td>';
       h += '<td' + hc + '>' + (g.homeTeam||'—') + '</td><td' + ac + '>' + (g.awayTeam||'—') + '</td>';
-      h += '<td>' + homeRoom + '</td><td>' + awayRoom + '</td><td>' + notes + '</td><td>' + statusTxt + '</td></tr>';
+      h += '<td>' + homeRoom + '</td><td>' + awayRoom + '</td><td>' + notes + '</td></tr>';
     });
     h += '</tbody></table></div>';
     return h;
