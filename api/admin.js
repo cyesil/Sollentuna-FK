@@ -864,7 +864,11 @@ if (action === 'testleague') {
           teams[g.HomeTeamID] = g.HomeTeamDisplayName;
           teams[g.AwayTeamID] = g.AwayTeamDisplayName;
         });
-        return res.status(200).json({ count: games.length, allTeams: teams });
+        // Sollentuna iceren takim isimlerini ayir
+        const sfkTeams = Object.entries(teams)
+          .filter(([id, name]) => name && name.toLowerCase().includes('sollentuna'))
+          .reduce((acc, [id, name]) => { acc[id] = name; return acc; }, {});
+        return res.status(200).json({ count: games.length, sfkTeams, allTeams: teams });
       }
 
       // Sadece ev macları
