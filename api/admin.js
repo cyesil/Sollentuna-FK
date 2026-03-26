@@ -964,25 +964,35 @@ if (action === 'clubgames') {
               home_room, away_room, notes, status, extra_json,
               home_logo, away_logo, session_name } = req.body;
       const gameIdVal = game_id || req.body.gameId;
-      if (!gameIdVal) return res.status(400).json({ error: 'game_id required', body: req.body });
-      // Upsert — session_name + game_id kombinasyonu unique olmalı
-      // Önce aynı session+game_id var mı bak
-      const existing = await supabaseGet(
-        `/room_assignments?game_id=eq.${gameIdVal}&session_name=eq.${encodeURIComponent(session_name || '')}`
-      );
-      const row = { game_id: gameIdVal, game_date, home_team, away_team, arena_id, arena_name,
-                    home_room: home_room || null, away_room: away_room || null,
-                    notes: notes || null, status: status || 'pending',
-                    extra_json: extra_json || null,
-                    home_logo: home_logo || null, away_logo: away_logo || null,
-                    session_name: session_name || null,
-                    updated_at: new Date().toISOString() };
-      // Mevcut kaydı kontrol et
+      if (!gameIdVal) return res.status(400).json({ error: 'game_id required' });
+      const row = {
+        game_id: gameIdVal, game_date, home_team, away_team, arena_id, arena_name,
+        home_room: home_room || null, away_room: away_room || null,
+        notes: notes || null, status: status || 'pending',
+        extra_json: extra_json || null,
+        home_logo: home_logo || null, away_logo: away_logo || null,
+        session_name: session_name || null,
+        updated_at: new Date().toISOString()
+      };
       let result;
-      if (Array.isArray(existing) && existing.length > 0) {
-        result = await supabaseRequest('PATCH', `/room_assignments?game_id=eq.${gameIdVal}`, row);
+      if (session_name) {
+        const existing = await supabaseGet(
+          `/room_assignments?game_id=eq.${gameIdVal}&session_name=eq.${encodeURIComponent(session_name)}`
+        );
+        if (Array.isArray(existing) && existing.length > 0) {
+          result = await supabaseRequest('PATCH',
+            `/room_assignments?game_id=eq.${gameIdVal}&session_name=eq.${encodeURIComponent(session_name)}`, row);
+        } else {
+          result = await supabaseRequest('POST', '/room_assignments', row);
+        }
       } else {
-        result = await supabaseRequest('POST', '/room_assignments', row);
+        const existing = await supabaseGet(`/room_assignments?game_id=eq.${gameIdVal}&session_name=is.null`);
+        if (Array.isArray(existing) && existing.length > 0) {
+          result = await supabaseRequest('PATCH',
+            `/room_assignments?game_id=eq.${gameIdVal}&session_name=is.null`, row);
+        } else {
+          result = await supabaseRequest('POST', '/room_assignments', row);
+        }
       }
       return res.status(200).json({ ok: true, result });
     } catch(e) { return res.status(500).json({ error: e.message }); }
