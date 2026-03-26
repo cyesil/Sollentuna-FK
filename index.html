@@ -2852,12 +2852,11 @@ async function confirmOmkName() {
   }
 
   if (errors === 0) {
-    setTimeout(function() {
-      document.getElementById('omkNastaPanel').style.display = 'none';
-      document.getElementById('omkladningsrumContent').style.display = 'block';
-      document.getElementById('omkNastaBtn').style.display = 'none';
-      loadSparadeAtamalar();
-    }, 800);
+    // Tüm kayıtlar tamamlandı, Sparade listesine git
+    document.getElementById('omkNastaPanel').style.display = 'none';
+    document.getElementById('omkladningsrumContent').style.display = 'block';
+    document.getElementById('omkNastaBtn').style.display = 'none';
+    await loadSparadeAtamalar();
   }
 }
 
