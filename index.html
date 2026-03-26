@@ -2843,7 +2843,13 @@ async function confirmOmkName() {
     // Otomatik Sparade sayfasına git
     setTimeout(function() {
       document.getElementById('omkNastaPanel').style.display = 'none';
-      document.getElementById('omkladningsrumContent').style.display = '';
+      document.getElementById('omkladningsrumContent').style.display = 'block';
+      document.getElementById('omkNastaBtn').style.display = 'none';
+      // Buton aktif durumu
+      document.getElementById('omkHamtaBtn')?.classList.remove('btn-primary');
+      document.getElementById('omkHamtaBtn')?.classList.add('btn-secondary');
+      document.getElementById('omkSparadeBtn')?.classList.remove('btn-secondary');
+      document.getElementById('omkSparadeBtn')?.classList.add('btn-primary');
       openSparadeSession(sName);
     }, 800);
   } else {
