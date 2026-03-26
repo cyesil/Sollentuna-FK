@@ -2082,6 +2082,7 @@ async function loadOmkladningsrum() {
 
 function filterOmk() {
   if (!window._omkAllGames) return;
+  _omkTableCounter = 0; // Her render'da sıfırla
   const arenaFilter = document.getElementById('omkArena').value;
   let games = window._omkAllGames;
   if (arenaFilter) games = games.filter(function(g) { return g.arenaId.toString() === arenaFilter; });
@@ -2149,7 +2150,7 @@ function buildOmkTable(games, rooms) {
   var tableGroup = 'omk_grp_' + (++_omkTableCounter);
   let html = '<div class="table-wrap"><table><thead><tr>';
   html += '<th style="width:36px;"><input type="checkbox" onchange="omkToggleAll(this,&quot;' + tableGroup + '&quot;)" style="cursor:pointer;width:15px;height:15px;"></th>';
-  html += '<th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
+  html += '<th>Datum</th><th>Avspark</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
   html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
   html += '</tr></thead><tbody>';
 
@@ -2162,7 +2163,11 @@ function buildOmkTable(games, rooms) {
     var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
     var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
 
-    html += '<tr id="omk_row_' + g.gameId + '">';
+    var prevGame = arena.games[arena.games.indexOf(g) - 1];
+    var prevDate = prevGame ? new Date(prevGame.gameDate).toISOString().slice(0,10) : null;
+    var curDate  = new Date(g.gameDate).toISOString().slice(0,10);
+    var dayBorder = (prevDate && prevDate !== curDate) ? 'border-top:3px solid var(--accent);' : '';
+    html += '<tr id="omk_row_' + g.gameId + '" style="' + dayBorder + '">';
     html += '<td><input type="checkbox" class="omk-check ' + tableGroup + '" data-gameid="' + g.gameId + '" onchange="omkCheckChange()" style="cursor:pointer;width:15px;height:15px;"></td>';
     html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
     html += '<td style="font-weight:600;">' + timeStr + '</td>';
@@ -2342,7 +2347,7 @@ async function loadSparadeAtamalar() {
     html += '</div>';
 
     html += '<div class="table-wrap"><table><thead><tr>';
-    html += '<th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
+    html += '<th>Datum</th><th>Avspark</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
     html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
     html += '</tr></thead><tbody>';
 
@@ -2459,10 +2464,10 @@ function omkNasta() {
 }
 
 function omkGeriDon() {
+  _omkTableCounter = 0;
   document.getElementById('omkladningsrumContent').style.display = '';
   document.getElementById('omkNastaPanel').style.display = 'none';
-  // Checkbox durumuna göre nästa butonunu göster
-  omkCheckChange();
+  filterOmk(); // Tabloyu yeniden render et (checkbox'ları temizle)
 }
 
 function makeTimeOptions(selectedVal) {
@@ -2503,7 +2508,7 @@ function renderNastaContent(games) {
     h += '<div class="omk-group-title">🏟️ ' + title + '</div>';
     h += '<div class="table-wrap"><table>';
     h += '<thead><tr>';
-    h += '<th>Datum</th><th>Tid</th><th>Arena</th>';
+    h += '<th>Datum</th><th>Avspark</th><th>Arena</th>';
     h += '<th>Lag</th><th>Rum</th><th>In</th><th>Ut</th>';
     h += '<th>Meddelande</th>';
     h += '</tr></thead><tbody>';
@@ -2677,7 +2682,7 @@ function printOmkNasta() {
     if (!gList.length) return '';
     var h = '<div class="group"><div class="gtitle">' + title + '</div>';
     h += '<table><thead><tr>';
-    h += '<th>Datum</th><th>Tid</th><th>Arena</th>';
+    h += '<th>Datum</th><th>Avspark</th><th>Arena</th>';
     h += '<th>Lag</th><th>Rum</th><th>In</th><th>Ut</th><th>Meddelande</th>';
     h += '</tr></thead><tbody>';
     gList.forEach(function(g) {
