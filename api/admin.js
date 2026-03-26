@@ -955,6 +955,55 @@ if (action === 'clubgames') {
       });
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
+  // Oda atamalarını getir
+  if (action === 'getrooms') {
+    try {
+      const from = req.query.from || '';
+      const to   = req.query.to   || '';
+      let path = '/room_assignments?select=*&order=game_date.asc';
+      if (from) path += `&game_date=gte.${from}`;
+      if (to)   path += `&game_date=lte.${to}`;
+      const rows = await supabaseGet(path);
+      return res.status(200).json(Array.isArray(rows) ? rows : []);
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // Tek oda atamasını kaydet/güncelle
+  if (action === 'saveroom') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+    try {
+      const { game_id, game_date, home_team, away_team, arena_id, arena_name,
+              home_room, away_room, notes, status } = req.body;
+      if (!game_id) return res.status(400).json({ error: 'game_id required' });
+      // Upsert
+      const row = { game_id, game_date, home_team, away_team, arena_id, arena_name,
+                    home_room: home_room || null, away_room: away_room || null,
+                    notes: notes || null, status: status || 'pending',
+                    updated_at: new Date().toISOString() };
+      // Mevcut kaydı kontrol et
+      const existing = await supabaseGet(`/room_assignments?game_id=eq.${game_id}`);
+      let result;
+      if (Array.isArray(existing) && existing.length > 0) {
+        result = await supabaseRequest('PATCH', `/room_assignments?game_id=eq.${game_id}`, row);
+      } else {
+        result = await supabaseRequest('POST', '/room_assignments', row);
+      }
+      return res.status(200).json({ ok: true, result });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // Onay durumunu güncelle
+  if (action === 'approveroom') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+    try {
+      const { game_id, status } = req.body; // status: 'approved' | 'pending' | 'rejected'
+      if (!game_id) return res.status(400).json({ error: 'game_id required' });
+      const result = await supabaseRequest('PATCH', `/room_assignments?game_id=eq.${game_id}`,
+        { status, updated_at: new Date().toISOString() });
+      return res.status(200).json({ ok: true, result });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
   res.status(400).json({ error: 'Ogiltig åtgärd' });
 };
 
