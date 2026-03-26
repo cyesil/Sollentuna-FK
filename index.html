@@ -2461,23 +2461,51 @@ function omkGeriDon() {
   omkCheckChange();
 }
 
-function renderNastaContent(games) {
-  const rooms = window._omkRooms || {};
-  let html = '';
+function makeTimeOptions(selectedVal) {
+  var opts = '<option value="">—</option>';
+  for (var h = 6; h <= 23; h++) {
+    for (var m = 0; m < 60; m += 15) {
+      var hh = h.toString().padStart(2,'0');
+      var mm = m.toString().padStart(2,'0');
+      var val = hh + ':' + mm;
+      opts += '<option value="' + val + '"' + (val === selectedVal ? ' selected' : '') + '>' + val + '</option>';
+    }
+  }
+  return opts;
+}
 
-  // Arena gruplarına ayır
-  const norrviken = games.filter(function(g) { return NORRVIKEN_ARENAS.includes(g.arenaId); });
-  const edsbergs  = games.filter(function(g) { return EDSBERGS_ARENAS.includes(g.arenaId); });
+function calcDefaultTime(gameDate, offsetMinutes) {
+  var dt = new Date(gameDate);
+  dt.setMinutes(dt.getMinutes() + offsetMinutes);
+  // 15 dk'ya yuvarla
+  var mins = dt.getMinutes();
+  var rounded = Math.round(mins / 15) * 15;
+  if (rounded === 60) { dt.setHours(dt.getHours() + 1); rounded = 0; }
+  dt.setMinutes(rounded);
+  return dt.getHours().toString().padStart(2,'0') + ':' + dt.getMinutes().toString().padStart(2,'0');
+}
+
+function makeTimeSelect(id, defaultVal) {
+  return '<select id="' + id + '" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;width:80px;">'
+    + makeTimeOptions(defaultVal) + '</select>';
+}
+
+function renderNastaContent(games) {
+  var rooms = window._omkRooms || {};
 
   function buildNastaGroup(title, gList) {
     if (!gList.length) return '';
-    let h = '<div class="omk-group" style="margin-bottom:2rem;">';
+    var h = '<div class="omk-group" style="margin-bottom:2rem;">';
     h += '<div class="omk-group-title">🏟️ ' + title + '</div>';
-    h += '<div class="table-wrap"><table><thead><tr>';
-    h += '<th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
-    h += '<th style="width:200px;">Hemma omklädningsrum</th>';
-    h += '<th style="width:200px;">Borta omklädningsrum</th>';
-    h += '<th>Anteckningar</th>';
+    h += '<div class="table-wrap"><table>';
+    h += '<thead><tr>';
+    h += '<th rowspan="2">Datum</th><th rowspan="2">Tid</th><th rowspan="2">Arena</th>';
+    h += '<th colspan="4" style="text-align:center;border-bottom:1px solid rgba(255,255,255,0.2);">Hemmalag</th>';
+    h += '<th colspan="4" style="text-align:center;border-bottom:1px solid rgba(255,255,255,0.2);">Bortalag</th>';
+    h += '<th rowspan="2">Meddelande</th>';
+    h += '</tr><tr>';
+    h += '<th>Lag</th><th>Rum</th><th>① In</th><th>② Ut</th>';
+    h += '<th>Lag</th><th>Rum</th><th>③ In</th><th>④ Ut</th>';
     h += '</tr></thead><tbody>';
 
     gList.forEach(function(g) {
@@ -2489,9 +2517,15 @@ function renderNastaContent(games) {
       var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
       var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
 
-      function makeSelect(id, current) {
-        var s = '<select id="' + id + '" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.35rem 0.5rem;border-radius:6px;font-size:0.82rem;">';
-        s += '<option value="">— Välj rum —</option>';
+      // Default saatler
+      var homeIn  = calcDefaultTime(g.gameDate, -60);   // 1 saat önce
+      var homeOut = calcDefaultTime(g.gameDate, 135);   // 105 + 30 dk sonra
+      var awayIn  = calcDefaultTime(g.gameDate, -60);
+      var awayOut = calcDefaultTime(g.gameDate, 135);
+
+      function makeRoomSelect(id, current) {
+        var s = '<select id="' + id + '" style="width:100%;min-width:130px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;">';
+        s += '<option value="">— Rum —</option>';
         roomList.forEach(function(r) {
           s += '<option value="' + r + '"' + (current === r ? ' selected' : '') + '>' + r + '</option>';
         });
@@ -2499,16 +2533,30 @@ function renderNastaContent(games) {
         return s;
       }
 
-      h += '<tr id="nasta_row_' + g.gameId + '">';
+      h += '<tr>';
       h += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
-      h += '<td style="font-weight:600;">' + timeStr + '</td>';
+      h += '<td style="font-weight:600;white-space:nowrap;">' + timeStr + '</td>';
       h += '<td style="font-size:0.8rem;color:var(--muted);">' + (g.arenaName||'—') + '</td>';
-      h += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + '">' + (g.homeTeam||'—') + '</td>';
-      h += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">' + (g.awayTeam||'—') + '</td>';
-      h += '<td>' + makeSelect('nasta_home_' + g.gameId, saved.homeRoom) + '</td>';
-      h += '<td>' + makeSelect('nasta_away_' + g.gameId, saved.awayRoom) + '</td>';
-      h += '<td><input type="text" id="nasta_notes_' + g.gameId + '" value="' + (saved.notes||'') + '" placeholder="Anteckningar..." style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.35rem 0.5rem;border-radius:6px;font-size:0.82rem;"></td>';
-
+      // Hemma
+      h += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + 'white-space:nowrap;">' + (g.homeTeam||'—') + '</td>';
+      h += '<td>' + makeRoomSelect('nasta_home_' + g.gameId, saved.homeRoom) + '</td>';
+      h += '<td>' + makeTimeSelect('nasta_home_in_' + g.gameId, homeIn) + '</td>';
+      h += '<td>' + makeTimeSelect('nasta_home_out_' + g.gameId, homeOut) + '</td>';
+      // Borta
+      h += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + 'white-space:nowrap;">' + (g.awayTeam||'—') + '</td>';
+      h += '<td>' + makeRoomSelect('nasta_away_' + g.gameId, saved.awayRoom) + '</td>';
+      h += '<td>' + makeTimeSelect('nasta_away_in_' + g.gameId, awayIn) + '</td>';
+      h += '<td>' + makeTimeSelect('nasta_away_out_' + g.gameId, awayOut) + '</td>';
+      // Meddelande
+      h += '<td style="min-width:200px;">';
+      h += '<div style="display:flex;flex-direction:column;gap:0.3rem;">';
+      h += '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;">';
+      h += '<input type="checkbox" id="nasta_msg_home_' + g.gameId + '"> Hemmalag lamna rum innan matchstart</label>';
+      h += '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;">';
+      h += '<input type="checkbox" id="nasta_msg_away_' + g.gameId + '"> Bortalag lamna rum innan matchstart</label>';
+      h += '<input type="text" id="nasta_msg_own_' + g.gameId + '" placeholder="Egen text..." value="' + (saved.notes||'') + '" ';
+      h += 'style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;">';
+      h += '</div></td>';
       h += '</tr>';
     });
 
@@ -2516,11 +2564,12 @@ function renderNastaContent(games) {
     return h;
   }
 
-  html += buildNastaGroup('Norrvikens Omklädningsrum', norrviken);
-  html += buildNastaGroup('Edsbergs Omklädningsrum', edsbergs);
-  document.getElementById('omkNastaContent').innerHTML = html;
+  var norrviken = games.filter(function(g) { return NORRVIKEN_ARENAS.includes(g.arenaId); });
+  var edsbergs  = games.filter(function(g) { return EDSBERGS_ARENAS.includes(g.arenaId); });
 
-  // Seçili gameId'leri sakla
+  var html = buildNastaGroup('Norrvikens Omkladningsrum', norrviken);
+  html += buildNastaGroup('Edsbergs Omkladningsrum', edsbergs);
+  document.getElementById('omkNastaContent').innerHTML = html;
   window._omkNastaGames = games;
 }
 
@@ -2533,10 +2582,22 @@ async function saveAllOmkRooms() {
 
   let saved = 0, errors = 0;
   for (const g of games) {
-    const homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value || null;
-    const awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value || null;
-    const notes    = document.getElementById('nasta_notes_' + g.gameId)?.value.trim() || null;
-    const status   = 'pending';
+    const homeRoom  = document.getElementById('nasta_home_' + g.gameId)?.value || null;
+    const awayRoom  = document.getElementById('nasta_away_' + g.gameId)?.value || null;
+    const homeIn    = document.getElementById('nasta_home_in_' + g.gameId)?.value || null;
+    const homeOut   = document.getElementById('nasta_home_out_' + g.gameId)?.value || null;
+    const awayIn    = document.getElementById('nasta_away_in_' + g.gameId)?.value || null;
+    const awayOut   = document.getElementById('nasta_away_out_' + g.gameId)?.value || null;
+    const msgHome   = document.getElementById('nasta_msg_home_' + g.gameId)?.checked;
+    const msgAway   = document.getElementById('nasta_msg_away_' + g.gameId)?.checked;
+    const ownText   = document.getElementById('nasta_msg_own_' + g.gameId)?.value.trim() || '';
+    const msgs = [];
+    if (msgHome) msgs.push('Hemmalag: lämna rum innan matchstart');
+    if (msgAway) msgs.push('Bortalag: lämna rum innan matchstart');
+    if (ownText) msgs.push(ownText);
+    const notes  = msgs.join(' | ') || null;
+    const status = 'pending';
+    const extra  = JSON.stringify({homeIn, homeOut, awayIn, awayOut});
 
     try {
       const r = await fetch('/api/admin?action=saveroom', {
@@ -2547,7 +2608,8 @@ async function saveAllOmkRooms() {
           home_team: g.homeTeam, away_team: g.awayTeam,
           arena_id: g.arenaId, arena_name: g.arenaName,
           home_room: homeRoom || null, away_room: awayRoom || null,
-          notes: notes || null, status: status || 'pending'
+          notes: notes || null, status: status || 'pending',
+          extra_json: extra
         })
       });
       if (r.ok) {
@@ -2572,58 +2634,81 @@ async function saveAllOmkRooms() {
 }
 
 function printOmkNasta() {
-  const games = window._omkNastaGames || [];
+  var games = window._omkNastaGames || [];
   if (!games.length) return;
-
-  const printWin = window.open('', '_blank', 'width=1200,height=800');
-  printWin.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
-  printWin.document.write('<title>Omklädningsrum</title>');
-  printWin.document.write('<style>body{font-family:Arial,sans-serif;font-size:11px;color:#111;margin:20px;}');
-  printWin.document.write('h1{font-size:16px;margin-bottom:4px;}');
-  printWin.document.write('.sub{color:#666;font-size:10px;margin-bottom:16px;}');
-  printWin.document.write('.group{margin-bottom:20px;}');
-  printWin.document.write('.gtitle{font-size:13px;font-weight:700;border-bottom:2px solid #111;padding-bottom:4px;margin-bottom:8px;}');
-  printWin.document.write('table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:12px;}');
-  printWin.document.write('th{background:#1a1a2e;color:#fff;padding:5px 6px;text-align:left;}');
-  printWin.document.write('td{padding:4px 6px;border-bottom:1px solid #e0e0e0;}');
-  printWin.document.write('tr:nth-child(even) td{background:#f8f8f8;}');
-  printWin.document.write('.sfk{font-weight:700;color:#0066cc;}');
-  printWin.document.write('@media print{@page{margin:1cm;size:A4 landscape;}}');
+  var printWin = window.open('', '_blank', 'width=1400,height=900');
+  printWin.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Omkladningsrum</title>');
+  printWin.document.write('<style>');
+  printWin.document.write('body{font-family:Arial,sans-serif;font-size:10px;color:#111;margin:15px;}');
+  printWin.document.write('h1{font-size:15px;margin-bottom:3px;}');
+  printWin.document.write('.sub{color:#666;font-size:9px;margin-bottom:14px;}');
+  printWin.document.write('.group{margin-bottom:18px;}');
+  printWin.document.write('.gtitle{font-size:12px;font-weight:700;border-bottom:2px solid #1a1a2e;padding-bottom:3px;margin-bottom:7px;color:#1a1a2e;}');
+  printWin.document.write('table{width:100%;border-collapse:collapse;font-size:9px;margin-bottom:10px;}');
+  printWin.document.write('th{background:#1a1a2e;color:#fff;padding:4px 5px;text-align:left;white-space:nowrap;}');
+  printWin.document.write('td{padding:3px 5px;vertical-align:top;}');
+  printWin.document.write('tr.main-row td{border-top:1px solid #ccc;}');
+  printWin.document.write('tr.sub-row td{border-top:none;padding-top:2px;}');
+  printWin.document.write('tr.msg-row td{border-top:none;padding-top:2px;padding-bottom:4px;}');
+  printWin.document.write('.sfk{font-weight:700;color:#0055aa;}');
+  printWin.document.write('.label{font-size:8px;color:#888;display:block;}');
+  printWin.document.write('.time-cell{white-space:nowrap;}');
+  printWin.document.write('@media print{@page{margin:0.8cm;size:A4 landscape;}body{margin:8px;}}');
   printWin.document.write('</style></head><body>');
-  printWin.document.write('<h1>🏟️ Sollentuna FK — Omklädningsrum</h1>');
+  printWin.document.write('<h1>Sollentuna FK - Omkladningsrum</h1>');
   printWin.document.write('<div class="sub">Utskriven: ' + new Date().toLocaleDateString('sv-SE') + '</div>');
 
-  var norrviken = games.filter(function(g) { return NORRVIKEN_ARENAS.includes(g.arenaId); });
-  var edsbergs  = games.filter(function(g) { return EDSBERGS_ARENAS.includes(g.arenaId); });
+  var norrviken = games.filter(function(g){ return NORRVIKEN_ARENAS.includes(g.arenaId); });
+  var edsbergs  = games.filter(function(g){ return EDSBERGS_ARENAS.includes(g.arenaId); });
 
   function buildPrintGroup(title, gList) {
     if (!gList.length) return '';
-    var h = '<div class="group"><div class="gtitle">🏟️ ' + title + '</div>';
-    h += '<table><thead><tr><th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th><th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th>Status</th></tr></thead><tbody>';
+    var h = '<div class="group"><div class="gtitle">' + title + '</div>';
+    h += '<table><thead><tr>';
+    h += '<th>Datum</th><th>Tid</th><th>Arena</th>';
+    h += '<th>Hemmalag</th><th>Hemma rum</th><th>In</th><th>Ut</th>';
+    h += '<th>Bortalag</th><th>Borta rum</th><th>In</th><th>Ut</th>';
+    h += '<th>Meddelande</th>';
+    h += '</tr></thead><tbody>';
     gList.forEach(function(g) {
-      var dt = new Date(g.gameDate);
+      var dt      = new Date(g.gameDate);
       var dateStr = dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'});
       var timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'});
-      var homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value || '—';
-      var awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value || '—';
-      var notes    = document.getElementById('nasta_notes_' + g.gameId)?.value || '—';
-      var status   = document.getElementById('nasta_status_' + g.gameId)?.value;
-      var statusTxt = status === 'approved' ? '✅' : status === 'rejected' ? '❌' : '⏳';
+      var homeRoom  = document.getElementById('nasta_home_' + g.gameId)?.value || '—';
+      var awayRoom  = document.getElementById('nasta_away_' + g.gameId)?.value || '—';
+      var homeIn    = document.getElementById('nasta_home_in_' + g.gameId)?.value || '—';
+      var homeOut   = document.getElementById('nasta_home_out_' + g.gameId)?.value || '—';
+      var awayIn    = document.getElementById('nasta_away_in_' + g.gameId)?.value || '—';
+      var awayOut   = document.getElementById('nasta_away_out_' + g.gameId)?.value || '—';
+      var msgHome   = document.getElementById('nasta_msg_home_' + g.gameId)?.checked;
+      var msgAway   = document.getElementById('nasta_msg_away_' + g.gameId)?.checked;
+      var ownText   = document.getElementById('nasta_msg_own_' + g.gameId)?.value || '';
+      var msgs = [];
+      if (msgHome) msgs.push('Hemmalag: lamna rum innan matchstart');
+      if (msgAway) msgs.push('Bortalag: lamna rum innan matchstart');
+      if (ownText) msgs.push(ownText);
+      var msgStr = msgs.join(' | ') || '—';
       var hc = g.homeTeam?.includes('Sollentuna') ? ' class="sfk"' : '';
       var ac = g.awayTeam?.includes('Sollentuna') ? ' class="sfk"' : '';
-      h += '<tr><td>' + dateStr + '</td><td>' + timeStr + '</td><td>' + (g.arenaName||'—') + '</td>';
-      h += '<td' + hc + '>' + (g.homeTeam||'—') + '</td><td' + ac + '>' + (g.awayTeam||'—') + '</td>';
-      h += '<td>' + homeRoom + '</td><td>' + awayRoom + '</td><td>' + notes + '</td></tr>';
+      h += '<tr class="main-row">';
+      h += '<td>' + dateStr + '</td><td class="time-cell">' + timeStr + '</td><td>' + (g.arenaName||'—') + '</td>';
+      h += '<td' + hc + '>' + (g.homeTeam||'—') + '</td>';
+      h += '<td>' + homeRoom + '</td>';
+      h += '<td class="time-cell">' + homeIn + '</td><td class="time-cell">' + homeOut + '</td>';
+      h += '<td' + ac + '>' + (g.awayTeam||'—') + '</td>';
+      h += '<td>' + awayRoom + '</td>';
+      h += '<td class="time-cell">' + awayIn + '</td><td class="time-cell">' + awayOut + '</td>';
+      h += '<td>' + msgStr + '</td>';
+      h += '</tr>';
     });
     h += '</tbody></table></div>';
     return h;
   }
-
-  printWin.document.write(buildPrintGroup('Norrvikens Omklädningsrum', norrviken));
-  printWin.document.write(buildPrintGroup('Edsbergs Omklädningsrum', edsbergs));
+  printWin.document.write(buildPrintGroup('Norrvikens Omkladningsrum', norrviken));
+  printWin.document.write(buildPrintGroup('Edsbergs Omkladningsrum', edsbergs));
   printWin.document.write('</body></html>');
   printWin.document.close();
-  setTimeout(function() { printWin.print(); }, 600);
+  setTimeout(function(){ printWin.print(); }, 600);
 }
 
 // ===================== GITHUB DEPLOY =====================
