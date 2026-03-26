@@ -854,7 +854,22 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: e.message });
     }
   }
-if (action === 'testleague') {
+if (action === 'rawgame') {
+    try {
+      const mfToken = await getMinfotbollToken();
+      const leagueId = req.query.leagueId || '59554';
+      const games = await minfotbollGet('/api/leagueapi/getleaguegames?leagueId=' + leagueId, mfToken);
+      if (!Array.isArray(games) || games.length === 0) return res.status(200).json({ count: 0 });
+      // SFK olan ilk maçı bul
+      const sfk = games.find(g =>
+        g.HomeTeamClubName?.toLowerCase().includes('sollentuna') ||
+        g.AwayTeamClubName?.toLowerCase().includes('sollentuna')
+      );
+      return res.status(200).json({ raw: sfk || games[0] });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  if (action === 'testleague') {
     try {
       const mfToken = await getMinfotbollToken();
       const leagueId = req.query.leagueId || '59554';
