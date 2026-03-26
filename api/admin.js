@@ -618,19 +618,25 @@ module.exports = async (req, res) => {
         const rooms = await supabaseGet(path);
         return res.status(200).json(Array.isArray(rooms) ? rooms : []);
       }
-      // Tüm session isimlerini listele (distinct)
-      const path = `/room_assignments?select=session_name,game_date&order=game_date.asc`;
+      // Tüm session bilgilerini getir
+      const path = `/room_assignments?select=session_name,game_date,updated_at&order=updated_at.desc`;
       const rows = await supabaseGet(path);
       if (!Array.isArray(rows)) return res.status(200).json({ sessions: [] });
-      // Benzersiz session'ları bul
-      const seen = new Set();
-      const sessions = [];
+      // Her session için: en son updated_at, min/max game_date
+      const sessionMap = {};
       rows.forEach(r => {
-        if (r.session_name && !seen.has(r.session_name)) {
-          seen.add(r.session_name);
-          sessions.push({ name: r.session_name });
+        if (!r.session_name) return;
+        if (!sessionMap[r.session_name]) {
+          sessionMap[r.session_name] = { name: r.session_name, updatedAt: r.updated_at, minDate: r.game_date, maxDate: r.game_date };
+        } else {
+          const s = sessionMap[r.session_name];
+          if (r.updated_at > s.updatedAt) s.updatedAt = r.updated_at;
+          if (r.game_date < s.minDate) s.minDate = r.game_date;
+          if (r.game_date > s.maxDate) s.maxDate = r.game_date;
         }
       });
+      // En son güncellenen önce
+      const sessions = Object.values(sessionMap).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
       return res.status(200).json({ sessions });
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
