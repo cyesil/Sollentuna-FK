@@ -2337,6 +2337,7 @@ async function saveOmkRoom() {
 
 // ── Sparade atamalar ─────────────────────────────────────
 let _sparadePanel = null;
+var _pendingNastaGames = null;
 let _currentSession = null;
 
 async function loadSparadeAtamalar() {
@@ -2762,7 +2763,7 @@ function renderNastaContent(games) {
 async function saveAllOmkRooms() {
   const games = window._omkNastaGames || [];
   if (!games.length) return;
-  window._pendingNastaGames = null; // reset
+  _pendingNastaGames = null; // reset
 
   const today = new Date().toLocaleDateString('sv-SE');
   // Custom modal ile isim al
@@ -2771,11 +2772,9 @@ async function saveAllOmkRooms() {
   const modal = document.getElementById('omkNameModal');
   if (modal) { modal.style.display = 'flex'; if (input) setTimeout(function(){ input.focus(); input.select(); }, 50); }
   // saveAllOmkRooms devamı confirmOmkName'de çalışacak
-  window._pendingNastaGames = games;
+  _pendingNastaGames = games;
   return; // Modal callback ile devam eder
 }
-
-let _pendingNastaGames = null;
 
 function cancelOmkName() {
   document.getElementById('omkNameModal').style.display = 'none';
@@ -2787,9 +2786,9 @@ async function confirmOmkName() {
   if (!sName) { input?.focus(); return; }
   document.getElementById('omkNameModal').style.display = 'none';
 
-  const games = window._pendingNastaGames || [];
+  const games = _pendingNastaGames || [];
   if (!games.length) return;
-  window._pendingNastaGames = null;
+  _pendingNastaGames = null;
 
   const msgEl = document.getElementById('omkNastaMsg');
   msgEl.style.color = 'var(--muted)';
