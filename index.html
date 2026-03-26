@@ -2330,9 +2330,14 @@ async function loadSparadeAtamalar() {
   try {
     const r = await fetch('/api/admin?action=getrooms', {headers: authHeaders()});
     const rows = await r.json();
+    console.log('getrooms response:', r.status, JSON.stringify(rows).slice(0,200));
 
+    if (!r.ok) {
+      omkContent.innerHTML = '<div class="empty-state">Fel: ' + (rows.error || r.status) + '</div>';
+      return;
+    }
     if (!Array.isArray(rows) || !rows.length) {
-      omkContent.innerHTML = '<div class="empty-state">Inga sparade atamalar hittades</div>';
+      omkContent.innerHTML = '<div class="empty-state">Inga sparade matcher hittades.</div>';
       return;
     }
 
