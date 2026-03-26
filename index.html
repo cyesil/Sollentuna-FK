@@ -2337,7 +2337,6 @@ async function saveOmkRoom() {
 
 // ── Sparade atamalar ─────────────────────────────────────
 let _sparadePanel = null;
-var _pendingNastaGames = null;
 let _currentSession = null;
 
 async function loadSparadeAtamalar() {
@@ -2763,18 +2762,20 @@ function renderNastaContent(games) {
 async function saveAllOmkRooms() {
   const games = window._omkNastaGames || [];
   if (!games.length) return;
-  _pendingNastaGames = null; // reset
-
+  // Games'i window'a kaydet — modal geri dönüşü için
+  window._pendingNastaGames = games;
+  console.log('saveAllOmkRooms: games set to', games.length);
+  // Modal aç
   const today = new Date().toLocaleDateString('sv-SE');
-  // Custom modal ile isim al
   const input = document.getElementById('omkSessionNameInput');
   if (input) input.value = today + ' Omkladningsrum';
   const modal = document.getElementById('omkNameModal');
-  if (modal) { modal.style.display = 'flex'; if (input) setTimeout(function(){ input.focus(); input.select(); }, 50); }
-  // saveAllOmkRooms devamı confirmOmkName'de çalışacak
-  _pendingNastaGames = games;
-  return; // Modal callback ile devam eder
+  if (modal) {
+    modal.style.display = 'flex';
+    if (input) setTimeout(function(){ input.focus(); input.select(); }, 50);
+  }
 }
+
 
 function cancelOmkName() {
   document.getElementById('omkNameModal').style.display = 'none';
@@ -2783,16 +2784,16 @@ function cancelOmkName() {
 async function confirmOmkName() {
   const input = document.getElementById('omkSessionNameInput');
   const sName = (input?.value || '').trim();
+  console.log('confirmOmkName: sName=', sName, 'pending=', window._pendingNastaGames?.length);
   if (!sName) { input?.focus(); return; }
   document.getElementById('omkNameModal').style.display = 'none';
 
-  const games = _pendingNastaGames || [];
-  if (!games.length) return;
-  _pendingNastaGames = null;
+  const games = window._pendingNastaGames || [];
+  if (!games.length) { alert('Ingen data att spara.'); return; }
+  window._pendingNastaGames = null;
 
   const msgEl = document.getElementById('omkNastaMsg');
-  msgEl.style.color = 'var(--muted)';
-  msgEl.textContent = 'Sparar ' + games.length + ' matcher som "' + sName + '"...';
+  if (msgEl) { msgEl.style.color = 'var(--muted)'; msgEl.textContent = 'Sparar ' + games.length + ' matcher...'; }
 
   let saved = 0, errors = 0;
   for (const g of games) {
@@ -2804,7 +2805,7 @@ async function confirmOmkName() {
     const awayOut  = document.getElementById('nasta_away_out_' + g.gameId)?.value || null;
     const msgHome  = document.getElementById('nasta_msg_home_' + g.gameId)?.checked;
     const msgAway  = document.getElementById('nasta_msg_away_' + g.gameId)?.checked;
-    const ownText  = document.getElementById('nasta_msg_own_' + g.gameId)?.value.trim() || '';
+    const ownText  = document.getElementById('nasta_msg_own_' + g.gameId)?.value?.trim() || '';
     const msgs = [];
     if (msgHome) msgs.push('Hemmalag: lamna rum innan matchstart');
     if (msgAway) msgs.push('Bortalag: lamna rum innan matchstart');
@@ -2832,30 +2833,34 @@ async function confirmOmkName() {
         window._omkRooms[g.gameId] = {homeRoom, awayRoom, notes};
         const row = document.getElementById('nasta_row_' + g.gameId);
         if (row) row.style.background = 'rgba(0,230,118,0.05)';
-      } else { errors++; }
-    } catch(e) { errors++; }
+      } else {
+        const err = await r.json();
+        console.error('saveroom error:', err);
+        errors++;
+      }
+    } catch(e) { console.error('saveroom exception:', e); errors++; }
+  }
+
+  if (msgEl) {
+    if (errors === 0) {
+      msgEl.style.color = 'var(--green)';
+      msgEl.textContent = '✅ ' + saved + ' matcher sparade!';
+    } else {
+      msgEl.style.color = 'var(--yellow)';
+      msgEl.textContent = '⚠️ ' + saved + ' sparade, ' + errors + ' fel.';
+    }
   }
 
   if (errors === 0) {
-    msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '✅ ' + saved + ' matcher sparade!';
-    // Otomatik Sparade sayfasına git
     setTimeout(function() {
       document.getElementById('omkNastaPanel').style.display = 'none';
       document.getElementById('omkladningsrumContent').style.display = 'block';
       document.getElementById('omkNastaBtn').style.display = 'none';
-      // Buton aktif durumu
-      document.getElementById('omkHamtaBtn')?.classList.remove('btn-primary');
-      document.getElementById('omkHamtaBtn')?.classList.add('btn-secondary');
-      document.getElementById('omkSparadeBtn')?.classList.remove('btn-secondary');
-      document.getElementById('omkSparadeBtn')?.classList.add('btn-primary');
-      openSparadeSession(sName);
+      loadSparadeAtamalar();
     }, 800);
-  } else {
-    msgEl.style.color = 'var(--yellow)';
-    msgEl.textContent = '⚠️ ' + saved + ' sparade, ' + errors + ' fel.';
   }
 }
+
 
 function printOmkNasta() {
   var games = window._omkNastaGames || [];
