@@ -2763,7 +2763,7 @@ async function saveAllOmkRooms() {
   const games = window._omkNastaGames || [];
   if (!games.length) return;
 
-  // Modal açılmadan ÖNCE tüm DOM değerlerini oku ve sakla
+  // DOM değerlerini şimdi oku
   var savedData = games.map(function(g) {
     var homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value || null;
     var awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value || null;
@@ -2779,33 +2779,61 @@ async function saveAllOmkRooms() {
     if (msgAway) msgs.push('Bortalag: lamna rum innan matchstart');
     if (ownText) msgs.push(ownText);
     return {
-      gameId   : g.gameId,
-      gameDate : g.gameDate,
-      homeTeam : g.homeTeam,
-      awayTeam : g.awayTeam,
-      arenaId  : g.arenaId,
-      arenaName: g.arenaName,
-      homeLogo : g.homeLogo || null,
-      awayLogo : g.awayLogo || null,
+      gameId: g.gameId, gameDate: g.gameDate,
+      homeTeam: g.homeTeam, awayTeam: g.awayTeam,
+      arenaId: g.arenaId, arenaName: g.arenaName,
+      homeLogo: g.homeLogo||null, awayLogo: g.awayLogo||null,
       homeRoom, awayRoom,
-      notes    : msgs.join(' | ') || null,
-      extra    : JSON.stringify({homeIn, homeOut, awayIn, awayOut})
+      notes: msgs.join(' | ') || null,
+      extra: JSON.stringify({homeIn, homeOut, awayIn, awayOut})
     };
   });
 
-  window._pendingNastaGames = savedData;
-  console.log('saveAllOmkRooms: games set to', savedData.length);
-
-  // Modal aç
+  // Prompt ile isim al — en basit yöntem
   var today = new Date().toLocaleDateString('sv-SE');
-  var input = document.getElementById('omkSessionNameInput');
-  if (input) input.value = today + ' Omkladningsrum';
-  var modal = document.getElementById('omkNameModal');
-  if (modal) {
-    modal.style.display = 'flex';
-    if (input) setTimeout(function(){ input.focus(); input.select(); }, 50);
+  var sName = prompt('Ange ett namn:', today + ' Omkladningsrum');
+  if (!sName || !sName.trim()) return;
+  sName = sName.trim();
+
+  var msgEl = document.getElementById('omkNastaMsg');
+  if (msgEl) { msgEl.style.color = 'var(--muted)'; msgEl.textContent = 'Sparar ' + savedData.length + ' matcher...'; }
+
+  var saved = 0, errors = 0;
+  for (var i = 0; i < savedData.length; i++) {
+    var d = savedData[i];
+    try {
+      var r = await fetch('/api/admin?action=saveroom', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          game_id: parseInt(d.gameId), game_date: d.gameDate,
+          home_team: d.homeTeam, away_team: d.awayTeam,
+          arena_id: d.arenaId, arena_name: d.arenaName,
+          home_room: d.homeRoom, away_room: d.awayRoom,
+          notes: d.notes, status: 'pending',
+          extra_json: d.extra,
+          home_logo: d.homeLogo, away_logo: d.awayLogo,
+          session_name: sName
+        })
+      });
+      if (r.ok) { saved++; }
+      else { var err = await r.json(); console.error('saveroom error:', err); errors++; }
+    } catch(e) { console.error('saveroom ex:', e); errors++; }
+  }
+
+  if (msgEl) {
+    if (errors === 0) { msgEl.style.color='var(--green)'; msgEl.textContent='✅ '+saved+' matcher sparade!'; }
+    else { msgEl.style.color='var(--yellow)'; msgEl.textContent='⚠️ '+saved+' sparade, '+errors+' fel.'; }
+  }
+
+  if (errors === 0) {
+    document.getElementById('omkNastaPanel').style.display = 'none';
+    document.getElementById('omkladningsrumContent').style.display = 'block';
+    document.getElementById('omkNastaBtn').style.display = 'none';
+    await loadSparadeAtamalar();
   }
 }
+
 
 
 
