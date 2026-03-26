@@ -2148,7 +2148,7 @@ function buildOmkTable(games, rooms) {
   if (!games.length) return '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0;">Inga matcher</div>';
   var tableGroup = 'omk_grp_' + (++_omkTableCounter);
   let html = '<div class="table-wrap"><table><thead><tr>';
-  html += '<th style="width:36px;"><input type="checkbox" onchange="omkToggleAll(this,'' + tableGroup + '')" style="cursor:pointer;width:15px;height:15px;"></th>';
+  html += '<th style="width:36px;"><input type="checkbox" onchange="omkToggleAll(this,&quot;' + tableGroup + '&quot;)" style="cursor:pointer;width:15px;height:15px;"></th>';
   html += '<th>Datum</th><th>Tid</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
   html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
   html += '</tr></thead><tbody>';
@@ -2544,7 +2544,7 @@ function renderNastaContent(games) {
       h += '<td rowspan="2" style="font-weight:600;white-space:nowrap;vertical-align:top;padding-top:0.6rem;">' + timeStr + '</td>';
       h += '<td rowspan="2" style="font-size:0.8rem;color:var(--muted);vertical-align:top;padding-top:0.6rem;">' + (g.arenaName||'—') + '</td>';
       h += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + 'white-space:nowrap;">';
-      if (homeLogo) h += '<img src="' + homeLogo + '" style="' + logoStyle + '" onerror="this.style.display='none'">';
+      if (homeLogo) h += '<img src="' + homeLogo + '" style="' + logoStyle + '">';
       h += '🏠 ' + (g.homeTeam||'—') + '</td>';
       h += '<td>' + makeRoomSelect('nasta_home_' + g.gameId, saved.homeRoom) + '</td>';
       h += '<td>' + makeTimeSelect('nasta_home_in_' + g.gameId, homeIn) + '</td>';
@@ -2564,7 +2564,7 @@ function renderNastaContent(games) {
       // Borta satırı
       h += '<tr>';
       h += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + 'white-space:nowrap;">';
-      if (awayLogo) h += '<img src="' + awayLogo + '" style="' + logoStyle + '" onerror="this.style.display='none'">';
+      if (awayLogo) h += '<img src="' + awayLogo + '" style="' + logoStyle + '">';
       h += '✈️ ' + (g.awayTeam||'—') + '</td>';
       h += '<td>' + makeRoomSelect('nasta_away_' + g.gameId, saved.awayRoom) + '</td>';
       h += '<td>' + makeTimeSelect('nasta_away_in_' + g.gameId, awayIn) + '</td>';
