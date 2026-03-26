@@ -941,13 +941,14 @@ if (action === 'clubgames') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
     try {
       const { game_id, game_date, home_team, away_team, arena_id, arena_name,
-              home_room, away_room, notes, status } = req.body;
+              home_room, away_room, notes, status, extra_json } = req.body;
       const gameIdVal = game_id || req.body.gameId;
       if (!gameIdVal) return res.status(400).json({ error: 'game_id required', body: req.body });
       // Upsert
       const row = { game_id: gameIdVal, game_date, home_team, away_team, arena_id, arena_name,
                     home_room: home_room || null, away_room: away_room || null,
                     notes: notes || null, status: status || 'pending',
+                    extra_json: extra_json || null,
                     updated_at: new Date().toISOString() };
       // Mevcut kaydı kontrol et
       const existing = await supabaseGet(`/room_assignments?game_id=eq.${gameIdVal}`);
