@@ -2005,16 +2005,13 @@ function getRoomsForArena(arenaId) {
 
 function initOmkladningsrum() {
   const today = new Date();
-  // Bu haftanın pazartesisine git
-  const mon = new Date(today);
-  mon.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
-  const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 90);
+  const nextWeek = new Date(today);
+  nextWeek.setDate(today.getDate() + 7);
   const fromEl = document.getElementById('omkFrom');
   const toEl   = document.getElementById('omkTo');
-  if (fromEl && !fromEl.value) fromEl.value = mon.toISOString().slice(0,10);
-  if (toEl   && !toEl.value)   toEl.value   = sun.toISOString().slice(0,10);
-  _omkCurrentWeekStart = new Date(mon);
+  if (fromEl) fromEl.value = today.toISOString().slice(0,10);
+  if (toEl)   toEl.value   = nextWeek.toISOString().slice(0,10);
+  _omkCurrentWeekStart = new Date(today);
   updateWeekLabel();
 }
 
