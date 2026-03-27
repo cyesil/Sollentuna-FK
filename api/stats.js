@@ -316,15 +316,40 @@ module.exports = async (req, res) => {
             const p = roster.find(p => p.PlayerID === playerId);
             if (p) {
               if (p.ThumbnailURL) thumbnail = p.ThumbnailURL;
-              if (p.Position) position = p.Position;
-              // Doğum yılı — çeşitli field adlarını dene
-              birthYear = p.BirthYear || p.BirthYearInt || p.YearOfBirth
-                || (p.DateOfBirth ? new Date(p.DateOfBirth).getFullYear() : null)
-                || (p.BirthDate ? new Date(p.BirthDate).getFullYear() : null)
-                || null;
-              // Debug: raw keys
-              console.log('Player fields:', JSON.stringify(Object.keys(p)));
-              console.log('Position raw:', p.Position, 'PositionText:', p.PositionText, 'PositionName:', p.PositionName);
+              if (p.Position) {
+                const posMap = {
+                  'Goalkeeper': 'Målvakt',
+                  'Defender': 'Back',
+                  'Centre-Back': 'Mittback',
+                  'Full-Back': 'Back',
+                  'Left-Back': 'Vänsterback',
+                  'Right-Back': 'Högerback',
+                  'Midfielder': 'Mittfältare',
+                  'Central Midfield': 'Central mittfältare',
+                  'Defensive Midfield': 'Defensiv mittfältare',
+                  'Attacking Midfield': 'Offensiv mittfältare',
+                  'Left Midfield': 'Vänster mittfältare',
+                  'Right Midfield': 'Höger mittfältare',
+                  'Forward': 'Anfallare',
+                  'Centre-Forward': 'Anfallare',
+                  'Left Wing': 'Vänsterytter',
+                  'Right Wing': 'Högerytter',
+                  'Winger': 'Ytter',
+                  'Striker': 'Anfallare',
+                };
+                position = posMap[p.Position] || p.Position;
+              }
+              // Doğum tarihi — tüm olası field adlarını dene
+              const rawBirth = p.DateOfBirth || p.BirthDate || p.BirthYear || p.YearOfBirth || null;
+              if (rawBirth) {
+                if (typeof rawBirth === 'number') birthYear = rawBirth.toString();
+                else {
+                  try {
+                    const bd = new Date(rawBirth);
+                    birthYear = bd.toLocaleDateString('sv-SE', {year:'numeric', month:'2-digit', day:'2-digit'});
+                  } catch(e) { birthYear = rawBirth.toString(); }
+                }
+              }
               if (!teamLabel) teamLabel = tid === 398871 ? 'P16' : 'P17';
               break;
             }
