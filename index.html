@@ -3537,7 +3537,7 @@ async function loadOyuncuCv() {
     const d = await statsRes.json();
     const vd = vidRes ? await vidRes.json() : {videos:[]};
     const cvData = {
-      name: d.name, shirt: d.shirt, thumbnail: d.thumbnail,
+      name: d.name, shirt: d.shirt, thumbnail: d.thumbnail, position: d.position || '', team: d.team || '',
       playerId,
       seasons: buildSeasonsFromMatches(d.matchDetails || []),
       matchDetails: d.matchDetails || [],
@@ -3695,7 +3695,7 @@ function renderCv(d) {
         : `<div class="cv-avatar-placeholder">👤</div>`}
       <div style="flex:1;">
         <div class="cv-name">${d.name || '—'}</div>
-        <div class="cv-meta">#${d.shirt} · Anfallare · Sollentuna FK P16</div>
+        <div class="cv-meta">#${d.shirt}${d.position ? ' · ' + d.position : ''}${d.team ? ' · Sollentuna FK ' + d.team : ' · Sollentuna FK'}</div>
         <div class="cv-club">
           <img src="${sfkLogo}" onerror="this.style.display='none'">
           <span>SOLLENTUNA FK</span>
