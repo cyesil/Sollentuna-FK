@@ -3686,7 +3686,7 @@ function renderCv(d) {
 
   const goalsPerGame = totals.games > 0 ? (totals.goals / totals.games).toFixed(2) : '—';
   const minPerGoal = totals.goals > 0 ? Math.round((totals.minutesPlayed || 0) / totals.goals) : '—';
-  const minPerGame = totals.starterGames > 0 ? Math.round((totals.minutesPlayed || 0) / totals.starterGames) + "'" : '—';
+  const minPerGame = totals.games > 0 ? Math.round((totals.minutesPlayed || 0) / totals.games) + "'" : '—';
 
   return `
   <div class="cv-wrapper" id="cvPrintArea">
