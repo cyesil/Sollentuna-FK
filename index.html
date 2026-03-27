@@ -2834,6 +2834,7 @@ function renderNastaContent(games) {
       var timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'});
   
       var roomList = getRoomsForArena(g.arenaId);
+      var saved   = rooms[g.gameId] || {};
       var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
       var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
 
