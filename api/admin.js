@@ -649,11 +649,22 @@ module.exports = async (req, res) => {
       const mfToken = await getMinfotbollToken();
       const overview = await minfotbollGet(`/api/magazinegameviewapi/initgameoverview?GameID=${gameId}`, mfToken);
       const arena = overview?.Arena || {};
+      const homeTeam = overview?.HomeTeam || {};
+      const awayTeam = overview?.AwayTeam || {};
       return res.status(200).json({
         arenaId: arena.ArenaID || null,
         arenaName: arena.ArenaName || null,
         latitude: arena.Latitude || null,
         longitude: arena.Longitude || null,
+        homeTeamId: homeTeam.TeamID || null,
+        homeTeamName: homeTeam.TeamName || homeTeam.DisplayName || null,
+        homeClubId: homeTeam.ClubID || null,
+        homeClubName: homeTeam.ClubName || null,
+        awayTeamId: awayTeam.TeamID || null,
+        awayTeamName: awayTeam.TeamName || awayTeam.DisplayName || null,
+        awayClubId: awayTeam.ClubID || null,
+        awayClubName: awayTeam.ClubName || null,
+        raw_keys: Object.keys(overview || {}).join(','),
       });
     } catch(e) {
       return res.status(500).json({ error: e.message });
