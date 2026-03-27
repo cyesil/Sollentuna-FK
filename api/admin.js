@@ -936,16 +936,14 @@ if (action === 'clubgames') {
       // Farklı endpointler dene
       let memberData = null;
       const memberId = player?.MemberID;
+      const teamPlayerID = player?.TeamPlayerID;
       const endpoints = [
-        `/api/memberapi/getmember?MemberID=${memberId}`,
-        `/api/memberapi/getmemberprofile?MemberID=${memberId}`,
-        `/api/teamapi/getteamplayer?TeamPlayerID=${player?.TeamPlayerID}`,
-        `/api/magazinegameviewapi/getplayerprofile?PlayerID=${playerId}`,
-        `/api/teamapi/initplayervc?PlayerID=${playerId}`,
-        `/api/teamapi/getplayerdetails?PlayerID=${playerId}`,
-        `/api/memberapi/getplayerinfo?PlayerID=${playerId}`,
-        `/api/playerapi/getplayer?PlayerID=${playerId}`,
-        `/api/teamapi/initteamplayer?TeamPlayerID=${player?.TeamPlayerID}`,
+        `/api/teamapi/initteamplayervc?TeamPlayerID=${teamPlayerID}`,
+        `/api/teamapi/initteamplayerprofile?TeamPlayerID=${teamPlayerID}`,
+        `/api/magazinegameviewapi/initplayerprofile?TeamPlayerID=${teamPlayerID}`,
+        `/api/magazinegameviewapi/initplayerprofile?PlayerID=${playerId}`,
+        `/api/teamapi/getteamplayerdetails?TeamPlayerID=${teamPlayerID}`,
+        `/api/clubapi/getclubplayer?PlayerID=${playerId}&ClubID=1917`,
       ];
       // Her endpoint'i ayrı ayrı dene ve sonuçları topla
       const allResults = {};
