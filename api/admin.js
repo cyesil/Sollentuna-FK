@@ -926,6 +926,25 @@ if (action === 'clubgames') {
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
 
+  if (action === 'playerraw') {
+    try {
+      const mfToken = await getMinfotbollToken();
+      const playerId = parseInt(req.query.playerId || '597435');
+      const roster = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=398871`, mfToken);
+      const player = Array.isArray(roster) ? roster.find(p => p.PlayerID === playerId) : null;
+      // Ayrıca member endpoint dene
+      let memberData = null;
+      try {
+        memberData = await minfotbollGet(`/api/memberapi/getmember?MemberID=${player?.MemberID || ''}`, mfToken);
+      } catch(e) {}
+      return res.status(200).json({
+        playerKeys: player ? Object.keys(player) : [],
+        playerRaw: player,
+        memberData,
+      });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
   if (action === 'testleague') {
     try {
       const mfToken = await getMinfotbollToken();
