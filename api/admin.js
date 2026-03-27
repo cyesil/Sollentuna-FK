@@ -938,12 +938,7 @@ if (action === 'clubgames') {
       const memberId = player?.MemberID;
       const teamPlayerID = player?.TeamPlayerID;
       const endpoints = [
-        `/api/teamapi/initteamplayervc?TeamPlayerID=${teamPlayerID}`,
-        `/api/teamapi/initteamplayerprofile?TeamPlayerID=${teamPlayerID}`,
-        `/api/magazinegameviewapi/initplayerprofile?TeamPlayerID=${teamPlayerID}`,
-        `/api/magazinegameviewapi/initplayerprofile?PlayerID=${playerId}`,
-        `/api/teamapi/getteamplayerdetails?TeamPlayerID=${teamPlayerID}`,
-        `/api/clubapi/getclubplayer?PlayerID=${playerId}&ClubID=1917`,
+        `/api/magazinegameviewapi/initplayerprofile?TeamPlayerID=${teamPlayerID}&GamePlayerID=0`,
       ];
       // Her endpoint'i ayrı ayrı dene ve sonuçları topla
       const allResults = {};
