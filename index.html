@@ -746,7 +746,7 @@
               <tr><td>ClubID</td><td>1917</td></tr>
               <tr><td>API Base</td><td>minfotboll-api.azurewebsites.net</td></tr>
               <tr><td>Matchtid (beräkning)</td><td>105 min (90 + 15 halvtid)</td></tr>
-              <tr><td>Incheck default</td><td>60 min före avspark</td></tr>
+              <tr><td>Incheck default</td><td>90 min före avspark</td></tr>
               <tr><td>Utcheck default</td><td>135 min efter avspark</td></tr>
             </tbody>
           </table></div>
@@ -2856,9 +2856,9 @@ function renderNastaContent(games) {
       var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
 
       // Default saatler
-      var homeIn  = calcDefaultTime(g.gameDate, -60);   // 1 saat önce
+      var homeIn  = calcDefaultTime(g.gameDate, -90);   // 90 dk önce
       var homeOut = calcDefaultTime(g.gameDate, 135);   // 105 + 30 dk sonra
-      var awayIn  = calcDefaultTime(g.gameDate, -60);
+      var awayIn  = calcDefaultTime(g.gameDate, -90);
       var awayOut = calcDefaultTime(g.gameDate, 135);
 
       function makeRoomSelect(id, current, defaultVal) {
