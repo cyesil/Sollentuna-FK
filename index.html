@@ -3696,7 +3696,8 @@ function renderCv(d) {
         : `<div class="cv-avatar-placeholder">👤</div>`}
       <div style="flex:1;">
         <div class="cv-name">${d.name || '—'}</div>
-        <div class="cv-meta">#${d.shirt}${d.position ? ' · ' + d.position : ''}${d.team ? ' · Sollentuna FK ' + d.team : ' · Sollentuna FK'}${d.birthYear ? ' · ' + d.birthYear : ''}</div>
+        <div class="cv-meta">#${d.shirt}${d.position ? ' · ' + d.position : ''}${d.team ? ' · Sollentuna FK ' + d.team : ' · Sollentuna FK'}</div>
+        ${d.birthYear ? '<div class="cv-meta" style="font-size:0.8rem;color:var(--muted);margin-top:0.1rem;">Född: ' + d.birthYear + '</div>' : ''}
         <div class="cv-club">
           <img src="${sfkLogo}" onerror="this.style.display='none'">
           <span>SOLLENTUNA FK</span>
