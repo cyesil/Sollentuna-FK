@@ -649,6 +649,8 @@ module.exports = async (req, res) => {
       const mfToken = await getMinfotbollToken();
       const overview = await minfotbollGet(`/api/magazinegameviewapi/initgameoverview?GameID=${gameId}`, mfToken);
       const arena = overview?.Arena || {};
+      // getgamedetail'den takım bilgisi çek
+      const detail = await minfotbollGet(`/api/getgamedetail?GameID=${gameId}`, mfToken);
       // GameResults içinden takım bilgisi çek
       const results = overview?.GameResults || {};
       const homeTeamId   = results.HomeTeamID || null;
@@ -664,14 +666,14 @@ module.exports = async (req, res) => {
         arenaName: arena.ArenaName || null,
         latitude: arena.Latitude || null,
         longitude: arena.Longitude || null,
-        homeTeamId: homeTeamId || stats.HomeTeamID || null,
-        homeTeamName: homeTeamName || null,
-        homeClubId: homeClubId || null,
-        awayTeamId: awayTeamId || stats.AwayTeamID || null,
-        awayTeamName: awayTeamName || null,
-        awayClubId: awayClubId || null,
-        raw_results: JSON.stringify(results).slice(0,300),
-        raw_stats: JSON.stringify(stats).slice(0,300),
+        homeTeamId: detail?.HomeTeamID || null,
+        homeTeamName: detail?.HomeTeamDisplayName || null,
+        homeClubId: detail?.HomeTeamClubID || null,
+        homeClubName: detail?.HomeTeamClubName || null,
+        awayTeamId: detail?.AwayTeamID || null,
+        awayTeamName: detail?.AwayTeamDisplayName || null,
+        awayClubId: detail?.AwayTeamClubID || null,
+        awayClubName: detail?.AwayTeamClubName || null,
       });
     } catch(e) {
       return res.status(500).json({ error: e.message });
