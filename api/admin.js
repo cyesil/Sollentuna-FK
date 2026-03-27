@@ -941,6 +941,11 @@ if (action === 'clubgames') {
         `/api/memberapi/getmemberprofile?MemberID=${memberId}`,
         `/api/teamapi/getteamplayer?TeamPlayerID=${player?.TeamPlayerID}`,
         `/api/magazinegameviewapi/getplayerprofile?PlayerID=${playerId}`,
+        `/api/teamapi/initplayervc?PlayerID=${playerId}`,
+        `/api/teamapi/getplayerdetails?PlayerID=${playerId}`,
+        `/api/memberapi/getplayerinfo?PlayerID=${playerId}`,
+        `/api/playerapi/getplayer?PlayerID=${playerId}`,
+        `/api/teamapi/initteamplayer?TeamPlayerID=${player?.TeamPlayerID}`,
       ];
       // Her endpoint'i ayrı ayrı dene ve sonuçları topla
       const allResults = {};
