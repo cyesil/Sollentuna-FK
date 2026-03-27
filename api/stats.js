@@ -292,6 +292,16 @@ module.exports = async (req, res) => {
   }
 
   // Belirli oyuncu için CV verisi (admin + antrenör)
+function translatePosition(pos) {
+  if (!pos) return '';
+  const p = pos.toLowerCase();
+  if (p.includes('goalkeeper') || p.includes('målvakt')) return 'Målvakt';
+  if (p.includes('defender') || p.includes('försvar')) return 'Försvarare';
+  if (p.includes('midfielder') || p.includes('mittfält')) return 'Mittfältare';
+  if (p.includes('forward') || p.includes('anfallare') || p.includes('attack')) return 'Anfallare';
+  return pos;
+}
+
   if (action === 'playercv') {
     if (user.role === 'oyuncu') return res.status(403).json({ error: 'Yetki yok' });
     const playerId = parseInt(req.query.playerId);
@@ -300,16 +310,26 @@ module.exports = async (req, res) => {
     const statsRaw = await supabaseGet(`/player_stats?player_id=eq.${playerId}&select=*,matches(*)&order=matches(game_date).desc`);
     if (!Array.isArray(statsRaw)) return res.status(200).json({ error: 'Ingen data' });
 
-    // Thumbnail
+    // Thumbnail + pozisyon
     const thumbnailRow = await supabaseGet(`/player_stats?player_id=eq.${playerId}&select=thumbnail&limit=1`);
     let thumbnail = Array.isArray(thumbnailRow) && thumbnailRow[0]?.thumbnail || null;
+    let position = '';
+    let teamLabel = '';
     if (!thumbnail) {
       try {
         const mfToken = await getMinfotbollToken();
-        const roster = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=398871`, mfToken);
-        if (Array.isArray(roster)) {
-          const p = roster.find(p => p.PlayerID === playerId);
-          if (p?.ThumbnailURL) thumbnail = p.ThumbnailURL;
+        // Her iki takımdan da ara
+        for (const tid of [398871, 74782]) {
+          const roster = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=${tid}`, mfToken);
+          if (Array.isArray(roster)) {
+            const p = roster.find(p => p.PlayerID === playerId);
+            if (p) {
+              if (p.ThumbnailURL) thumbnail = p.ThumbnailURL;
+              if (p.Position) position = translatePosition(p.Position);
+              if (!teamLabel) teamLabel = tid === 398871 ? 'P16' : 'P17';
+              break;
+            }
+          }
         }
       } catch(e) {}
     }
@@ -366,6 +386,8 @@ module.exports = async (req, res) => {
       shirt: SFK_PLAYERS[playerId].shirt,
       thumbnail,
       playerId,
+      position,
+      team: teamLabel,
       totals,
       seasons,
       matchDetails,
