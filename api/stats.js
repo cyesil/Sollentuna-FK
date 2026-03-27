@@ -292,16 +292,6 @@ module.exports = async (req, res) => {
   }
 
   // Belirli oyuncu için CV verisi (admin + antrenör)
-function translatePosition(pos) {
-  if (!pos) return '';
-  const p = pos.toLowerCase();
-  if (p.includes('goalkeeper') || p.includes('målvakt')) return 'Målvakt';
-  if (p.includes('defender') || p.includes('försvar')) return 'Försvarare';
-  if (p.includes('midfielder') || p.includes('mittfält')) return 'Mittfältare';
-  if (p.includes('forward') || p.includes('anfallare') || p.includes('attack')) return 'Anfallare';
-  return pos;
-}
-
   if (action === 'playercv') {
     if (user.role === 'oyuncu') return res.status(403).json({ error: 'Yetki yok' });
     const playerId = parseInt(req.query.playerId);
@@ -315,6 +305,7 @@ function translatePosition(pos) {
     let thumbnail = Array.isArray(thumbnailRow) && thumbnailRow[0]?.thumbnail || null;
     let position = '';
     let teamLabel = '';
+    let birthYear = null;
     if (!thumbnail) {
       try {
         const mfToken = await getMinfotbollToken();
@@ -325,7 +316,9 @@ function translatePosition(pos) {
             const p = roster.find(p => p.PlayerID === playerId);
             if (p) {
               if (p.ThumbnailURL) thumbnail = p.ThumbnailURL;
-              if (p.Position) position = translatePosition(p.Position);
+              if (p.Position) position = p.Position;
+              if (p.BirthYear) birthYear = p.BirthYear;
+              else if (p.BirthDate) birthYear = new Date(p.BirthDate).getFullYear();
               if (!teamLabel) teamLabel = tid === 398871 ? 'P16' : 'P17';
               break;
             }
@@ -388,6 +381,7 @@ function translatePosition(pos) {
       playerId,
       position,
       team: teamLabel,
+      birthYear,
       totals,
       seasons,
       matchDetails,
