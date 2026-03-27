@@ -317,8 +317,14 @@ module.exports = async (req, res) => {
             if (p) {
               if (p.ThumbnailURL) thumbnail = p.ThumbnailURL;
               if (p.Position) position = p.Position;
-              if (p.BirthYear) birthYear = p.BirthYear;
-              else if (p.BirthDate) birthYear = new Date(p.BirthDate).getFullYear();
+              // Doğum yılı — çeşitli field adlarını dene
+              birthYear = p.BirthYear || p.BirthYearInt || p.YearOfBirth
+                || (p.DateOfBirth ? new Date(p.DateOfBirth).getFullYear() : null)
+                || (p.BirthDate ? new Date(p.BirthDate).getFullYear() : null)
+                || null;
+              // Debug: raw keys
+              console.log('Player fields:', JSON.stringify(Object.keys(p)));
+              console.log('Position raw:', p.Position, 'PositionText:', p.PositionText, 'PositionName:', p.PositionName);
               if (!teamLabel) teamLabel = tid === 398871 ? 'P16' : 'P17';
               break;
             }
