@@ -673,7 +673,7 @@ module.exports = async (req, res) => {
     // 20586 = Edsbergs Sportfält
     // 20588 = Edsbergs Sportfält 2
     // 20591 = Edsbergs Sportfält 3
-    const SFK_ARENA_IDS = new Set([21808, 21815, 20977, 20976, 20586, 20588, 20591]);
+    const SFK_ARENA_IDS = new Set([21808, 21815, 20977, 20976, 20586, 20588, 20591, 21807]);
 
     const from = dateFrom || new Date().toISOString().slice(0, 10);
     const to   = dateTo   || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
