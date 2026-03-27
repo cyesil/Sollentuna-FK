@@ -3537,7 +3537,7 @@ async function loadOyuncuCv() {
     const d = await statsRes.json();
     const vd = vidRes ? await vidRes.json() : {videos:[]};
     const cvData = {
-      name: d.name, shirt: d.shirt, thumbnail: d.thumbnail, position: d.position || '', team: d.team || '',
+      name: d.name, shirt: d.shirt, thumbnail: d.thumbnail, position: d.position || '', team: d.team || '', birthYear: d.birthYear || null,
       playerId,
       seasons: buildSeasonsFromMatches(d.matchDetails || []),
       matchDetails: d.matchDetails || [],
@@ -3686,6 +3686,7 @@ function renderCv(d) {
 
   const goalsPerGame = totals.games > 0 ? (totals.goals / totals.games).toFixed(2) : '—';
   const minPerGoal = totals.goals > 0 ? Math.round((totals.minutesPlayed || 0) / totals.goals) : '—';
+  const minPerGame = totals.starterGames > 0 ? Math.round((totals.minutesPlayed || 0) / totals.starterGames) + "'" : '—';
 
   return `
   <div class="cv-wrapper" id="cvPrintArea">
@@ -3695,7 +3696,7 @@ function renderCv(d) {
         : `<div class="cv-avatar-placeholder">👤</div>`}
       <div style="flex:1;">
         <div class="cv-name">${d.name || '—'}</div>
-        <div class="cv-meta">#${d.shirt}${d.position ? ' · ' + d.position : ''}${d.team ? ' · Sollentuna FK ' + d.team : ' · Sollentuna FK'}</div>
+        <div class="cv-meta">#${d.shirt}${d.position ? ' · ' + d.position : ''}${d.team ? ' · Sollentuna FK ' + d.team : ' · Sollentuna FK'}${d.birthYear ? ' · ' + d.birthYear : ''}</div>
         <div class="cv-club">
           <img src="${sfkLogo}" onerror="this.style.display='none'">
           <span>SOLLENTUNA FK</span>
@@ -3718,6 +3719,7 @@ function renderCv(d) {
         <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--red)">${totals.redCards || 0}</div><div class="cv-kpi-lbl">Rött kort</div></div>
         <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--muted);font-size:1.4rem">${goalsPerGame}</div><div class="cv-kpi-lbl">Mål/Match</div></div>
         <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--muted);font-size:1.4rem">${minPerGoal === '—' ? '—' : minPerGoal + "'"}</div><div class="cv-kpi-lbl">Min/Mål</div></div>
+        <div class="cv-kpi"><div class="cv-kpi-val" style="color:var(--accent);font-size:1.4rem">${minPerGame}</div><div class="cv-kpi-lbl">Min/Match</div></div>
       </div>
     </div>
 
