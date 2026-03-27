@@ -2249,9 +2249,10 @@ let _omkTableCounter = 0;
 function buildOmkTable(games, rooms) {
   if (!games.length) return '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0;">Inga matcher</div>';
   var tableGroup = 'omk_grp_' + (++_omkTableCounter);
-  let html = '<div class="table-wrap"><table><thead><tr>';
+  let html = '<div class="table-wrap"><table style="table-layout:fixed;width:100%;"><thead><tr>';
   html += '<th style="width:36px;"><input type="checkbox" onchange="omkToggleAll(this,&quot;' + tableGroup + '&quot;)" style="cursor:pointer;width:15px;height:15px;"></th>';
-  html += '<th>Datum</th><th>Avspark</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
+  html += '<th style="width:90px;">Datum</th><th style="width:60px;">Avspark</th><th style="width:140px;">Arena</th>';
+  html += '<th style="width:220px;">Hemmalag</th><th style="width:220px;">Bortalag</th>';
   html += '</tr></thead><tbody>';
 
   games.forEach(function(g) {
