@@ -6,27 +6,27 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const JWT_SECRET = process.env.JWT_SECRET || 'sfk2026gizliAnahtar!';
 
 const SFK_PLAYERS = {
-  583483:{name:'Gabriel Saadi',shirt:1},
-  562656:{name:'Alexander Hansen',shirt:2},
-  659792:{name:'Jeyson Sissah Nkanga Ngudi Jose',shirt:3},
-  571649:{name:'Filip Kjellgren',shirt:4},
-  572299:{name:'Alf Markusson',shirt:5},
-  597435:{name:'Linus Olofsson',shirt:6},
-  700142:{name:'Leo Olausson',shirt:7},
-  595639:{name:'Hugo Meyer',shirt:8},
-  571652:{name:'Gabriel Mocsary',shirt:9},
-  558820:{name:'Frank Lundh',shirt:10},
-  571659:{name:'Emil Wallberg',shirt:11},
-  589844:{name:'Vincent Ekström Lundin',shirt:12},
-  572290:{name:'Badou Badjan',shirt:14},
-  572006:{name:'Gus Stefansson',shirt:16},
-  595633:{name:'Cian Hogan',shirt:17},
-  606521:{name:'Aksel Yesil',shirt:19},
-  700147:{name:'Charlie Nordenson',shirt:20},
-  576573:{name:'Albin Nordin',shirt:21},
-  571068:{name:'Viggo Sejnäs',shirt:31},
-  595628:{name:'Valter Ekehov',shirt:66},
-  573259:{name:'Love Nytén',shirt:77},
+  583483:{name:'Gabriel Saadi',shirt:1,birthYear:2010},
+  562656:{name:'Alexander Hansen',shirt:2,birthYear:2010},
+  659792:{name:'Jeyson Sissah Nkanga Ngudi Jose',shirt:3,birthYear:2010},
+  571649:{name:'Filip Kjellgren',shirt:4,birthYear:2010},
+  572299:{name:'Alf Markusson',shirt:5,birthYear:2010},
+  597435:{name:'Linus Olofsson',shirt:6,birthYear:2010},
+  700142:{name:'Leo Olausson',shirt:7,birthYear:2010},
+  595639:{name:'Hugo Meyer',shirt:8,birthYear:2010},
+  571652:{name:'Gabriel Mocsary',shirt:9,birthYear:2010},
+  558820:{name:'Frank Lundh',shirt:10,birthYear:2010},
+  571659:{name:'Emil Wallberg',shirt:11,birthYear:2010},
+  589844:{name:'Vincent Ekström Lundin',shirt:12,birthYear:2010},
+  572290:{name:'Badou Badjan',shirt:14,birthYear:2010},
+  572006:{name:'Gus Stefansson',shirt:16,birthYear:2010},
+  595633:{name:'Cian Hogan',shirt:17,birthYear:2010},
+  606521:{name:'Aksel Yesil',shirt:19,birthYear:2010},
+  700147:{name:'Charlie Nordenson',shirt:20,birthYear:2010},
+  576573:{name:'Albin Nordin',shirt:21,birthYear:2010},
+  571068:{name:'Viggo Sejnäs',shirt:31,birthYear:2010},
+  595628:{name:'Valter Ekehov',shirt:66,birthYear:2010},
+  573259:{name:'Love Nytén',shirt:77,birthYear:2010},
 };
 
 function verifyToken(token) {
@@ -309,50 +309,42 @@ module.exports = async (req, res) => {
     if (!thumbnail) {
       try {
         const mfToken = await getMinfotbollToken();
-        // Her iki takımdan da ara
+        const posMap = {
+          'Goalkeeper':'Målvakt','Defender':'Back','Centre-Back':'Mittback',
+          'Full-Back':'Back','Left-Back':'Vänsterback','Right-Back':'Högerback',
+          'Midfielder':'Mittfältare','Central Midfield':'Central mittfältare',
+          'Defensive Midfield':'Defensiv mittfältare','Attacking Midfield':'Offensiv mittfältare',
+          'Left Midfield':'Vänster mittfältare','Right Midfield':'Höger mittfältare',
+          'Forward':'Anfallare','Centre-Forward':'Anfallare',
+          'Left Wing':'Vänsterytter','Right Wing':'Högerytter',
+          'Winger':'Ytter','Striker':'Anfallare',
+        };
+        // Önce initplayersadminvc ile TeamPlayerID'yi bul
+        let teamPlayerID = null;
         for (const tid of [398871, 74782]) {
           const roster = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=${tid}`, mfToken);
           if (Array.isArray(roster)) {
             const p = roster.find(p => p.PlayerID === playerId);
             if (p) {
               if (p.ThumbnailURL) thumbnail = p.ThumbnailURL;
-              if (p.Position) {
-                const posMap = {
-                  'Goalkeeper': 'Målvakt',
-                  'Defender': 'Back',
-                  'Centre-Back': 'Mittback',
-                  'Full-Back': 'Back',
-                  'Left-Back': 'Vänsterback',
-                  'Right-Back': 'Högerback',
-                  'Midfielder': 'Mittfältare',
-                  'Central Midfield': 'Central mittfältare',
-                  'Defensive Midfield': 'Defensiv mittfältare',
-                  'Attacking Midfield': 'Offensiv mittfältare',
-                  'Left Midfield': 'Vänster mittfältare',
-                  'Right Midfield': 'Höger mittfältare',
-                  'Forward': 'Anfallare',
-                  'Centre-Forward': 'Anfallare',
-                  'Left Wing': 'Vänsterytter',
-                  'Right Wing': 'Högerytter',
-                  'Winger': 'Ytter',
-                  'Striker': 'Anfallare',
-                };
-                position = posMap[p.Position] || p.Position;
-              }
-              // Doğum tarihi — tüm olası field adlarını dene
-              const rawBirth = p.DateOfBirth || p.BirthDate || p.BirthYear || p.YearOfBirth || null;
-              if (rawBirth) {
-                if (typeof rawBirth === 'number') birthYear = rawBirth.toString();
-                else {
-                  try {
-                    const bd = new Date(rawBirth);
-                    birthYear = bd.toLocaleDateString('sv-SE', {year:'numeric', month:'2-digit', day:'2-digit'});
-                  } catch(e) { birthYear = rawBirth.toString(); }
-                }
-              }
-              if (!teamLabel) teamLabel = tid === 398871 ? 'P16' : 'P17';
+              if (p.Position) position = posMap[p.Position] || p.Position;
+              teamPlayerID = p.TeamPlayerID;
+              teamLabel = tid === 398871 ? 'P16' : 'P17';
               break;
             }
+          }
+        }
+        // initplayerprofile ile doğum yılını çek
+        if (teamPlayerID) {
+          const profile = await minfotbollGet(
+            `/api/playerapi/initplayerprofile?TeamPlayerID=${teamPlayerID}&GamePlayerID=0`, mfToken
+          );
+          const pv = profile?.PlayerForDetailsView;
+          if (pv) {
+            if (pv.YearOfBirth) birthYear = pv.YearOfBirth.toString();
+            else if (pv.BirthDate) birthYear = new Date(pv.BirthDate).getFullYear().toString();
+            if (pv.ThumbnailURL && !thumbnail) thumbnail = pv.ThumbnailURL;
+            if (pv.Position && !position) position = posMap[pv.Position] || pv.Position;
           }
         }
       } catch(e) {}
@@ -412,7 +404,7 @@ module.exports = async (req, res) => {
       playerId,
       position,
       team: teamLabel,
-      birthYear,
+      birthYear: birthYear || SFK_PLAYERS[playerId]?.birthYear?.toString() || null,
       totals,
       seasons,
       matchDetails,
