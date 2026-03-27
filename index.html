@@ -2912,8 +2912,9 @@ function renderNastaContent(games) {
       h += '</div></td>';
       h += '</tr>';
 
-      // A-lag Herr maçında rakibe ekstra oda
-      var isAlagMatch = (g.homeTeam && g.homeTeam.includes('A-lag Herr')) || (g.awayTeam && g.awayTeam.includes('A-lag Herr'));
+      // A-lag Herr veya A-lag Dam maçında rakibe ekstra oda
+      var isAlagMatch = (g.homeTeam && (g.homeTeam.includes('A-lag Herr') || g.homeTeam.includes('A-lag Dam')))
+                     || (g.awayTeam && (g.awayTeam.includes('A-lag Herr') || g.awayTeam.includes('A-lag Dam')));
       var defaultAwayRoom2 = roomList[2] || roomList[1]; // Rum 3
 
       // Borta satırı
