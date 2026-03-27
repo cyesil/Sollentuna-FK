@@ -2726,7 +2726,10 @@ function printSparade() {
       // Borta satırı
       h += '<tr class="borta-row">';
       h += '<td' + ac + '>' + awayLogo + (row.away_team||'—') + '</td>';
-      h += '<td>' + (row.away_room||'—') + '</td>';
+      var extra2 = {};
+      try { extra2 = JSON.parse(row.extra_json || '{}'); } catch(e) {}
+      var awayRoom2Str = extra2.awayRoom2 ? ' + ' + extra2.awayRoom2 : '';
+      h += '<td>' + (row.away_room||'—') + awayRoom2Str + '</td>';
       h += '<td>' + awayIn + '</td><td>' + awayOut + '</td>';
       h += '</tr>';
     });
@@ -2895,6 +2898,10 @@ function renderNastaContent(games) {
       h += '</div></td>';
       h += '</tr>';
 
+      // A-lag Herr maçında rakibe ekstra oda
+      var isAlagMatch = (g.homeTeam && g.homeTeam.includes('A-lag Herr')) || (g.awayTeam && g.awayTeam.includes('A-lag Herr'));
+      var defaultAwayRoom2 = roomList[2] || roomList[1]; // Rum 3
+
       // Borta satırı
       h += '<tr>';
       h += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + 'white-space:nowrap;">';
@@ -2904,7 +2911,16 @@ function renderNastaContent(games) {
       h += (g.awayTeam||'—') + '</td>';
       var isSFKAway = g.awayTeam && g.awayTeam.includes('Sollentuna');
       var defaultAwayRoom = isSFKAway ? roomList[0] : roomList[1]; // SFK→Rum1, rakip→Rum2
-      h += '<td>' + makeRoomSelect('nasta_away_' + g.gameId, saved.awayRoom, defaultAwayRoom) + '</td>';
+      if (isAlagMatch) {
+        // A-lag: rakip için 2 oda yan yana
+        h += '<td style="display:flex;gap:4px;align-items:center;">'
+          + makeRoomSelect('nasta_away_' + g.gameId, saved.awayRoom, defaultAwayRoom)
+          + '<span style="color:var(--muted);font-size:0.75rem;">+</span>'
+          + makeRoomSelect('nasta_away2_' + g.gameId, saved.awayRoom2 || null, defaultAwayRoom2)
+          + '</td>';
+      } else {
+        h += '<td>' + makeRoomSelect('nasta_away_' + g.gameId, saved.awayRoom, defaultAwayRoom) + '</td>';
+      }
       h += '<td>' + makeTimeSelect('nasta_away_in_' + g.gameId, awayIn) + '</td>';
       h += '<td>' + makeTimeSelect('nasta_away_out_' + g.gameId, awayOut) + '</td>';
       h += '</tr>';
@@ -2931,6 +2947,7 @@ async function saveAllOmkRooms() {
   const savedData = games.map(function(g) {
     const homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value || null;
     const awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value || null;
+    const awayRoom2 = document.getElementById('nasta_away2_' + g.gameId)?.value || null;
     const homeIn   = document.getElementById('nasta_home_in_' + g.gameId)?.value || null;
     const homeOut  = document.getElementById('nasta_home_out_' + g.gameId)?.value || null;
     const awayIn   = document.getElementById('nasta_away_in_' + g.gameId)?.value || null;
@@ -2949,7 +2966,7 @@ async function saveAllOmkRooms() {
       homeLogo: g.homeLogo||null, awayLogo: g.awayLogo||null,
       homeRoom, awayRoom,
       notes: msgs.join(' | ') || null,
-      extra: JSON.stringify({homeIn, homeOut, awayIn, awayOut})
+      extra: JSON.stringify({homeIn, homeOut, awayIn, awayOut, awayRoom2})
     };
   });
 
