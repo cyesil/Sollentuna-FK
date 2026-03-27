@@ -933,10 +933,24 @@ if (action === 'clubgames') {
       const roster = await minfotbollGet(`/api/teamapi/initplayersadminvc?TeamID=398871`, mfToken);
       const player = Array.isArray(roster) ? roster.find(p => p.PlayerID === playerId) : null;
       // Ayrıca member endpoint dene
+      // Farklı endpointler dene
       let memberData = null;
-      try {
-        memberData = await minfotbollGet(`/api/memberapi/getmember?MemberID=${player?.MemberID || ''}`, mfToken);
-      } catch(e) {}
+      const memberId = player?.MemberID;
+      const endpoints = [
+        `/api/memberapi/getmember?MemberID=${memberId}`,
+        `/api/memberapi/getmemberprofile?MemberID=${memberId}`,
+        `/api/teamapi/getteamplayer?TeamPlayerID=${player?.TeamPlayerID}`,
+        `/api/magazinegameviewapi/getplayerprofile?PlayerID=${playerId}`,
+      ];
+      for (const ep of endpoints) {
+        try {
+          const r = await minfotbollGet(ep, mfToken);
+          if (r && typeof r === 'object' && !Array.isArray(r)) {
+            memberData = { endpoint: ep, keys: Object.keys(r), data: r };
+            break;
+          }
+        } catch(e) {}
+      }
       return res.status(200).json({
         playerKeys: player ? Object.keys(player) : [],
         playerRaw: player,
