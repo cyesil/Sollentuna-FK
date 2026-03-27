@@ -942,15 +942,17 @@ if (action === 'clubgames') {
         `/api/teamapi/getteamplayer?TeamPlayerID=${player?.TeamPlayerID}`,
         `/api/magazinegameviewapi/getplayerprofile?PlayerID=${playerId}`,
       ];
+      // Her endpoint'i ayrı ayrı dene ve sonuçları topla
+      const allResults = {};
       for (const ep of endpoints) {
         try {
           const r = await minfotbollGet(ep, mfToken);
-          if (r && typeof r === 'object' && !Array.isArray(r)) {
-            memberData = { endpoint: ep, keys: Object.keys(r), data: r };
-            break;
+          if (r !== null && r !== undefined && r !== '') {
+            allResults[ep] = { keys: typeof r === 'object' ? Object.keys(r) : [], data: r };
           }
-        } catch(e) {}
+        } catch(e) { allResults[ep] = { error: e.message }; }
       }
+      memberData = allResults;
       return res.status(200).json({
         playerKeys: player ? Object.keys(player) : [],
         playerRaw: player,
