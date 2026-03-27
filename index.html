@@ -399,7 +399,7 @@
       <span class="role-badge" id="roleBadge"></span>
       <button class="btn-refresh" onclick="refreshToken()" title="Förnya MinFotboll token" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;" id="refreshBtn">🔄 Förnya token</button>
       <button onclick="toggleInstellningar()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;">⚙️ Inställningar</button>
-      <button id="githubPushBtn" onclick="toggleGithubPanel()" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.8rem;border-radius:6px;cursor:pointer;font-size:0.82rem;">🚀 Deploy</button>
+
       <button class="btn-logout" onclick="doLogout()">Logga ut</button>
     </div>
   </header>
@@ -468,6 +468,7 @@
         <button class="tab" id="usersTab" onclick="adminTab('users')" style="display:none;">Användare</button>
         <button class="tab" onclick="adminTab('cv')">📄 CV</button>
         <button class="tab" id="omkladningsrumTab" onclick="adminTab('omkladningsrum')" style="display:none;">🏟️ Omklädningsrum</button>
+        <button class="tab" id="parametrarTab" onclick="adminTab('parametrar')" style="display:none;">⚙️ Parametrar</button>
       </div>
 
       <!-- MAÇLAR TAB -->
@@ -655,6 +656,87 @@
             </div>
             <div id="omkModalMsg" style="margin-top:0.75rem;font-size:0.85rem;min-height:1.2rem;"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- PARAMETRAR TAB -->
+      <div id="adminParametrar" style="display:none;">
+        <div class="section-title" style="margin-bottom:1.5rem;">⚙️ Parametrar</div>
+
+        <!-- SFK Takımları -->
+        <div style="margin-bottom:2rem;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent);margin-bottom:0.75rem;border-bottom:1px solid var(--border);padding-bottom:0.5rem;">👥 SFK Takımları (ClubID: 1917)</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Team ID</th><th>Takım Adı</th><th>Kategori</th></tr></thead>
+            <tbody>
+              <tr><td>457347</td><td>Sollentuna FK</td><td>P16 Div.1 2025</td></tr>
+              <tr><td>398871</td><td>Sollentuna FK (P16) (P16A)</td><td>P16 kupa/hazırlık</td></tr>
+              <tr><td>74782</td><td>Sollentuna FK (P17)</td><td>P17 Allsvenskan</td></tr>
+              <tr><td>402766</td><td>Sollentuna FK P16U</td><td>P16U</td></tr>
+              <tr><td>458583</td><td>Sollentuna FK P15U</td><td>P15U</td></tr>
+              <tr><td>517985</td><td>Sollentuna FK P15A</td><td>P15A</td></tr>
+              <tr><td>532226</td><td>Sollentuna FK P14 U</td><td>P14U</td></tr>
+              <tr><td>512526</td><td>Sollentuna FK P13A</td><td>P13A</td></tr>
+              <tr><td>518642</td><td>Sollentuna FK F13 A</td><td>F13A</td></tr>
+              <tr><td>517686</td><td>Sollentuna FK F14U</td><td>F14U</td></tr>
+              <tr><td>529853</td><td>Sollentuna FK F14 A</td><td>F14A</td></tr>
+              <tr><td>535301</td><td>Sollentuna FK F17 Akademi</td><td>F17</td></tr>
+              <tr><td>201387</td><td>Sollentuna FK A-lag Herr</td><td>Senior</td></tr>
+              <tr><td>538946</td><td>Sollentuna FK HJ</td><td>Herr Junior</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <!-- Arenalar -->
+        <div style="margin-bottom:2rem;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent);margin-bottom:0.75rem;border-bottom:1px solid var(--border);padding-bottom:0.5rem;">🏟️ SFK Arenalarının MinFotboll ID'leri</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Arena ID</th><th>Arena Adı</th><th>Grup</th></tr></thead>
+            <tbody>
+              <tr><td>21808</td><td>Norrvikens IP 1</td><td>Norrviken</td></tr>
+              <tr><td>21815</td><td>Norrvikens IP 2 Hall</td><td>Norrviken</td></tr>
+              <tr><td>20977</td><td>Sollentuna Fotbollshall 1</td><td>Norrviken</td></tr>
+              <tr><td>20976</td><td>Sollentuna Fotbollshall</td><td>Norrviken</td></tr>
+              <tr><td>20586</td><td>Edsbergs Sportfält</td><td>Edsbergs</td></tr>
+              <tr><td>20588</td><td>Edsbergs Sportfält 2</td><td>Edsbergs</td></tr>
+              <tr><td>20591</td><td>Edsbergs Sportfält 3</td><td>Edsbergs</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <!-- Ligler -->
+        <div style="margin-bottom:2rem;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent);margin-bottom:0.75rem;border-bottom:1px solid var(--border);padding-bottom:0.5rem;">🏆 Lig ID'leri</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>League ID</th><th>Lig Adı</th><th>Tip</th><th>Team ID</th></tr></thead>
+            <tbody>
+              <tr><td>59554</td><td>P16 Div.1 2025</td><td>Lig</td><td>457347</td></tr>
+              <tr><td>129362</td><td>P16 Div.1 2026</td><td>Lig</td><td>398871</td></tr>
+              <tr><td>68703</td><td>P16 Ligacupen Grupp 3 2026</td><td>Kupa</td><td>398871</td></tr>
+              <tr><td>70389</td><td>P16 Ligacupen 2026</td><td>Kupa</td><td>398871</td></tr>
+              <tr><td>59382</td><td>P16 Träningsmatcher 2025</td><td>Hazırlık</td><td>398871</td></tr>
+              <tr><td>69555</td><td>P16 Träningsmatcher 2026</td><td>Hazırlık</td><td>398871</td></tr>
+              <tr><td>69500</td><td>P17 Allsvenskan 2026</td><td>Lig</td><td>74782</td></tr>
+              <tr><td>70384</td><td>P17 Ligacupen 2026</td><td>Kupa</td><td>74782</td></tr>
+              <tr><td>70816</td><td>P17 Träningsmatcher 2026</td><td>Hazırlık</td><td>74782</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <!-- MinFotboll API -->
+        <div style="margin-bottom:2rem;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent);margin-bottom:0.75rem;border-bottom:1px solid var(--border);padding-bottom:0.5rem;">🔌 MinFotboll API</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Parametre</th><th>Değer</th></tr></thead>
+            <tbody>
+              <tr><td>Kulüp Adı</td><td>Sollentuna FK</td></tr>
+              <tr><td>ClubID</td><td>1917</td></tr>
+              <tr><td>API Base</td><td>minfotboll-api.azurewebsites.net</td></tr>
+              <tr><td>Maç süresi (hesap)</td><td>105 dk (90 + 15 devre arası)</td></tr>
+              <tr><td>Giriş default</td><td>Maç başı - 60 dk</td></tr>
+              <tr><td>Çıkış default</td><td>Maç başı + 135 dk</td></tr>
+            </tbody>
+          </table></div>
         </div>
       </div>
 
@@ -903,10 +985,9 @@ function showApp() {
   if (usersTab) usersTab.style.display = (u.role === 'admin' || u.role === 'antrenor') ? 'inline-block' : 'none';
   // Omklädningsrum tabı: sadece admin
   const omkTab = document.getElementById('omkladningsrumTab');
+  const paramTab = document.getElementById('parametrarTab');
   if (omkTab) omkTab.style.display = u.role === 'admin' ? 'inline-block' : 'none';
-  // Deploy butonu sadece admin
-  const ghBtn = document.getElementById('githubPushBtn');
-  if (ghBtn) ghBtn.style.display = u.role === 'admin' ? 'inline-block' : 'none';
+  if (paramTab) paramTab.style.display = u.role === 'admin' ? 'inline-block' : 'none';
   // Oyuncu için tarih alanlarını doldur
   if (u.role === 'oyuncu') {
     const today = new Date().toISOString().slice(0,10);
@@ -928,7 +1009,7 @@ function setError(msg) {
 
 // ===================== ADMIN TABS =====================
 function adminTab(tab) {
-  const tabs = ['matches','stats','users','cv','omkladningsrum'];
+  const tabs = ['matches','stats','users','cv','omkladningsrum','parametrar'];
   document.querySelectorAll('#viewAdmin .tab').forEach((t, i) => {
     t.classList.toggle('active', tabs[i] === tab);
   });
@@ -937,6 +1018,7 @@ function adminTab(tab) {
   document.getElementById('adminUsers').style.display = tab === 'users' ? 'block' : 'none';
   document.getElementById('adminCv').style.display = tab === 'cv' ? 'block' : 'none';
   document.getElementById('adminOmkladningsrum').style.display = tab === 'omkladningsrum' ? 'block' : 'none';
+  document.getElementById('adminParametrar').style.display = tab === 'parametrar' ? 'block' : 'none';
   if (tab === 'cv') populateCvPlayerSelect();
   if (tab === 'omkladningsrum') initOmkladningsrum();
 }
@@ -2170,14 +2252,13 @@ function buildOmkTable(games, rooms) {
   let html = '<div class="table-wrap"><table><thead><tr>';
   html += '<th style="width:36px;"><input type="checkbox" onchange="omkToggleAll(this,&quot;' + tableGroup + '&quot;)" style="cursor:pointer;width:15px;height:15px;"></th>';
   html += '<th>Datum</th><th>Avspark</th><th>Arena</th><th>Hemmalag</th><th>Bortalag</th>';
-  html += '<th>Hemma rum</th><th>Borta rum</th><th>Anteckningar</th><th></th>';
   html += '</tr></thead><tbody>';
 
   games.forEach(function(g) {
     var dt      = new Date(g.gameDate);
     var dateStr = dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'});
     var timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'});
-    var saved   = rooms[g.gameId] || {};
+
 
     var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
     var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
@@ -2197,10 +2278,7 @@ function buildOmkTable(games, rooms) {
     html += '<td style="font-size:0.8rem;color:var(--muted);">' + (g.arenaName || '—') + '</td>';
     html += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + '">' + hLogoHtml + (g.homeTeam || '—') + '</td>';
     html += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">' + aLogoHtml + (g.awayTeam || '—') + '</td>';
-    html += '<td style="color:' + (saved.homeRoom ? 'var(--text)' : 'var(--muted)') + ';">' + (saved.homeRoom || '—') + '</td>';
-    html += '<td style="color:' + (saved.awayRoom ? 'var(--text)' : 'var(--muted)') + ';">' + (saved.awayRoom || '—') + '</td>';
-    html += '<td style="color:var(--muted);font-size:0.82rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (saved.notes||'') + '">' + (saved.notes || '—') + '</td>';
-    html += '<td><button onclick="openOmkModal(' + g.gameId + ')" class="btn btn-secondary" style="padding:0.25rem 0.7rem;font-size:0.8rem;">✏️</button></td>';
+
     html += '</tr>';
   });
 
@@ -2452,7 +2530,7 @@ async function openSparadeSession(sessionName) {
       var isSFK_away = row.away_team && row.away_team.includes('Sollentuna');
       var lStyle = 'width:18px;height:18px;object-fit:contain;border-radius:3px;vertical-align:middle;margin-right:4px;';
 
-      html += '<tr style="' + dayBorder2 + '">';
+      html += '<tr id="sparade_row_' + row.game_id + '" style="' + dayBorder2 + '">';
       html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
       html += '<td style="font-weight:600;">' + timeStr + '</td>';
       html += '<td style="font-size:0.8rem;color:var(--muted);">' + (row.arena_name||'—') + '</td>';
@@ -2753,7 +2831,7 @@ function renderNastaContent(games) {
       var dt      = new Date(g.gameDate);
       var dateStr = dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'});
       var timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'});
-      var saved   = rooms[g.gameId] || {};
+  
       var roomList = getRoomsForArena(g.arenaId);
       var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
       var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
@@ -2764,11 +2842,12 @@ function renderNastaContent(games) {
       var awayIn  = calcDefaultTime(g.gameDate, -60);
       var awayOut = calcDefaultTime(g.gameDate, 135);
 
-      function makeRoomSelect(id, current) {
+      function makeRoomSelect(id, current, defaultVal) {
+        var val = current || defaultVal || '';
         var s = '<select id="' + id + '" style="width:100%;min-width:130px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;">';
         s += '<option value="">— Rum —</option>';
         roomList.forEach(function(r) {
-          s += '<option value="' + r + '"' + (current === r ? ' selected' : '') + '>' + r + '</option>';
+          s += '<option value="' + r + '"' + (val === r ? ' selected' : '') + '>' + r + '</option>';
         });
         s += '</select>';
         return s;
@@ -2797,16 +2876,18 @@ function renderNastaContent(games) {
         h += '<img src="' + homeLogo + '" style="' + logoStyle + '" onerror="this.remove()"> ';
       }
       h += (g.homeTeam||'—') + '</td>';
-      h += '<td>' + makeRoomSelect('nasta_home_' + g.gameId, saved.homeRoom) + '</td>';
+      var isSFKHome = g.homeTeam && g.homeTeam.includes('Sollentuna');
+      var defaultHomeRoom = isSFKHome ? roomList[0] : roomList[1]; // SFK→Rum1, rakip→Rum2
+      h += '<td>' + makeRoomSelect('nasta_home_' + g.gameId, saved.homeRoom, defaultHomeRoom) + '</td>';
       h += '<td>' + makeTimeSelect('nasta_home_in_' + g.gameId, homeIn) + '</td>';
       h += '<td>' + makeTimeSelect('nasta_home_out_' + g.gameId, homeOut) + '</td>';
       // Meddelande — rowspan 2
       h += '<td rowspan="2" style="min-width:180px;vertical-align:top;padding-top:0.4rem;">';
       h += '<div style="display:flex;flex-direction:column;gap:0.35rem;">';
       h += '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;">';
-      h += '<input type="checkbox" id="nasta_msg_home_' + g.gameId + '"> Hemmalag: lamna rum</label>';
+      h += '<input type="checkbox" id="nasta_msg_home_' + g.gameId + '"> Hemmalag: lämna rum</label>';
       h += '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;">';
-      h += '<input type="checkbox" id="nasta_msg_away_' + g.gameId + '"> Bortalag: lamna rum</label>';
+      h += '<input type="checkbox" id="nasta_msg_away_' + g.gameId + '"> Bortalag: lämna rum</label>';
       h += '<input type="text" id="nasta_msg_own_' + g.gameId + '" placeholder="Egen text..." value="' + (saved.notes||'') + '" ';
       h += 'style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;">';
       h += '</div></td>';
@@ -2819,7 +2900,9 @@ function renderNastaContent(games) {
         h += '<img src="' + awayLogo + '" style="' + logoStyle + '" onerror="this.remove()"> ';
       }
       h += (g.awayTeam||'—') + '</td>';
-      h += '<td>' + makeRoomSelect('nasta_away_' + g.gameId, saved.awayRoom) + '</td>';
+      var isSFKAway = g.awayTeam && g.awayTeam.includes('Sollentuna');
+      var defaultAwayRoom = isSFKAway ? roomList[0] : roomList[1]; // SFK→Rum1, rakip→Rum2
+      h += '<td>' + makeRoomSelect('nasta_away_' + g.gameId, saved.awayRoom, defaultAwayRoom) + '</td>';
       h += '<td>' + makeTimeSelect('nasta_away_in_' + g.gameId, awayIn) + '</td>';
       h += '<td>' + makeTimeSelect('nasta_away_out_' + g.gameId, awayOut) + '</td>';
       h += '</tr>';
@@ -2854,8 +2937,8 @@ async function saveAllOmkRooms() {
     const msgAway  = document.getElementById('nasta_msg_away_' + g.gameId)?.checked || false;
     const ownText  = document.getElementById('nasta_msg_own_' + g.gameId)?.value?.trim() || '';
     const msgs = [];
-    if (msgHome) msgs.push('Hemmalag: lamna rum innan matchstart');
-    if (msgAway) msgs.push('Bortalag: lamna rum innan matchstart');
+    if (msgHome) msgs.push('Hemmalag: lämna rum innan matchstart');
+    if (msgAway) msgs.push('Bortalag: lämna rum innan matchstart');
     if (ownText) msgs.push(ownText);
     return {
       gameId: g.gameId, gameDate: g.gameDate,
@@ -3041,8 +3124,8 @@ function printOmkNasta() {
       var msgAway  = document.getElementById('nasta_msg_away_' + g.gameId)?.checked;
       var ownText  = document.getElementById('nasta_msg_own_' + g.gameId)?.value || '';
       var msgs = [];
-      if (msgHome) msgs.push('Hemmalag: lamna rum innan matchstart');
-      if (msgAway) msgs.push('Bortalag: lamna rum innan matchstart');
+      if (msgHome) msgs.push('Hemmalag: lämna rum innan matchstart');
+      if (msgAway) msgs.push('Bortalag: lämna rum innan matchstart');
       if (ownText) msgs.push(ownText);
       var msgStr = msgs.join(' | ') || '—';
       var hc = g.homeTeam?.includes('Sollentuna') ? ' class="sfk"' : '';
