@@ -649,22 +649,29 @@ module.exports = async (req, res) => {
       const mfToken = await getMinfotbollToken();
       const overview = await minfotbollGet(`/api/magazinegameviewapi/initgameoverview?GameID=${gameId}`, mfToken);
       const arena = overview?.Arena || {};
-      const homeTeam = overview?.HomeTeam || {};
-      const awayTeam = overview?.AwayTeam || {};
+      // GameResults içinden takım bilgisi çek
+      const results = overview?.GameResults || {};
+      const homeTeamId   = results.HomeTeamID || null;
+      const awayTeamId   = results.AwayTeamID || null;
+      const homeTeamName = results.HomeTeamName || results.HomeTeamDisplayName || null;
+      const awayTeamName = results.AwayTeamName || results.AwayTeamDisplayName || null;
+      const homeClubId   = results.HomeTeamClubID || null;
+      const awayClubId   = results.AwayTeamClubID || null;
+      // GameStats'tan da dene
+      const stats = overview?.GameStats || {};
       return res.status(200).json({
         arenaId: arena.ArenaID || null,
         arenaName: arena.ArenaName || null,
         latitude: arena.Latitude || null,
         longitude: arena.Longitude || null,
-        homeTeamId: homeTeam.TeamID || null,
-        homeTeamName: homeTeam.TeamName || homeTeam.DisplayName || null,
-        homeClubId: homeTeam.ClubID || null,
-        homeClubName: homeTeam.ClubName || null,
-        awayTeamId: awayTeam.TeamID || null,
-        awayTeamName: awayTeam.TeamName || awayTeam.DisplayName || null,
-        awayClubId: awayTeam.ClubID || null,
-        awayClubName: awayTeam.ClubName || null,
-        raw_keys: Object.keys(overview || {}).join(','),
+        homeTeamId: homeTeamId || stats.HomeTeamID || null,
+        homeTeamName: homeTeamName || null,
+        homeClubId: homeClubId || null,
+        awayTeamId: awayTeamId || stats.AwayTeamID || null,
+        awayTeamName: awayTeamName || null,
+        awayClubId: awayClubId || null,
+        raw_results: JSON.stringify(results).slice(0,300),
+        raw_stats: JSON.stringify(stats).slice(0,300),
       });
     } catch(e) {
       return res.status(500).json({ error: e.message });
