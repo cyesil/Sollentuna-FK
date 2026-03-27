@@ -153,6 +153,7 @@
     /* TABLE */
     .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
     table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    tbody + tbody { border-top: 3px solid var(--accent); }
     th { background: var(--surface2); color: var(--muted); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase; padding: 0.75rem 0.6rem; text-align: left; cursor: pointer; white-space: nowrap; }
     th:hover { color: var(--text); }
     td { padding: 0.65rem 0.6rem; border-top: 1px solid var(--border); }
@@ -2829,7 +2830,7 @@ function renderNastaContent(games) {
     h += '<th>Datum</th><th>Avspark</th><th>Arena</th>';
     h += '<th>Lag</th><th>Rum</th><th>In</th><th>Ut</th>';
     h += '<th>Meddelande</th>';
-    h += '</tr></thead><tbody>';
+    h += '</tr></thead><tbody>';  // ilk tbody — forEach'de her maç için yeni tbody açılır
 
     gList.forEach(function(g, gIdx) {
       var dt      = new Date(g.gameDate);
@@ -2868,11 +2869,10 @@ function renderNastaContent(games) {
       var prevNastaDate = prevNastaGame ? new Date(prevNastaGame.gameDate).toISOString().slice(0,10) : null;
       var curNastaDate  = new Date(g.gameDate).toISOString().slice(0,10);
       var nastaNewDay   = prevNastaDate && prevNastaDate !== curNastaDate;
-      var nastaTopBorder = nastaNewDay
-        ? 'border-top:3px solid var(--accent);outline:2px solid rgba(0,212,255,0.3);outline-offset:-1px;'
-        : 'border-top:2px solid var(--border);';
+      // Gün değişimi — her maç grubunu <tbody> ile sar
+      h += '</tbody><tbody' + (nastaNewDay ? ' style="border-top:3px solid var(--accent);"' : '') + '>';
       // Hemma satırı
-      h += '<tr style="' + nastaTopBorder + '">';
+      h += '<tr>';
       h += '<td rowspan="2" style="color:var(--muted);font-size:0.82rem;white-space:nowrap;vertical-align:top;padding-top:0.6rem;">' + dateStr + '</td>';
       h += '<td rowspan="2" style="font-weight:600;white-space:nowrap;vertical-align:top;padding-top:0.6rem;">' + timeStr + '</td>';
       h += '<td rowspan="2" style="font-size:0.8rem;color:var(--muted);vertical-align:top;padding-top:0.6rem;">' + (g.arenaName||'—') + '</td>';
