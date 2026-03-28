@@ -593,6 +593,7 @@
             <button class="btn btn-primary" id="omkHamtaBtn" onclick="loadOmkladningsrum()">🏟️ Hämta matcher</button>
             <button class="btn btn-success" onclick="omkNasta()" id="omkNastaBtn" style="display:none;">Nästa →</button>
             <button class="btn btn-secondary" id="omkSparadeBtn" onclick="loadSparadeAtamalar()">📋 Sparade</button>
+            <button class="btn btn-secondary" onclick="openAddManualModal()" title="Lägg till match manuellt">➕ Manuell match</button>
 
           </div>
         </div>
@@ -669,6 +670,57 @@
               <button onclick="closeOmkModal()" class="btn btn-secondary">Avbryt</button>
             </div>
             <div id="omkModalMsg" style="margin-top:0.75rem;font-size:0.85rem;min-height:1.2rem;"></div>
+          </div>
+        </div>
+
+        <!-- Manuel maç ekleme modal -->
+        <div id="addManualModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;">
+          <div style="background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:1.75rem;min-width:440px;max-width:540px;box-shadow:0 8px 40px rgba(0,212,255,0.15);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;color:var(--accent);">➕ Lägg till match manuellt</div>
+              <button onclick="closeAddManualModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;">✕</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+              <div>
+                <label style="font-size:0.75rem;color:var(--accent);display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.5px;">🏠 Hemmalag</label>
+                <input id="manualHomeTeam" type="text" placeholder="t.ex. Sollentuna FK P16" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.7rem;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.5px;">✈️ Bortalag</label>
+                <input id="manualAwayTeam" type="text" placeholder="t.ex. AIK P16" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.7rem;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+              <div>
+                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.5px;">📅 Datum &amp; tid</label>
+                <input id="manualGameDate" type="datetime-local" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.7rem;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.5px;">🏟️ Arena</label>
+                <select id="manualArena" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.7rem;border-radius:8px;font-size:0.9rem;">
+                  <optgroup label="Norrviken">
+                    <option value="21808|Norrvikens IP 1">Norrvikens IP 1</option>
+                    <option value="21815|Norrvikens IP 2 Hall">Norrvikens IP 2 Hall</option>
+                    <option value="20977|Sollentuna Fotbollshall 1">Sollentuna Fotbollshall 1</option>
+                    <option value="20976|Sollentuna Fotbollshall">Sollentuna Fotbollshall</option>
+                  </optgroup>
+                  <optgroup label="Edsbergs">
+                    <option value="20586|Edsbergs Sportfält">Edsbergs Sportfält</option>
+                    <option value="20588|Edsbergs Sportfält 2">Edsbergs Sportfält 2</option>
+                    <option value="20591|Edsbergs Sportfält 3">Edsbergs Sportfält 3</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+            <div style="margin-bottom:1rem;">
+              <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.5px;">🏷️ Etikett (valfri anledning)</label>
+              <input id="manualLabel" type="text" placeholder="t.ex. Bortalag spelar på vår arena" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.7rem;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+            </div>
+            <div style="display:flex;gap:0.75rem;">
+              <button onclick="saveManualGame()" class="btn btn-primary" style="flex:1;">💾 Lägg till</button>
+              <button onclick="closeAddManualModal()" class="btn btn-secondary">Avbryt</button>
+            </div>
+            <div id="addManualMsg" style="margin-top:0.75rem;font-size:0.85rem;min-height:1.2rem;"></div>
           </div>
         </div>
       </div>
@@ -2165,12 +2217,14 @@ async function loadOmkladningsrum() {
   omkContent.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 0.5rem;"></div>Hämtar matcher...</div>';
 
   try {
-    const [gamesRes, roomsRes] = await Promise.all([
+    const [gamesRes, roomsRes, manualRes] = await Promise.all([
       fetch('/api/admin?' + new URLSearchParams({action:'arenagames', dateFrom:from, dateTo:to}), {headers: authHeaders()}),
-      fetch('/api/admin?' + new URLSearchParams({action:'getrooms', from, to}), {headers: authHeaders()})
+      fetch('/api/admin?' + new URLSearchParams({action:'getrooms', from, to}), {headers: authHeaders()}),
+      fetch('/api/admin?' + new URLSearchParams({action:'getrooms', manual:'true', from, to}), {headers: authHeaders()})
     ]);
-    const d     = await gamesRes.json();
-    const rooms = await roomsRes.json();
+    const d       = await gamesRes.json();
+    const rooms   = await roomsRes.json();
+    const manuals = await manualRes.json();
 
     _roomAssignments = {};
     if (Array.isArray(rooms)) {
@@ -2179,11 +2233,37 @@ async function loadOmkladningsrum() {
       });
     }
 
-    if (!d.games || !d.games.length) {
+    // Manuel maçları arenagames formatına çevir ve birleştir
+    const manualGames = Array.isArray(manuals) ? manuals.map(function(m) {
+      return {
+        gameId    : m.game_id,
+        gameDate  : m.game_date,
+        homeTeam  : m.home_team,
+        awayTeam  : m.away_team,
+        arenaId   : m.arena_id,
+        arenaName : m.arena_name,
+        homeLogo  : m.home_logo || null,
+        awayLogo  : m.away_logo || null,
+        leagueName: m.manual_label || 'Manuel match',
+        gameType  : 'manuel',
+        isManual  : true,
+      };
+    }) : [];
+
+    const apiGames = (d.games || []);
+    // Manuel maçların game_id'si API maçlarıyla çakışmasın diye filtrele
+    const apiIds = new Set(apiGames.map(function(g) { return g.gameId; }));
+    const uniqueManuals = manualGames.filter(function(g) { return !apiIds.has(g.gameId); });
+
+    const allGames = [...apiGames, ...uniqueManuals].sort(function(a,b) {
+      return new Date(a.gameDate) - new Date(b.gameDate);
+    });
+
+    if (!allGames.length) {
       omkContent.innerHTML = '<div class="empty-state">Inga matcher hittades</div>';
       return;
     }
-    window._omkAllGames = d.games;
+    window._omkAllGames = allGames;
     window._omkRooms    = _roomAssignments;
     if (!_omkCurrentWeekStart) {
       _omkCurrentWeekStart = new Date(from);
@@ -2286,13 +2366,13 @@ function buildOmkTable(games, rooms) {
     var prevDate = prevGame ? new Date(prevGame.gameDate).toISOString().slice(0,10) : null;
     var curDate  = new Date(g.gameDate).toISOString().slice(0,10);
     var dayBorder = (prevDate && prevDate !== curDate) ? 'border-top:3px solid var(--accent);' : '';
-    html += '<tr id="omk_row_' + g.gameId + '" style="' + dayBorder + '">';
+    html += '<tr id="omk_row_' + g.gameId + '" style="' + dayBorder + (g.isManual ? 'background:rgba(255,200,0,0.05);' : '') + '">';
     html += '<td><input type="checkbox" class="omk-check ' + tableGroup + '" data-gameid="' + g.gameId + '" onchange="omkCheckChange()" style="cursor:pointer;width:15px;height:15px;"></td>';
     html += '<td style="color:var(--muted);font-size:0.82rem;white-space:nowrap;">' + dateStr + '</td>';
     html += '<td style="font-weight:600;">' + timeStr + '</td>';
     html += '<td style="font-size:0.8rem;color:var(--muted);">' + (g.arenaName || '—') + '</td>';
     html += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + '">' + hLogoHtml + (g.homeTeam || '—') + '</td>';
-    html += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">' + aLogoHtml + (g.awayTeam || '—') + '</td>';
+    html += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">' + aLogoHtml + (g.awayTeam || '—') + (g.isManual ? ' <span title="' + (g.leagueName||'Manuel match') + '" style="font-size:0.7rem;background:rgba(255,200,0,0.2);color:#ffc800;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:600;">MANUELL</span>' : '') + '</td>';
 
     html += '</tr>';
   });
@@ -2374,6 +2454,82 @@ function closeOmkModal() {
   document.getElementById('omkModal').style.display = 'none';
   _omkModalGameId = null;
 }
+
+// ── Manuel maç ekleme ──────────────────────────────────────
+function openAddManualModal() {
+  // Tarih alanını bugüne varsayılan ayarla
+  var now = new Date();
+  now.setMinutes(0, 0, 0);
+  var local = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  document.getElementById('manualGameDate').value = local;
+  document.getElementById('manualHomeTeam').value = '';
+  document.getElementById('manualAwayTeam').value = '';
+  document.getElementById('manualLabel').value = '';
+  document.getElementById('addManualMsg').textContent = '';
+  document.getElementById('addManualModal').style.display = 'flex';
+}
+
+function closeAddManualModal() {
+  document.getElementById('addManualModal').style.display = 'none';
+}
+
+async function saveManualGame() {
+  var homeTeam  = document.getElementById('manualHomeTeam').value.trim();
+  var awayTeam  = document.getElementById('manualAwayTeam').value.trim();
+  var gameDate  = document.getElementById('manualGameDate').value;
+  var arenaVal  = document.getElementById('manualArena').value;
+  var label     = document.getElementById('manualLabel').value.trim();
+  var msgEl     = document.getElementById('addManualMsg');
+
+  if (!homeTeam || !awayTeam) { msgEl.style.color = '#f55'; msgEl.textContent = 'Hemmalag och bortalag krävs.'; return; }
+  if (!gameDate)               { msgEl.style.color = '#f55'; msgEl.textContent = 'Datum och tid krävs.';         return; }
+  if (!arenaVal)               { msgEl.style.color = '#f55'; msgEl.textContent = 'Välj en arena.';               return; }
+
+  var arenaParts = arenaVal.split('|');
+  var arenaId    = parseInt(arenaParts[0]);
+  var arenaName  = arenaParts[1];
+
+  // Benzersiz negatif game_id üret (timestamp bazlı)
+  var gameId = -(Date.now() % 2147483647);
+
+  msgEl.style.color = 'var(--muted)';
+  msgEl.textContent = 'Sparar...';
+
+  try {
+    var res = await fetch('/api/admin?action=saveroom', {
+      method: 'POST',
+      headers: Object.assign({'Content-Type': 'application/json'}, authHeaders()),
+      body: JSON.stringify({
+        game_id     : gameId,
+        game_date   : new Date(gameDate).toISOString(),
+        home_team   : homeTeam,
+        away_team   : awayTeam,
+        arena_id    : arenaId,
+        arena_name  : arenaName,
+        is_manual   : true,
+        manual_label: label || null,
+        status      : 'pending'
+      })
+    });
+    var data = await res.json();
+    if (data.ok) {
+      msgEl.style.color = '#4caf50';
+      msgEl.textContent = '✅ Match tillagd!';
+      setTimeout(function() {
+        closeAddManualModal();
+        // Listeyi yenile
+        if (window._omkAllGames) loadOmkladningsrum();
+      }, 800);
+    } else {
+      msgEl.style.color = '#f55';
+      msgEl.textContent = 'Fel: ' + (data.error || 'okänt fel');
+    }
+  } catch(e) {
+    msgEl.style.color = '#f55';
+    msgEl.textContent = 'Fel: ' + e.message;
+  }
+}
+// ───────────────────────────────────────────────────────────
 
 async function saveOmkRoom() {
   if (!_omkModalGameId) return;
