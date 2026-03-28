@@ -3105,10 +3105,9 @@ function checkDoubleBooking() {
       var outEl  = document.getElementById('nasta_' + team + '_out_' + g.gameId);
       var isConflict = conflictKeys.has(g.gameId + '_' + team);
       var border = isConflict ? '2px solid #f55' : '1px solid var(--border)';
-      var bg     = isConflict ? 'rgba(255,80,80,0.15)' : 'var(--surface2)';
-      if (roomEl) { roomEl.style.border = border; roomEl.style.background = bg; }
-      if (inEl)   { inEl.style.border   = border; inEl.style.background   = bg; }
-      if (outEl)  { outEl.style.border  = border; outEl.style.background  = bg; }
+      if (roomEl) { roomEl.style.border = border; roomEl.style.background = 'var(--surface2)'; }
+      if (inEl)   { inEl.style.border   = border; inEl.style.background   = 'var(--surface2)'; }
+      if (outEl)  { outEl.style.border  = border; outEl.style.background  = 'var(--surface2)'; }
     });
   });
 }
