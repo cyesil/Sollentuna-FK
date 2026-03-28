@@ -946,6 +946,15 @@ module.exports = async (req, res) => {
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
 
+  if (action === 'clubteams') {
+    try {
+      const mfToken = await getMinfotbollToken();
+      const clubId = req.query.clubId || '4485';
+      const data = await minfotbollGet(`/api/clubapi/initclubteams?ClubID=${clubId}`, mfToken);
+      return res.status(200).json(data);
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
 if (action === 'clubgames') {
     try {
       const mfToken = await getMinfotbollToken();
