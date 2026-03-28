@@ -3048,25 +3048,73 @@ function calcDefaultTime(gameDate, offsetMinutes) {
 
 function onLamnaRumChange(checkbox, selectId, gameDate) {
   if (!checkbox.checked) return;
-  // Maç başlama saatini hesapla (offset 0)
   var matchStart = calcDefaultTime(gameDate, 0);
   var select = document.getElementById(selectId);
   if (!select) return;
-  // Select'teki option'ları tara, eşleşeni seç
   for (var i = 0; i < select.options.length; i++) {
     if (select.options[i].value === matchStart) {
       select.selectedIndex = i;
       break;
     }
   }
+  checkDoubleBooking();
 }
 
 function makeTimeSelect(id, defaultVal) {
-  return '<select id="' + id + '" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;width:80px;">'
+  return '<select id="' + id + '" onchange="checkDoubleBooking()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;width:80px;">'
     + makeTimeOptions(defaultVal) + '</select>';
 }
 
+function checkDoubleBooking() {
+  var games = window._omkNastaGames || [];
+  if (!games.length) return;
+
+  // Tüm oda+saat bilgilerini topla
+  var slots = []; // {gameId, team:'home'|'away', room, inTime, outTime, arenaId}
+  games.forEach(function(g) {
+    var homeRoom = document.getElementById('nasta_home_' + g.gameId)?.value;
+    var awayRoom = document.getElementById('nasta_away_' + g.gameId)?.value;
+    var homeIn   = document.getElementById('nasta_home_in_' + g.gameId)?.value;
+    var homeOut  = document.getElementById('nasta_home_out_' + g.gameId)?.value;
+    var awayIn   = document.getElementById('nasta_away_in_' + g.gameId)?.value;
+    var awayOut  = document.getElementById('nasta_away_out_' + g.gameId)?.value;
+    if (homeRoom) slots.push({gameId: g.gameId, team:'home', room: homeRoom, inTime: homeIn, outTime: homeOut, arenaId: g.arenaId});
+    if (awayRoom) slots.push({gameId: g.gameId, team:'away', room: awayRoom, inTime: awayIn, outTime: awayOut, arenaId: g.arenaId});
+  });
+
+  // Çakışan slot'ları bul
+  var conflictKeys = new Set();
+  for (var i = 0; i < slots.length; i++) {
+    for (var j = i + 1; j < slots.length; j++) {
+      var a = slots[i], b = slots[j];
+      if (a.arenaId !== b.arenaId) continue; // Farklı arena — çakışma olmaz
+      if (a.room !== b.room || !a.room) continue; // Farklı oda
+      // Saat çakışıyor mu? (a.in < b.out && b.in < a.out)
+      if (a.inTime < b.outTime && b.inTime < a.outTime) {
+        conflictKeys.add(a.gameId + '_' + a.team);
+        conflictKeys.add(b.gameId + '_' + b.team);
+      }
+    }
+  }
+
+  // Tüm select'leri sıfırla, sonra çakışanları kırmızı yap
+  games.forEach(function(g) {
+    ['home', 'away'].forEach(function(team) {
+      var roomEl = document.getElementById('nasta_' + team + '_' + g.gameId);
+      var inEl   = document.getElementById('nasta_' + team + '_in_' + g.gameId);
+      var outEl  = document.getElementById('nasta_' + team + '_out_' + g.gameId);
+      var isConflict = conflictKeys.has(g.gameId + '_' + team);
+      var border = isConflict ? '2px solid #f55' : '1px solid var(--border)';
+      var bg     = isConflict ? 'rgba(255,80,80,0.15)' : 'var(--surface2)';
+      if (roomEl) { roomEl.style.border = border; roomEl.style.background = bg; }
+      if (inEl)   { inEl.style.border   = border; inEl.style.background   = bg; }
+      if (outEl)  { outEl.style.border  = border; outEl.style.background  = bg; }
+    });
+  });
+}
+
 function renderNastaContent(games) {
+  window._omkNastaGames = games; // checkDoubleBooking için
   var rooms = window._omkRooms || {};
 
   function buildNastaGroup(title, gList) {
@@ -3098,7 +3146,7 @@ function renderNastaContent(games) {
 
       function makeRoomSelect(id, current, defaultVal) {
         var val = current || defaultVal || '';
-        var s = '<select id="' + id + '" style="width:100%;min-width:130px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;">';
+        var s = '<select id="' + id + '" onchange="checkDoubleBooking()" style="width:100%;min-width:130px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;">';
         s += '<option value="">— Rum —</option>';
         roomList.forEach(function(r) {
           s += '<option value="' + r + '"' + (val === r ? ' selected' : '') + '>' + r + '</option>';
@@ -3186,6 +3234,7 @@ function renderNastaContent(games) {
   html += buildNastaGroup('Edsbergs Omkladningsrum', edsbergs);
   document.getElementById('omkNastaContent').innerHTML = html;
   window._omkNastaGames = games;
+  setTimeout(checkDoubleBooking, 50); // render bittikten sonra kontrol et
 }
 
 async function saveAllOmkRooms() {
