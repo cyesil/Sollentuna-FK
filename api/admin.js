@@ -618,6 +618,14 @@ module.exports = async (req, res) => {
         const rooms = await supabaseGet(path);
         return res.status(200).json(Array.isArray(rooms) ? rooms : []);
       }
+      // Manuel maçları tarih aralığına göre getir
+      if (req.query.manual === 'true') {
+        let path = `/room_assignments?is_manual=eq.true&select=*&order=game_date.asc`;
+        if (from) path += `&game_date=gte.${from}`;
+        if (to)   path += `&game_date=lte.${to}T23:59:59`;
+        const manualGames = await supabaseGet(path);
+        return res.status(200).json(Array.isArray(manualGames) ? manualGames : []);
+      }
       // Tüm session bilgilerini getir
       const path = `/room_assignments?select=session_name,game_date,updated_at&order=updated_at.desc`;
       const rows = await supabaseGet(path);
@@ -1025,7 +1033,7 @@ if (action === 'clubgames') {
     try {
       const { game_id, game_date, home_team, away_team, arena_id, arena_name,
               home_room, away_room, notes, status, extra_json,
-              home_logo, away_logo, session_name } = req.body;
+              home_logo, away_logo, session_name, is_manual, manual_label } = req.body;
       const gameIdVal = game_id || req.body.gameId;
       if (!gameIdVal) return res.status(400).json({ error: 'game_id required' });
       const row = {
@@ -1035,6 +1043,8 @@ if (action === 'clubgames') {
         extra_json: extra_json || null,
         home_logo: home_logo || null, away_logo: away_logo || null,
         session_name: session_name || null,
+        is_manual: is_manual || false,
+        manual_label: manual_label || null,
         updated_at: new Date().toISOString()
       };
       let result;
