@@ -677,7 +677,7 @@
         <div id="addManualModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;">
           <div style="background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:1.75rem;min-width:440px;max-width:540px;box-shadow:0 8px 40px rgba(0,212,255,0.15);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
-              <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;color:var(--accent);">➕ Lägg till match manuellt</div>
+              <div id="addManualModalTitle" style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;color:var(--accent);">➕ Lägg till match manuellt</div>
               <button onclick="closeAddManualModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;">✕</button>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
@@ -2343,17 +2343,18 @@ let _omkTableCounter = 0;
 function buildOmkTable(games, rooms) {
   if (!games.length) return '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0;">Inga matcher</div>';
   var tableGroup = 'omk_grp_' + (++_omkTableCounter);
+  var hasManual = games.some(function(g) { return g.isManual; });
   let html = '<div class="table-wrap"><table style="table-layout:fixed;width:100%;"><thead><tr>';
   html += '<th style="width:36px;"><input type="checkbox" onchange="omkToggleAll(this,&quot;' + tableGroup + '&quot;)" style="cursor:pointer;width:15px;height:15px;"></th>';
   html += '<th style="width:90px;">Datum</th><th style="width:60px;">Avspark</th><th style="width:140px;">Arena</th>';
   html += '<th style="width:220px;">Hemmalag</th><th style="width:220px;">Bortalag</th>';
+  if (hasManual) html += '<th style="width:70px;text-align:center;">Åtgärd</th>';
   html += '</tr></thead><tbody>';
 
   games.forEach(function(g) {
     var dt      = new Date(g.gameDate);
     var dateStr = dt.toLocaleDateString('sv-SE', {weekday:'short',day:'2-digit',month:'short'});
     var timeStr = dt.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'});
-
 
     var isSFK_home = g.homeTeam && g.homeTeam.includes('Sollentuna');
     var isSFK_away = g.awayTeam && g.awayTeam.includes('Sollentuna');
@@ -2373,6 +2374,17 @@ function buildOmkTable(games, rooms) {
     html += '<td style="font-size:0.8rem;color:var(--muted);">' + (g.arenaName || '—') + '</td>';
     html += '<td style="' + (isSFK_home ? 'color:var(--accent);font-weight:700;' : '') + '">' + hLogoHtml + (g.homeTeam || '—') + '</td>';
     html += '<td style="' + (isSFK_away ? 'color:var(--accent);font-weight:700;' : '') + '">' + aLogoHtml + (g.awayTeam || '—') + (g.isManual ? ' <span title="' + (g.leagueName||'Manuel match') + '" style="font-size:0.7rem;background:rgba(255,200,0,0.2);color:#ffc800;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:600;">MANUELL</span>' : '') + '</td>';
+
+    if (hasManual) {
+      if (g.isManual) {
+        html += '<td style="text-align:center;white-space:nowrap;">'
+          + '<button onclick="openEditManualModal(' + g.gameId + ')" title="Redigera" style="background:none;border:none;cursor:pointer;font-size:1rem;padding:2px 4px;color:var(--accent);">✏️</button>'
+          + '<button onclick="deleteManualGame(' + g.gameId + ')" title="Ta bort" style="background:none;border:none;cursor:pointer;font-size:1rem;padding:2px 4px;color:#f55;">🗑️</button>'
+          + '</td>';
+      } else {
+        html += '<td></td>';
+      }
+    }
 
     html += '</tr>';
   });
@@ -2466,11 +2478,59 @@ function openAddManualModal() {
   document.getElementById('manualAwayTeam').value = '';
   document.getElementById('manualLabel').value = '';
   document.getElementById('addManualMsg').textContent = '';
+  delete document.getElementById('addManualModal').dataset.editGameId;
+  document.getElementById('addManualModalTitle').textContent = '➕ Lägg till match manuellt';
   document.getElementById('addManualModal').style.display = 'flex';
 }
 
 function closeAddManualModal() {
   document.getElementById('addManualModal').style.display = 'none';
+}
+
+function openEditManualModal(gameId) {
+  var game = (window._omkAllGames || []).find(function(g) { return g.gameId === gameId; });
+  if (!game) return;
+  // Mevcut değerleri doldur
+  document.getElementById('manualHomeTeam').value = game.homeTeam || '';
+  document.getElementById('manualAwayTeam').value = game.awayTeam || '';
+  document.getElementById('manualLabel').value    = (game.leagueName === 'Manuel match' ? '' : game.leagueName) || '';
+  // Tarihi datetime-local formatına çevir
+  var dt = new Date(game.gameDate);
+  var local = new Date(dt - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  document.getElementById('manualGameDate').value = local;
+  // Arena seç
+  var arenaSelect = document.getElementById('manualArena');
+  for (var i = 0; i < arenaSelect.options.length; i++) {
+    if (arenaSelect.options[i].value.startsWith(game.arenaId + '|')) {
+      arenaSelect.selectedIndex = i;
+      break;
+    }
+  }
+  document.getElementById('addManualMsg').textContent = '';
+  // Kaydet butonunu güncelle — düzenleme modunda gameId'yi sakla
+  document.getElementById('addManualModal').dataset.editGameId = gameId;
+  document.getElementById('addManualModalTitle').textContent = '✏️ Redigera match';
+  document.getElementById('addManualModal').style.display = 'flex';
+}
+
+async function deleteManualGame(gameId) {
+  if (!confirm('Ta bort denna manuella match?')) return;
+  try {
+    var res = await fetch('/api/admin?action=deleteroom&gameId=' + gameId, {
+      method: 'DELETE',
+      headers: authHeaders()
+    });
+    var data = await res.json();
+    if (data.ok) {
+      // Listeden kaldır ve yeniden render et
+      window._omkAllGames = (window._omkAllGames || []).filter(function(g) { return g.gameId !== gameId; });
+      filterOmk();
+    } else {
+      alert('Fel: ' + (data.error || 'okänt fel'));
+    }
+  } catch(e) {
+    alert('Fel: ' + e.message);
+  }
 }
 
 async function saveManualGame() {
@@ -2480,6 +2540,7 @@ async function saveManualGame() {
   var arenaVal  = document.getElementById('manualArena').value;
   var label     = document.getElementById('manualLabel').value.trim();
   var msgEl     = document.getElementById('addManualMsg');
+  var editGameId = document.getElementById('addManualModal').dataset.editGameId;
 
   if (!homeTeam || !awayTeam) { msgEl.style.color = '#f55'; msgEl.textContent = 'Hemmalag och bortalag krävs.'; return; }
   if (!gameDate)               { msgEl.style.color = '#f55'; msgEl.textContent = 'Datum och tid krävs.';         return; }
@@ -2489,8 +2550,8 @@ async function saveManualGame() {
   var arenaId    = parseInt(arenaParts[0]);
   var arenaName  = arenaParts[1];
 
-  // Benzersiz negatif game_id üret (timestamp bazlı)
-  var gameId = -(Date.now() % 2147483647);
+  // Düzenleme modunda mevcut game_id'yi kullan, yeni eklemede negatif üret
+  var gameId = editGameId ? parseInt(editGameId) : -(Date.now() % 2147483647);
 
   msgEl.style.color = 'var(--muted)';
   msgEl.textContent = 'Sparar...';
@@ -2514,11 +2575,11 @@ async function saveManualGame() {
     var data = await res.json();
     if (data.ok) {
       msgEl.style.color = '#4caf50';
-      msgEl.textContent = '✅ Match tillagd!';
+      msgEl.textContent = editGameId ? '✅ Uppdaterad!' : '✅ Match tillagd!';
+      delete document.getElementById('addManualModal').dataset.editGameId;
       setTimeout(function() {
         closeAddManualModal();
-        // Listeyi yenile
-        if (window._omkAllGames) loadOmkladningsrum();
+        loadOmkladningsrum();
       }, 800);
     } else {
       msgEl.style.color = '#f55';
