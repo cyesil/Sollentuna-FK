@@ -915,6 +915,7 @@ if (action === 'clubgames') {
         comingCount: allGamesForTeams.length,
         sfkTeams: teams,
         comingSample: allGamesForTeams.slice(0, 2),
+        searchResult: req.query.gameId ? (allGamesForTeams.find(g => g.GameID === parseInt(req.query.gameId)) || null) : undefined,
       });
     } catch(e) { return res.status(500).json({ error: e.message }); }
   }
