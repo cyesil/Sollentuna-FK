@@ -753,6 +753,37 @@ module.exports = async (req, res) => {
         });
       });
 
+      // Sollentuna Utveckling FK (ClubID: 4485, TeamID: 511901) — ayrı kulüp, aynı arenalar
+      const utvecklingGames = await minfotbollGet(`/api/teamapi/getcomingteamgames?TeamID=511901`, mfToken);
+      if (Array.isArray(utvecklingGames)) {
+        utvecklingGames.forEach(g => {
+          if (!SFK_ARENA_IDS.has(g.ArenaID)) return;
+          if (seen.has(g.GameID)) return;
+          const gDate = g.GameTime ? g.GameTime.slice(0, 10) : '';
+          if (gDate < from || gDate > to) return;
+          seen.add(g.GameID);
+          allGames.push({
+            gameId    : g.GameID,
+            gameDate  : g.GameTime,
+            homeTeam  : g.HomeTeamDisplayName,
+            awayTeam  : g.AwayTeamDisplayName,
+            homeTeamId: g.HomeTeamID || null,
+            awayTeamId: g.AwayTeamID || null,
+            homeClubId: g.HomeTeamClubID || null,
+            awayClubId: g.AwayTeamClubID || null,
+            homeLogo  : g.HomeTeamClubLogoURL || null,
+            awayLogo  : g.AwayTeamClubLogoURL || null,
+            homeScore : g.HomeTeamScore ?? null,
+            awayScore : g.AwayTeamScore ?? null,
+            arenaId   : g.ArenaID,
+            arenaName : g.ArenaName,
+            leagueName: g.LeagueName || g.LeagueDisplayName || '—',
+            gameType  : getGameType(g.LeagueName || g.LeagueDisplayName || ''),
+            statusId  : g.GameStatusID,
+          });
+        });
+      }
+
       allGames.sort((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
       return res.status(200).json({ count: allGames.length, games: allGames });
     } catch(e) {
