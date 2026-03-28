@@ -888,6 +888,30 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: e.message });
     }
   }
+  if (action === 'teamgames') {
+    try {
+      const mfToken = await getMinfotbollToken();
+      const teamId = req.query.teamId || '511901';
+      // Takımın coming maçlarını çek
+      const games = await minfotbollGet(`/api/teamapi/getcomingteamgames?TeamID=${teamId}`, mfToken);
+      if (!Array.isArray(games)) return res.status(200).json({ raw: games, count: 0 });
+      return res.status(200).json({
+        count: games.length,
+        games: games.map(g => ({
+          gameId   : g.GameID,
+          gameDate : g.GameTime,
+          homeTeam : g.HomeTeamDisplayName,
+          awayTeam : g.AwayTeamDisplayName,
+          arenaId  : g.ArenaID,
+          arenaName: g.ArenaName,
+          leagueId : g.LeagueID,
+          leagueName: g.LeagueDisplayName,
+          homeClubId: g.HomeTeamClubID,
+        }))
+      });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
 if (action === 'clubgames') {
     try {
       const mfToken = await getMinfotbollToken();
