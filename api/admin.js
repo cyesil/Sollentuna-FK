@@ -715,7 +715,7 @@ module.exports = async (req, res) => {
       const allClubGames = [];
       let lastGameId = 0;
       let page = 0;
-      while (page < 20) { // max 20 sayfa (200 maç)
+      while (page < 50) { // max 50 sayfa (500 maç)
         const batch = await minfotbollGet(
           `/api/clubapi/getcomingclubgames?ClubID=1917&LastGameID=${lastGameId}`, mfToken
         );
@@ -895,7 +895,7 @@ if (action === 'clubgames') {
       // Tüm coming maçları pagination ile çek
       const allGamesForTeams = [];
       let lastId = 0;
-      for (let p = 0; p < 20; p++) {
+      for (let p = 0; p < 50; p++) {
         const batch = await minfotbollGet(`/api/clubapi/getcomingclubgames?ClubID=${clubId}&LastGameID=${lastId}`, mfToken);
         if (!Array.isArray(batch) || batch.length === 0) break;
         allGamesForTeams.push(...batch);
