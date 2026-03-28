@@ -3046,6 +3046,21 @@ function calcDefaultTime(gameDate, offsetMinutes) {
   return dt.getHours().toString().padStart(2,'0') + ':' + dt.getMinutes().toString().padStart(2,'0');
 }
 
+function onLamnaRumChange(checkbox, selectId, gameDate) {
+  if (!checkbox.checked) return;
+  // Maç başlama saatini hesapla (offset 0)
+  var matchStart = calcDefaultTime(gameDate, 0);
+  var select = document.getElementById(selectId);
+  if (!select) return;
+  // Select'teki option'ları tara, eşleşeni seç
+  for (var i = 0; i < select.options.length; i++) {
+    if (select.options[i].value === matchStart) {
+      select.selectedIndex = i;
+      break;
+    }
+  }
+}
+
 function makeTimeSelect(id, defaultVal) {
   return '<select id="' + id + '" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;width:80px;">'
     + makeTimeOptions(defaultVal) + '</select>';
@@ -3123,9 +3138,9 @@ function renderNastaContent(games) {
       h += '<td rowspan="2" style="min-width:180px;vertical-align:top;padding-top:0.4rem;">';
       h += '<div style="display:flex;flex-direction:column;gap:0.35rem;">';
       h += '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;">';
-      h += '<input type="checkbox" id="nasta_msg_home_' + g.gameId + '"> Hemmalag: lämna rum</label>';
+      h += '<input type="checkbox" id="nasta_msg_home_' + g.gameId + '" onchange="onLamnaRumChange(this,\'nasta_home_out_' + g.gameId + '\',\'' + g.gameDate + '\')"> Hemmalag: lämna rum</label>';
       h += '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;">';
-      h += '<input type="checkbox" id="nasta_msg_away_' + g.gameId + '"> Bortalag: lämna rum</label>';
+      h += '<input type="checkbox" id="nasta_msg_away_' + g.gameId + '" onchange="onLamnaRumChange(this,\'nasta_away_out_' + g.gameId + '\',\'' + g.gameDate + '\')"> Bortalag: lämna rum</label>';
       h += '<input type="text" id="nasta_msg_own_' + g.gameId + '" placeholder="Egen text..." value="' + (saved.notes||'') + '" ';
       h += 'style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.3rem 0.4rem;border-radius:6px;font-size:0.8rem;">';
       h += '</div></td>';
